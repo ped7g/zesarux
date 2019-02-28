@@ -3525,6 +3525,12 @@ z80_byte tbblue_get_value_port_register(z80_byte registro)
 			return (linea_raster&0xFF);
 		break;
 
+		// (R/W) 0x6E (110) => Tilemap Base Address
+		// (R/W) 0x6F (111) => Tile Definitions Base Address
+		// * BOTH registers have "bits 7-6 = Read back as zero, write values ignored"
+		case 110:
+		case 111:
+			return tbblue_registers[registro]&0x3F;
 
 
 
