@@ -80,6 +80,7 @@ Fixed average cpu statistics when footer is not enabled
 Fixed kempston mouse emulation on Next machine: wheel bits always return 0
 Fixed bug extracting PAWS words when a word is a pronoun
 Fixed undocumented opcode ED76: I had IM0 but it's IM1
+Fixed RETI behaviour
 Fixed loading and saving +3 .z80 snapshots
 Fixed placing menu windows when using zx desktop and machines TSConf, TBBlue, CPC and QL
 Fixed bug loading .sna files when rom 1 paged in

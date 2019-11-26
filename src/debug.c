@@ -2257,7 +2257,7 @@ void reset_extended_stack(void)
 //IMPORTANTE: Aqui se define el tamaño del los registros en binario en la estructura
 //Si se modifica dicho tamaño, actualizar este valor
 
-#define CPU_HISTORY_REGISTERS_SIZE 32
+#define CPU_HISTORY_REGISTERS_SIZE 34
 
 //Dado un puntero z80_byte, con contenido de registros en binario, retorna valores registros
 //Registros 16 bits guardados en little endian
@@ -2267,7 +2267,7 @@ void cpu_history_regs_bin_to_string(z80_byte *p,char *destino)
 	//Nota: funcion print_registers escribe antes BC que AF. Aqui ponemos AF antes, que es mas lógico
   sprintf (destino,"PC=%02x%02x SP=%02x%02x AF=%02x%02x BC=%02x%02x HL=%02x%02x DE=%02x%02x IX=%02x%02x IY=%02x%02x "
   				   "AF'=%02x%02x BC'=%02x%02x HL'=%02x%02x DE'=%02x%02x "
-				   "I=%02x R=%02x IM%d IFF%c%c (PC)=%02x%02x%02x%02x",
+				   "I=%02x R=%02x IM%d IFF%c%c (PC)=%02x%02x%02x%02x (SP)=%02x%02x",
   p[1],p[0], 	//pc
   p[3],p[2], 	//sp
   p[5],p[4], 	//af
@@ -2285,7 +2285,9 @@ void cpu_history_regs_bin_to_string(z80_byte *p,char *destino)
   p[26], 		//IM
   DEBUG_STRING_IFF12_PARAM(p[27]),  //IFF1,2
   //contenido (pc) 4 bytes
-  p[28],p[29],p[30],p[31]
+  p[28],p[29],p[30],p[31],
+  //contenido (sp) 2 bytes
+  p[33],p[32]
   );
 }
 
@@ -2351,6 +2353,9 @@ void cpu_history_regs_to_bin(z80_byte *p)
     p[29]=peek_byte_no_time(reg_pc+1);
     p[30]=peek_byte_no_time(reg_pc+2);
     p[31]=peek_byte_no_time(reg_pc+3);
+
+    p[32]=peek_byte_no_time(reg_sp);
+    p[33]=peek_byte_no_time(reg_sp+1);	
 
  
 }
