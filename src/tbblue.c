@@ -3945,8 +3945,34 @@ z80_int tbblue_tile_return_color_index(z80_byte index)
         return color_final;
 }
 
+void tbblue_do_tile_putpixel_monocrome(z80_byte pixel_color,z80_int *puntero_a_layer,int ula_over_tilemap)
+{
+	// in monocrome mode translate color index into 9bit colour from palette
+	z80_int color = tbblue_tile_return_color_index(pixel_color);
+	// then check against Global Transparency Color register (0x14 == TBBLUE_TRANSPARENT_REGISTER)
+	if (!tbblue_si_transparent(color)) {
+		//No es color transparente el que ponemos
+
+		//Vemos lo que hay en la capa
+		z80_int color_previo_capa;
+		color_previo_capa=*puntero_a_layer;
+
+		//Poner pixel tile si color de ula era transparente o bien la ula está por debajo
+		if (tbblue_si_sprite_transp_ficticio(color_previo_capa) || !ula_over_tilemap) {
+			*puntero_a_layer = color;
+		}
+
+	}
+
+}
+
 void tbblue_do_tile_putpixel(z80_byte pixel_color,z80_byte transparent_colour,z80_byte tpal,z80_int *puntero_a_layer,int ula_over_tilemap)
 {
+	if (tbblue_tiles_are_monocrome()) {
+
+		tbblue_do_tile_putpixel_monocrome(pixel_color|tpal, puntero_a_layer, ula_over_tilemap);
+
+	} else {
 
 			if (pixel_color!=transparent_colour) {
 				//No es color transparente el que ponemos
@@ -3963,7 +3989,7 @@ void tbblue_do_tile_putpixel(z80_byte pixel_color,z80_byte transparent_colour,z8
 
 			}
 
-
+	}
 }
 
 //Devuelve el color del pixel dentro de un tilemap
