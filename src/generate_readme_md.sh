@@ -8,7 +8,7 @@ cat << _EOF
 Available versions for download here:
 * Source code
 * Binary compiled versions:
-* Linux 32/64 Bits
+* GNU/Linux 32/64 Bits
 * Mac OS X
 * Windows
 * Raspberry pi (raspbian)

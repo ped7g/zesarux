@@ -66,6 +66,8 @@ extern void realjoystick_main(void);
 extern void realjoystick_set_default_functions(void);
 extern int realjoystick_hit();
 
+extern char string_dev_joystick[];
+
 extern z80_bit realjoystick_present;
 
 extern z80_bit realjoystick_disabled;

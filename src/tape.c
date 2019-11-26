@@ -71,7 +71,7 @@ z80_bit tape_any_flag_loading;
 //indica que el autoload es con load "". sino es con enter
 //0: autoload con ENTER
 //1: autoload con LOAD(J) ""
-//2: autoload con L O A D "" (para spectrum 128k spanish y chloe)
+//2: autoload con L O A D "" (para spectrum 128k spanish)
 //3: autoload con enter, cursor arriba dos veces y enter (para NextOS)
 int autoload_spectrum_loadpp_mode;
 
@@ -80,7 +80,7 @@ int autoload_spectrum_loadpp_mode;
 //z80_bit autodetect_loaders={1};
 
 //Si hay que acelerar rutinas de cargadores
-z80_bit accelerate_loaders={1};
+z80_bit accelerate_loaders={0};
 
 int (*tape_block_open)(void);
 int (*tape_block_readlength)(void);
@@ -90,7 +90,9 @@ int (*tape_block_seek)(int longitud,int direccion);
 int (*tape_out_block_open)(void);
 int (*tape_out_block_close)(void);
 int (*tape_block_save)(void *dir,int longitud);
-void (*tape_block_begin_save)(void);
+void (*tape_block_begin_save)(int longitud,z80_byte flag);
+
+int tape_out_inserted_is_pzx=0;
 
 
 //Indica si hay cintas insertadas
@@ -128,39 +130,30 @@ int tape_loading_counter=0;
 
 void draw_tape_text_top_speed(void)
 {
-	menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_TAPE,1,"TSPEED",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
+        //menu_footer_activity("TSPEED");
+        generic_footertext_print_operating("TSPEED");
 }
 
 void draw_tape_text(void)
 {
 
-		tape_loading_counter=2;
+		//tape_loading_counter=2;
 
 		//color inverso
 		if (top_speed_timer.v) {
 			draw_tape_text_top_speed();
 		}
 		else {
-			menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_TAPE,1," TAPE ",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
+                        //menu_footer_activity("TAPE");
+                        generic_footertext_print_operating("TAPE");
 		}
 
 }
 
-void delete_tape_text(void)
+/*void delete_tape_text(void)
 {
-	/*
-	int x=WINDOW_FOOTER_ELEMENT_X_TAPE;
-                                                //borrarlo, con caracter 0
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-	*/
-
-		menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_TAPE,1,"      ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
-}
+        menu_delete_footer_activity();
+}*/
 
 
 void insert_tape_load(void)
@@ -306,6 +299,8 @@ void tape_out_init(void)
 if (tape_out_file!=0) {
                         debug_printf (VERBOSE_INFO,"Initializing Out Tape File");
 
+                        tape_out_inserted_is_pzx=0;
+
                         //if (strstr(tape_out_file,".tap")!=NULL  || strstr(tape_out_file,".TAP")!=NULL) {
                         if (!util_compare_file_extension(tape_out_file,"tap") ) {
                                         debug_printf (VERBOSE_INFO,"Out TAP file detected");
@@ -322,6 +317,34 @@ if (tape_out_file!=0) {
                                         tape_block_save=tape_block_tzx_save;
                                         tape_block_begin_save=tape_block_tzx_begin_save;
                                 }
+
+                        else if (!util_compare_file_extension(tape_out_file,"pzx") ) {
+
+                                       
+
+                                        
+                                        debug_printf (VERBOSE_INFO,"Out PZX file detected");
+                                        tape_out_block_open=tape_out_block_pzx_open;
+                                        tape_out_block_close=tape_out_block_pzx_close;
+                                        tape_block_save=tape_block_pzx_save;
+                                        tape_block_begin_save=tape_block_pzx_begin_save;
+                                        tape_out_inserted_is_pzx=1;
+                                        
+
+                                       /*
+                                       Problema: las funciones de save están pensadas para formatos tap y tzx binarios,
+                                       en que al escribir el bloque, antes se le envian dos bytes con la longitud del bloque,
+                                       luego el flag, luego los datos y luego el checksum, usando siempre funcion tape_block_save
+                                       Esto para tzx y tap va perfecto. Para pzx no, dado que la longitud del bloque no viene
+                                       exactamente antes de los datos en sí
+                                       Ya he modificado la funcion tape_block_begin_save para permitir enviar longitud, antes del bloque 
+                                       en si
+                                       
+                                       Todo esto se corrige usando variable tape_out_inserted_is_pzx
+
+                                       
+                                       */
+                                }                                
 
                         else if (!util_compare_file_extension(tape_out_file,"o") ) {
                                         debug_printf (VERBOSE_INFO,"Out .O file detected");
@@ -442,7 +465,7 @@ void tap_save_ace(void)
         if (tape_out_block_open()) return;
 
         //Avisamos que vamos a escribir un bloque... en tzx se usa para meter el id correspondiente
-        tape_block_begin_save();
+        tape_block_begin_save(longitud,0);
 
         //Escribimos longitud (contando checksum)
 		//TAP en jupiter ace no incluye el flag, aunque la cinta real si
@@ -458,17 +481,7 @@ void tap_save_ace(void)
         }
 
 
-		/*
-        //Escribimos flag
-        if (tape_block_save(&flag, 1)!=1) {
-                debug_printf(VERBOSE_ERR,"Error writing flag");
-                //tape_out_file=0;
-                eject_tape_save();
-                //tape_save_inserted.v=0;
-                tape_out_block_close();
-                return;
-        }
-		*/
+		
 
         //Escribimos bytes
         longitud-=1;
@@ -842,6 +855,20 @@ void tap_load(void)
 				reg_ix=cinta_pedido_inicio++;
 
 
+                                //En principio la salida de carga siempre retorna flag Z a 0
+                                //esto corrige un problema en la carga de Rocman:
+                                //carga bloque de atributos, con "any flag loading" (flag Z' a 1), en 22527, con longitud 769
+                                //al volver de ese bloque, carga el siguiente (tal cual como esté flag Z, no lo toca),
+                                //y si no lo ponemos a 0, entonces el siguiente bloque lo cargaria como any flag loading, de nuevo,
+                                //cosa que es error, pues el siguiente bloque lo carga en 16384
+                                //de ahi que reseteemos siempre flag Z al volver
+                                //Probablemente este comportamiento sea un bug en el juego, en como carga,
+                                //pues antes de cargar el primer bloque, hace un XOR A, esto activa flag Z, cosa que no tiene sentido,
+                                //probablemente el programador vio que cargaba los atributos en 22529, sin saber por qué (metiendo en 22528 el flag),
+                                //y simplemente cambió la carga a 225287 y aumentó la longitud en 1. O no... quien sabe
+                                Z80_FLAGS &=(255-FLAG_Z);
+
+
 				debug_printf(VERBOSE_INFO,"Returning H=0x%x IX=%d",reg_h,reg_ix);
 
 			}
@@ -869,11 +896,15 @@ void tap_save(void)
 
         if (tape_out_block_open()) return;
 
-	//Avisamos que vamos a escribir un bloque... en tzx se usa para meter el id correspondiente
-	tape_block_begin_save();
-
         //Escribimos longitud (contando flag+checksum)
         longitud+=2;
+
+	//Avisamos que vamos a escribir un bloque... en tzx se usa para meter el id correspondiente
+	tape_block_begin_save(longitud,flag);        
+
+
+        //Solo hacer esto si no es un archivo tipo PZX
+        if (!tape_out_inserted_is_pzx) {
 
         if (tape_block_save(&longitud, 2)!=2) {
                 debug_printf(VERBOSE_ERR,"Error writing length");
@@ -882,6 +913,8 @@ void tap_save(void)
 		//tape_save_inserted.v=0;
 		tape_out_block_close();
                 return;
+        }
+
         }
 
 
@@ -1018,23 +1051,7 @@ int tap_load_detect(void)
                                 return 1;
                 }
 
-		if (MACHINE_IS_CHLOE_280SE)  {
 
-                                //maquina 128k. rom 1 mapeada
-				//Y ver que no haya otra pagina de 8kb mapeada
-
-				//ver segundo segmento de 8192 kb, que este rom mapeada
-				if (timex_port_f4 &2 ) return 0;
-
-                                if ((puerto_32765 & 16) ==16) return 1;
-                }
-
-                if (MACHINE_IS_CHLOE_140SE)  {
-
-                                //maquina 128k. rom 1 mapeada
-                                if ((puerto_32765 & 16) ==16)
-                                return 1;
-                }
 
                 //Para Timex
 		if (MACHINE_IS_TIMEX_TS2068) {
@@ -1200,23 +1217,6 @@ int tap_save_detect(void)
                                 return 1;
                 }
 
-	        if (MACHINE_IS_CHLOE_280SE)  {
-
-                                //maquina 128k. rom 1 mapeada
-                                //Y ver que no haya otra pagina de 8kb mapeada
-
-                                //ver segundo segmento de 8192 kb, que este rom mapeada
-                                if (timex_port_f4 &2 ) return 0;
-
-                                if ((puerto_32765 & 16) ==16) return 1;
-                }
-
-                if (MACHINE_IS_CHLOE_140SE)  {
-
-                                //maquina 128k. rom 1 mapeada
-                                if ((puerto_32765 & 16) ==16)
-                                return 1;
-                }
 
 
 		//Para Timex
@@ -1544,30 +1544,7 @@ void gestionar_autoload_spectrum(void)
 				}
 				break;
 
-			case 15:
-                                //Para Chloe 140SE
-                                //si en rom1
-
-				if ((puerto_32765 & 16) ==16 ) {
-                                        if (reg_pc==0x12a9) gestionar_autoload_spectrum_start_loadpp();
-                                }
-
-                                break;
-
-
-			case 16:
-				//Para Chloe 280SE
-				//Si rom mapeada en segmento bajo
-				if ( (timex_port_f4 &1)==0 ) {
-					//si en rom1
-	                                if ((puerto_32765 & 16) ==16 ) {
-        	                                if (reg_pc==0x12a9) gestionar_autoload_spectrum_start_loadpp();
-                	                }
-
-				}
-
-
-				break;
+			
 
 
 			case 17:
@@ -1727,6 +1704,7 @@ char realtape_wave_offset=0;
 //4= P
 //5= O
 //6= TAP
+//7= PZX
 int realtape_tipo=0;
 
 
@@ -1825,6 +1803,12 @@ void realtape_get_byte_cont(void)
                 realtape_get_byte_rwa();
                 return;
         }
+
+        if (realtape_tipo==7) {
+                //PZX
+                realtape_get_byte_rwa();
+                return;
+        }        
 
 
 }
@@ -2013,6 +1997,8 @@ void realtape_insert(void)
                 realtape_file_size=get_file_size(realtape_name_rwa);
         }
 
+    
+
         else if (!util_compare_file_extension(realtape_name,"tap")) {
                 debug_printf (VERBOSE_INFO,"Detected TAP file");
                 realtape_tipo=6;
@@ -2032,7 +2018,22 @@ void realtape_insert(void)
         }
 
 
+        else if (!util_compare_file_extension(realtape_name,"pzx")) {
+                debug_printf (VERBOSE_INFO,"Detected PZX file");
+                realtape_tipo=7;
+                if (convert_pzx_to_rwa_tmpdir(realtape_name,realtape_name_rwa)) {
+                        //debug_printf(VERBOSE_ERR,"Error converting input file");
+                        return;
+                }
 
+                if (!si_existe_archivo(realtape_name_rwa)) {
+                        debug_printf(VERBOSE_ERR,"Error converting input file. Target file not found");
+                        return;
+                }
+
+                ptr_realtape=fopen(realtape_name_rwa,"rb");
+                realtape_file_size=get_file_size(realtape_name_rwa);
+        }    
 
 
 
@@ -2427,7 +2428,7 @@ void detectar_conocidos(void)
 		char buffer_mensaje[100];
 		sprintf (buffer_mensaje,"Detected custom loader routine at address %d. Reinserting tape as Real Tape",reg_pc);
 		debug_printf (VERBOSE_INFO,buffer_mensaje);
-                screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer_mensaje);
+                screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer_mensaje);
 
 
                 //Meter como cinta real. Nos guardamos nombre
@@ -2477,7 +2478,7 @@ check_for_acceleration( void )
                 //y no de la misma manera que lo hago yo (mediante porcentaje)
                 porcentaje_velocidad_emulador=1000;
                 set_emulator_speed();
-                screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Speeding up Z80 Core on loading");
+                screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Speeding up Z80 Core on loading");
         }
   }
 
@@ -2566,3 +2567,293 @@ End loader detection
    Copyright (c) 2006 Philip Kendall
 
 */
+
+
+//Para PZX save
+
+FILE *ptr_mycinta_pzx_out;
+
+void tape_write_pzx_header_ptr(FILE *ptr_archivo)
+{
+	//"PZXT",longitud,longitud,longitud,longitud,
+        //version 1,subversion 0,
+	//"string" + 0
+
+        char cabecera[256];
+
+        char time_string[40];
+        snapshot_get_date_time_string_human(time_string);
+
+        //de momento todo ascii para poder sacar strlen
+        //----: reservado para longitud bloque.  00: reservado para version. se modifican luego
+        sprintf(cabecera,"PZXT----00Created by ZEsarUX emulator on %s",time_string);
+
+        //Incluir el 0 del final de string tambien
+        int longitud_cabecera=strlen(cabecera)+1;
+
+        //printf ("longitud cabecera: %d\n",longitud_cabecera);
+
+        z80_long_int longitud_bloque=longitud_cabecera-8; //-8 porque saltamos "PZXT" y los 4 bytes que indican la longitud
+        //printf ("longitud bloque: %d\n",longitud_bloque);
+
+        //Metemos longitud de bloque
+        cabecera[4]=longitud_bloque & 0xFF;
+        cabecera[5]=(longitud_bloque>>8) & 0xFF;
+        cabecera[6]=(longitud_bloque>>16) & 0xFF;
+        cabecera[7]=(longitud_bloque>>24) & 0xFF;
+
+        //Metemos version
+        cabecera[8]=PZX_CURRENT_MAJOR_VERSION;
+        cabecera[9]=PZX_CURRENT_MINOR_VERSION;   
+ 
+	fwrite(cabecera, 1, longitud_cabecera, ptr_archivo);
+}
+
+void tape_write_pzx_header(void)
+{
+
+	struct stat buf_stat;
+
+              //Escribir cabecera pzx. Pero si el archivo lo reutilizamos, tendra longitud>0, y no debemos reescribir la cabecera
+
+                if (stat(tape_out_file, &buf_stat)!=0) {
+			debug_printf(VERBOSE_INFO,"Unable to get status of file %s",tape_out_file);
+		}
+
+		else {
+			//Tamaño del archivo es >0
+			if (buf_stat.st_size!=0) {
+				debug_printf(VERBOSE_INFO,"PZX File already has header");
+				return;
+			}
+		}
+
+
+	debug_printf(VERBOSE_INFO,"Writing PZX header");
+
+	tape_write_pzx_header_ptr(ptr_mycinta_pzx_out);
+
+	
+}
+
+int tape_out_block_pzx_open(void)
+{
+
+        ptr_mycinta_pzx_out=fopen(tape_out_file,"ab");
+
+        if (!ptr_mycinta_pzx_out)
+        {
+                debug_printf(VERBOSE_ERR,"Unable to open output file %s",tape_out_file);
+                tape_out_file=0;
+                return 1;
+        }
+
+        return 0;
+
+}
+
+
+
+int tape_out_block_pzx_close(void)
+{
+        if (ptr_mycinta_pzx_out) fclose(ptr_mycinta_pzx_out);
+	else debug_printf (VERBOSE_ERR,"Tape uninitialized");
+        return 0;
+}
+
+
+int tape_block_pzx_save(void *dir,int longitud)
+{
+
+	if (ptr_mycinta_pzx_out) return fwrite(dir, 1, longitud, ptr_mycinta_pzx_out);
+	else {
+		debug_printf (VERBOSE_ERR,"Tape uninitialized");
+        	return -1;
+	}
+}
+
+
+void tape_block_pzx_begin_save(int longitud,z80_byte flag)
+{
+       
+        //Escribir cabecera pzx si conviene
+        tape_write_pzx_header();
+	
+
+
+
+	//Escribir id 10	
+	//pausa de 1000 ms
+	/*char buffer[]={0x10,232,3};
+	fwrite(buffer, 1, sizeof(buffer), ptr_mycinta_pzx_out);*/
+
+        //Meter pulso tono guia
+        /*
+        offset type     name   meaning
+0      u32      tag    unique identifier for the block type.
+4      u32      size   size of the block in bytes, excluding the tag and size fields themselves.
+8      u8[size] data   arbitrary amount of block data.
+        */
+
+       /*
+       
+       PULS - Pulse sequence
+---------------------
+
+offset type   name      meaning
+0      u16    count     bits 0-14 optional repeat count (see bit 15), always greater than zero
+                        bit 15 repeat count present: 0 not present 1 present
+2      u16    duration1 bits 0-14 low/high (see bit 15) pulse duration bits
+                        bit 15 duration encoding: 0 duration1 1 ((duration1<<16)+duration2)
+4      u16    duration2 optional low bits of pulse duration (see bit 15 of duration1) 
+6      ...    ...       ditto repeated until the end of the block
+
+       
+       For example, the standard pilot tone of Spectrum header block (leader < 128)
+may be represented by following sequence:
+
+0x8000+8063,2168,667,735
+
+The standard pilot tone of Spectrum data block (leader >= 128) would be:
+
+0x8000+3223,2168,667,735
+        */
+
+       z80_byte block_buffer[256];
+       block_buffer[0]='P';
+       block_buffer[1]='U';
+       block_buffer[2]='L';
+       block_buffer[3]='S';
+
+        //longitud
+       block_buffer[4]=8;
+       block_buffer[5]=0;
+       block_buffer[6]=0;
+       block_buffer[7]=0;    
+
+
+
+
+/*
+For example, the standard pilot tone of Spectrum header block (leader < 128)
+may be represented by following sequence:
+
+0x8000+8063,2168,667,735
+
+The standard pilot tone of Spectrum data block (leader >= 128) would be:
+
+0x8000+3223,2168,667,735
+*/
+
+       z80_int longitud_tono_guia=8063;
+
+       if (flag>=128) longitud_tono_guia=3223;
+
+
+        block_buffer[8]=value_16_to_8l(0x8000+longitud_tono_guia);
+        block_buffer[9]=value_16_to_8h(0x8000+longitud_tono_guia);
+
+        block_buffer[10]=value_16_to_8l(2168);
+        block_buffer[11]=value_16_to_8h(2168);
+
+        block_buffer[12]=value_16_to_8l(667);
+        block_buffer[13]=value_16_to_8h(667);
+
+        block_buffer[14]=value_16_to_8l(735);
+        block_buffer[15]=value_16_to_8h(735);                        
+	
+
+        //Escribir bloque PULS
+        fwrite(block_buffer, 1, 16, ptr_mycinta_pzx_out);
+
+
+
+        //Preparar bloque DATA
+        /*
+        DATA - Data block
+-----------------
+
+offset      type             name  meaning
+0           u32              count bits 0-30 number of bits in the data stream
+                                   bit 31 initial pulse level: 0 low 1 high
+4           u16              tail  duration of extra pulse after last bit of the block
+6           u8               p0    number of pulses encoding bit equal to 0.
+7           u8               p1    number of pulses encoding bit equal to 1.
+8           u16[p0]          s0    sequence of pulse durations encoding bit equal to 0.
+8+2*p0      u16[p1]          s1    sequence of pulse durations encoding bit equal to 1.
+8+2*(p0+p1) u8[ceil(bits/8)] data  data stream, see below.
+        */
+
+       /*
+       For example, the sequences for standard ZX Spectrum bit encoding are:
+(initial pulse level is high):
+
+bit 0: 855,855
+bit 1: 1710,1710
+        */
+
+       //z80_byte block_buffer[256];
+       block_buffer[0]='D';
+       block_buffer[1]='A';
+       block_buffer[2]='T';
+       block_buffer[3]='A';
+
+        //longitud
+        z80_long_int longitud_bloque=longitud+16; //estos 16 son desde block_buffer[8] hasta block_buffer[23]
+       block_buffer[4]=longitud_bloque & 0xFF;
+       block_buffer[5]=(longitud_bloque>>8) & 0xFF;
+       block_buffer[6]=(longitud_bloque>>16) & 0xFF;
+       block_buffer[7]=(longitud_bloque>>24) & 0xFF;      
+
+       /*
+offset      type             name  meaning
+0           u32              count bits 0-30 number of bits in the data stream
+                                   bit 31 initial pulse level: 0 low 1 high
+4           u16              tail  duration of extra pulse after last bit of the block
+6           u8               p0    number of pulses encoding bit equal to 0.
+7           u8               p1    number of pulses encoding bit equal to 1.
+8           u16[p0]          s0    sequence of pulse durations encoding bit equal to 0.
+8+2*p0      u16[p1]          s1    sequence of pulse durations encoding bit equal to 1.
+8+2*(p0+p1) u8[ceil(bits/8)] data  data stream, see below.       
+       */ 
+
+      //z80_long_int numero_bits=longitud_bloque*8;
+      z80_long_int numero_bits=longitud*8;
+ 
+       block_buffer[8]=numero_bits & 0xFF;
+       block_buffer[9]=(numero_bits>>8) & 0xFF;
+       block_buffer[10]=(numero_bits>>16) & 0xFF;
+       block_buffer[11]=((numero_bits>>24) & 0x7F) | 128; //estado inicial high   
+
+       z80_int tail=945;
+
+       block_buffer[12]=tail & 0xFF;
+       block_buffer[13]=(tail>>8) & 0xFF;       
+
+/*
+6           u8               p0    number of pulses encoding bit equal to 0.
+7           u8               p1    number of pulses encoding bit equal to 1.
+*/
+        block_buffer[14]=2;
+        block_buffer[15]=2;
+
+/*
+bit 0: 855,855
+bit 1: 1710,1710
+*/
+        block_buffer[16]=value_16_to_8l(855);
+        block_buffer[17]=value_16_to_8h(855);
+        block_buffer[18]=value_16_to_8l(855);
+        block_buffer[19]=value_16_to_8h(855);       
+
+        block_buffer[20]=value_16_to_8l(1710);
+        block_buffer[21]=value_16_to_8h(1710);
+        block_buffer[22]=value_16_to_8l(1710);
+        block_buffer[23]=value_16_to_8h(1710);   
+
+        //Escribir bloque DATA
+        fwrite(block_buffer, 1, 24, ptr_mycinta_pzx_out);        
+
+        //Y a partir de aqui ya vienen los datos, que los escribe desde tape_block_pzx_save     
+
+}

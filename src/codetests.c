@@ -41,7 +41,12 @@
 
 #include "disassemble.h"
 #include "assemble.h"
-
+#include "expression_parser.h"
+#include "audio.h"
+#include "zeng.h"
+#include "network.h"
+#include "settings.h"
+#include "atomic.h"
 
 void codetests_repetitions(void)
 {
@@ -436,7 +441,7 @@ void codetests_assembler(void)
 	printf ("Assembling\n");
 
 	//int assemble_opcode(char *texto,z80_byte *destino)
-	z80_byte destino_ensamblado[256];
+	z80_byte destino_ensamblado[MAX_DESTINO_ENSAMBLADO];
 
 
 /*	codetests_assemble_opcode("NOP",destino_ensamblado);
@@ -662,6 +667,680 @@ void codetests_assembler(void)
 
 }
 
+int codetests_expression_parser_print_tokens(token_parser *tokens)
+{
+	exp_par_debug_dump_tokens(tokens,MAX_PARSER_TOKENS_NUM);
+
+	printf ("**text from tokens: \n");
+	char buffer_destino[1024];
+
+	exp_par_tokens_to_exp(tokens,buffer_destino,MAX_PARSER_TOKENS_NUM);
+	printf ("[%s]\n\n",buffer_destino);	
+
+	printf ("Resultado expresion tokens\n");
+	int error_code;
+	int resultado=exp_par_evaluate_token(tokens,MAX_PARSER_TOKENS_NUM,&error_code);
+	printf ("%d\n",resultado);
+	return resultado;
+}
+
+void codetests_expression_parser_expect(char *string,int expected_value)
+{
+
+	printf ("\n\n\n*****Text [%s] expect to be [%d]\n",string,expected_value);
+
+	//Mis tokens de salida
+	token_parser tokens[MAX_PARSER_TOKENS_NUM];
+	int result;
+	int resultado_evaluar;
+
+	printf ("\nText to token: %s\n",string);
+	result=exp_par_exp_to_tokens(string,tokens);
+	printf ("result token: %d\n",result);
+	if (result>=0) resultado_evaluar=codetests_expression_parser_print_tokens(tokens);		
+	else {
+		printf ("ERROR!\n");
+		exit(1);
+	}
+
+	if (resultado_evaluar!=expected_value) {
+		printf ("*****ERROR text [%s] is NOT [%d]. IS [%d]\n",string,expected_value,resultado_evaluar);	
+		exit(1);
+	}
+	else {
+		printf ("*****OK text [%s] is [%d]\n",string,expected_value);	
+	}
+
+
+}
+
+z80_byte codetests_expression_parser_peek_byte_no_time(z80_int dir)
+{
+	//para testeo
+	//devolver nibble bajo de direccion
+	return dir & 0xFF;
+}
+
+void codetests_expression_parser(void)
+{
+	//void exp_par_exp_to_tokens(char *expression,token_parser *tokens)
+	//algunas inicializaciones de registros
+	current_machine_type=MACHINE_ID_SPECTRUM_48;
+	reg_a=45;
+	reg_bc=40000;
+	reg_de=30000;
+	peek_byte_no_time=codetests_expression_parser_peek_byte_no_time;
+
+	//Basicos
+	codetests_expression_parser_expect("0",0);
+	codetests_expression_parser_expect("1",1);
+
+	//Diferentes bases
+	codetests_expression_parser_expect("0%",0);
+	codetests_expression_parser_expect("1%",1);
+
+	codetests_expression_parser_expect("0H",0);
+	codetests_expression_parser_expect("1H",1);		
+
+	codetests_expression_parser_expect("101%",5);
+	codetests_expression_parser_expect("AAB0H",0xaab0);
+	codetests_expression_parser_expect("\"A\"",'A');
+	codetests_expression_parser_expect("'b'",'b');
+
+	codetests_expression_parser_expect("1111111111111111111111111111111%",2147483647);
+
+	codetests_expression_parser_expect("11111111111111111111111111111111%",(unsigned int)4294967295); 
+
+	codetests_expression_parser_expect("110%+AAH+'c'+33",6+0xaa+'c'+33);
+
+	//Unos cuantos de numeros negativos con signo
+	codetests_expression_parser_expect("-2",-2);
+	codetests_expression_parser_expect("-2+5",3);
+	codetests_expression_parser_expect("-2-6",-8);
+	codetests_expression_parser_expect("10+(-3)",7);
+	codetests_expression_parser_expect("10-(-3)",13);
+
+	//esta sintacticamente no deberia ser posible, pero lo es
+	codetests_expression_parser_expect("10--3",13);
+
+	codetests_expression_parser_expect("10-3",7);
+
+	//Unos cuantos de numeros positivos con signo
+	codetests_expression_parser_expect("+2",+2);
+	codetests_expression_parser_expect("+2+5",7);
+	codetests_expression_parser_expect("+2-6",-4);
+	codetests_expression_parser_expect("10+(+3)",13);
+	codetests_expression_parser_expect("10-(+3)",7);
+
+	//esta sintacticamente no deberia ser posible, pero lo es
+	codetests_expression_parser_expect("10++3",13);
+	
+	codetests_expression_parser_expect("10+3",13);	
+
+
+	
+	//Sumas, restas, multiplicaciones y divisiones
+	codetests_expression_parser_expect("1+1",2);
+	codetests_expression_parser_expect("2*3",6);
+	codetests_expression_parser_expect("2*3+1",7);
+	codetests_expression_parser_expect("1+2*3",7);
+
+
+	codetests_expression_parser_expect("10/2",5);
+	codetests_expression_parser_expect("4+10/2",9);
+
+	//Comparadores
+	codetests_expression_parser_expect("1=1",1);
+	codetests_expression_parser_expect("1<2",1);
+	codetests_expression_parser_expect("20>1",1);
+
+	codetests_expression_parser_expect("1<=2",1);
+	codetests_expression_parser_expect("20>=1",1);	
+
+	codetests_expression_parser_expect("20>=20",1);
+	codetests_expression_parser_expect("20<=20",1);
+
+
+	codetests_expression_parser_expect("(6-20)+2",-12);
+
+	//Este no lo pasa, debido a que acaba calculando: 6 -    20+2  ->   6-   22 -> -16
+	//codetests_expression_parser_expect("6-20+2",-12);
+
+	//Este tampoco lo pasa, acaba calculando: 10 -      1-1 -> 10 - 0 -> 10
+	//codetests_expression_parser_expect("10-1-1",8);
+
+
+	codetests_expression_parser_expect("(10-1)-1",8);
+	
+	//Operaciones mas complejas
+	codetests_expression_parser_expect("3*(6+7)",39);
+	codetests_expression_parser_expect("3*(6+7)+4",43);
+	codetests_expression_parser_expect("3*(6+7)+4=43",1);
+	codetests_expression_parser_expect("3*(6+7)+4=99",0);
+
+	codetests_expression_parser_expect("3*[6+7]+4=99",0);
+	codetests_expression_parser_expect("3*{6+7}+4=99",0);
+
+
+	codetests_expression_parser_expect("(((((5)))))",5);
+    codetests_expression_parser_expect("(( ((2)) + 4))*((5))",30);
+
+
+	//Este no lo pasa, debido a que acaba calculando:   6    -    20+2  -> 6-22 -> -16
+    //codetests_expression_parser_expect(" 2*3 - 4*5 + 6/3 ",-12);
+    
+
+	codetests_expression_parser_expect("( 2*3 - 4*5  ) + 6/3 ",-12);
+
+
+	codetests_expression_parser_expect("A",45);
+	codetests_expression_parser_expect("AH",10);
+
+	codetests_expression_parser_expect("NOT(1)",0);
+	codetests_expression_parser_expect("NOT(0)",1);
+
+	codetests_expression_parser_expect("BC+DE",70000);
+
+	codetests_expression_parser_expect("(BC+DE)",70000);
+
+	codetests_expression_parser_expect("(BC+DE)&FFFFH",4464);
+
+
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)",3*4464);
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(2+1)*((BC+DE)&FFFFH)",1);
+
+
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(2+1)*((BC+DE)&FFFFH) AND (1=1)",1);
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(2+1)*((BC+DE)&FFFFH) AND (bc=de+10000)",1);
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(2+1)*((BC+DE)&FFFFH) AND (bc=de+10001)",0);
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(2+1)*((BC+DE)&FFFFH) AND (bc=de+10000) AND (bc-de=10000)",1);
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(2+1)*((BC+DE)&FFFFH) AND (bc=de+10000) AND (bc-de=10001)",0);
+
+
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(2+1)*((BC+DE)&FFFFH) AND bc=de+10000 AND bc-de=10000",1);
+	codetests_expression_parser_expect("3  * ( (  BC +  DE ) &  FFFFH  )=( 2 + 1  )  *  (  (  BC  +  DE  )  &  FFFFH) AND    bc   =   de +  10000 AND bc - de =  10000",1);
+
+
+	codetests_expression_parser_expect("3  * ( (  BC +  DE ) &  FFFFH  )",3*4464);
+	
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(999999+1)*((BC+DE)&FFFFH) OR (bc=de+10000)",1);
+	codetests_expression_parser_expect("3*((BC+DE)&FFFFH)=(999999+1)*((BC+DE)&FFFFH) OR (bc=de+9999)",0);
+
+	codetests_expression_parser_expect("NOT(1)",0);
+	codetests_expression_parser_expect("NOT(NOT(1))",1);
+
+	codetests_expression_parser_expect("NOT(3*((BC+DE)&FFFFH))",0);
+
+
+
+	codetests_expression_parser_expect("NOT(NOT(3*((BC+DE)&FFFFH)))",1);
+
+
+	codetests_expression_parser_expect("peek(FF01H)",1);
+	codetests_expression_parser_expect("3*peek(FF02H)",6);
+	codetests_expression_parser_expect("3*peek(FF02H)+NOT(0)",7);
+
+
+	codetests_expression_parser_expect("2+(      peek(FF02H)     &    2    )",4);
+
+
+	codetests_expression_parser_expect("2+(      peek(FF02H+33)     &    7    )",2+3);
+
+
+	codetests_expression_parser_expect("2+(      peek(    FF02H   )      &    2    )",4);
+
+
+	codetests_expression_parser_expect("A*BC",1800000);
+	codetests_expression_parser_expect("A*BC+3",1800000+3);
+	codetests_expression_parser_expect("99*(A*BC+3)",99*(1800000+3));
+	codetests_expression_parser_expect("(99*(A*BC+3)) & FFFFH",7913);
+
+	printf ("\nOK ALL expression parser TESTS OK\n");
+	
+}
+
+
+void codetests_mid_test(void)
+{
+
+	//Prueba mid
+	z80_byte midi_buffer[2048];
+
+	//Metemos cabecera bloque
+	int indice=0;
+
+	int division=50;
+	int pistas=2;
+
+	//Cabecera archivo
+	indice +=mid_mete_cabecera(&midi_buffer[indice],pistas,division);
+
+
+	int inicio_pista;
+	int canal;
+	int longitud_pista;
+
+
+
+	//Inicio pista 0
+	inicio_pista=indice;
+
+	indice +=mid_mete_inicio_pista(&midi_buffer[indice],division);
+
+	canal=0;
+
+	//Nota
+	indice +=mid_mete_nota(&midi_buffer[indice],0,division,canal,60,0x40);
+	indice +=mid_mete_nota(&midi_buffer[indice],0,division,canal,61,0x40);
+	indice +=mid_mete_nota(&midi_buffer[indice],0,division,canal,62,0x40);
+
+	//Final de pista
+	indice +=mid_mete_evento_final_pista(&midi_buffer[indice]);
+
+	//Indicar longitud de pista
+	longitud_pista=indice-inicio_pista;
+
+	mid_mete_longitud_pista(&midi_buffer[inicio_pista],longitud_pista);
+
+
+
+	//Inicio pista 1
+	inicio_pista=indice;
+
+	indice +=mid_mete_inicio_pista(&midi_buffer[indice],division);
+
+	canal=1;
+
+	//Nota
+	indice +=mid_mete_nota(&midi_buffer[indice],0,division,canal,63,0x40);
+	indice +=mid_mete_nota(&midi_buffer[indice],0,division,canal,64,0x40);
+	indice +=mid_mete_nota(&midi_buffer[indice],50,division,canal,65,0x40);
+
+	//Final de pista
+	indice +=mid_mete_evento_final_pista(&midi_buffer[indice]);
+
+	//Indicar longitud de pista
+	longitud_pista=indice-inicio_pista;
+
+	mid_mete_longitud_pista(&midi_buffer[inicio_pista],longitud_pista);
+
+
+
+	//Grabar a disco
+FILE *ptr_midfile;
+
+     ptr_midfile=fopen("salida.mid","wb");
+     if (!ptr_midfile) {
+                        printf("can not write midi file\n");
+                        return;
+      }
+
+    fwrite(midi_buffer, 1, indice, ptr_midfile);
+
+
+      fclose(ptr_midfile);	
+}
+
+void codetests_zeng(void)
+{
+	zeng_key_presses elemento;
+
+	int i;
+	int tecla=0;
+
+	for (i=0;i<ZENG_FIFO_SIZE;i++) {
+		elemento.tecla=tecla;
+		elemento.pressrelease=1;
+
+		if (zeng_fifo_add_element(&elemento)) {
+			printf ("Error adding zeng\n");
+			exit(1);
+		}
+
+		tecla++;
+	}
+
+	//Elemento adicional que no cabe
+	if (!zeng_fifo_add_element(&elemento)) {
+			printf ("Error adding zeng. fifo full but does not warn\n");
+			exit(1);
+	}
+
+	//Quitar dos
+	zeng_fifo_read_element(&elemento);
+	zeng_fifo_read_element(&elemento);
+
+	//Leer elementos
+	for (i=0;i<ZENG_FIFO_SIZE-2;i++) {
+
+
+		if (zeng_fifo_read_element(&elemento)) {
+			printf ("Error reading zeng\n");
+			exit(1);
+		}
+
+		printf ("Element %d tecla %d pressrelease %d\n",i,elemento.tecla,elemento.pressrelease);
+	}	
+
+	//Agregar dos
+	elemento.tecla=100;
+	elemento.pressrelease=0;
+	zeng_fifo_add_element(&elemento);
+
+	elemento.tecla=200;
+	elemento.pressrelease=1;
+	zeng_fifo_add_element(&elemento);	
+
+	//Leer elementos
+	for (i=0;i<2;i++) {
+
+
+		if (zeng_fifo_read_element(&elemento)) {
+			printf ("Error reading zeng\n");
+			exit(1);
+		}
+
+		printf ("Element %d tecla %d pressrelease %d\n",i,elemento.tecla,elemento.pressrelease);
+	}		
+
+}
+
+
+void codetests_https()
+{
+	//http://www.zx81.nl/files.html
+	int http_code;
+	char *mem;
+	char *orig_mem;
+	char *mem_after_headers;
+	int total_leidos;
+	//int retorno=zsock_http("www.google.es","/",&http_code,&mem,&total_leidos,&mem_after_headers,0,"",1);
+
+	char redirect_url[NETWORK_MAX_URL];
+
+	int retorno=zsock_http("archive.org","/download/World_of_Spectrum_June_2017_Mirror/World%20of%20Spectrum%20June%202017%20Mirror.zip/World%20of%20Spectrum%20June%202017%20Mirror/sinclair/games/m/Mandroid.tzx.zip",
+				&http_code,&mem,&total_leidos,&mem_after_headers,0,"",1,redirect_url);
+
+	if (retorno<0) {
+		printf ("Error zsock_http\n");
+		exit(1);
+	}
+
+	orig_mem=mem;
+	
+	if (retorno==0 && mem!=NULL) printf ("Response\n%s\n",mem);
+	
+	//leer linea a linea hasta fin cabecera
+	char buffer_linea[1024];
+	int i=0;
+	int salir=0;
+	do {
+		int leidos;
+		char *next_mem;
+		if (*mem=='\n') {
+			//esto puede que no pase, linea con solo salto linea tendra un cr antes,
+			//por tanto la deteccion de esa linea se leera abajom cuando buffer linea vacia
+			salir=1;
+			mem++;
+			printf ("salir con salto linea inicial\n");
+		}
+		else {
+			next_mem=util_read_line(mem,buffer_linea,total_leidos,1024,&leidos);
+			total_leidos -=leidos;
+		
+			if (buffer_linea[0]==0) {
+				salir=1;
+				printf ("salir con linea vacia final\n");
+				mem=next_mem;
+			}
+			else {
+				printf ("cabecera %d: %s\n",i,buffer_linea);
+				i++;
+				mem=next_mem;
+			}
+		
+			if (total_leidos<=0) salir=1;
+		}
+	} while (!salir);
+	
+	printf ("respuesta despues cabeceras:\n%s\n",mem);
+	
+	
+	if (orig_mem!=NULL) free (orig_mem);
+	
+	//peticion saltando cabeceras
+	//printf ("Request skipping headers\n");
+	//retorno=zsock_http("www.google.es","/",&http_code,&mem,&total_leidos,&mem_after_headers,1,"",1);
+	//if (mem_after_headers!=NULL) printf ("Answer after headers:\n%s\n",mem_after_headers);
+	
+	//if (mem!=NULL) free (mem);
+	
+}
+
+
+void codetests_http()
+{
+	//http://www.zx81.nl/files.html
+	int http_code;
+	char *mem;
+	char *orig_mem;
+	char *mem_after_headers;
+	int total_leidos;
+	char redirect_url[NETWORK_MAX_URL];
+	int retorno=zsock_http("www.zx81.nl","/files.html",&http_code,&mem,&total_leidos,&mem_after_headers,0,"",0,redirect_url);
+	orig_mem=mem;
+	
+	if (retorno==0 && mem!=NULL) printf ("Response\n%s\n",mem);
+	
+	//leer linea a linea hasta fin cabecera
+	char buffer_linea[1024];
+	int i=0;
+	int salir=0;
+	do {
+		int leidos;
+		char *next_mem;
+		if (*mem=='\n') {
+			//esto puede que no pase, linea con solo salto linea tendra un cr antes,
+			//por tanto la deteccion de esa linea se leera abajom cuando buffer linea vacia
+			salir=1;
+			mem++;
+			printf ("salir con salto linea inicial\n");
+		}
+		else {
+			next_mem=util_read_line(mem,buffer_linea,total_leidos,1024,&leidos);
+			total_leidos -=leidos;
+		
+			if (buffer_linea[0]==0) {
+				salir=1;
+				printf ("salir con linea vacia final\n");
+				mem=next_mem;
+			}
+			else {
+				printf ("cabecera %d: %s\n",i,buffer_linea);
+				i++;
+				mem=next_mem;
+			}
+		
+			if (total_leidos<=0) salir=1;
+		}
+	} while (!salir);
+	
+	printf ("respuesta despues cabeceras:\n%s\n",mem);
+	
+	
+	if (orig_mem!=NULL) free (orig_mem);
+	
+	//peticion saltando cabeceras
+	printf ("Request skipping headers\n");
+
+	retorno=zsock_http("www.zx81.nl","/files.html",&http_code,&mem,&total_leidos,&mem_after_headers,1,"",0,redirect_url);
+	if (mem_after_headers!=NULL) printf ("Answer after headers:\n%s\n",mem_after_headers);
+	
+	if (mem!=NULL) free (mem);
+	
+}
+
+void codetests_messages_debug(char *s)
+{
+        printf ("%s\n",s);
+		fflush(stdout);
+}
+
+
+
+
+#ifdef USE_PTHREADS
+
+pthread_t thread_codetests;
+z_atomic_semaphore codetest_semaforo;
+
+
+
+
+
+void *thread_codetests_function(void *nada GCC_UNUSED)
+{
+	while (1) {
+		//Adquirir lock
+		/*while(z_atomic_test_and_set(&codetest_semaforo)) {
+			printf ("Esperando a adquirir lock en secondary pthread\n");
+		}*/
+
+
+		//printf("Message from secondary pthread\n");
+		debug_printf(VERBOSE_DEBUG,"Message from secondary pthread\n");
+		usleep(1000);
+		//printf ("hola\n");
+
+		//Liberar lock
+		z_atomic_reset(&codetest_semaforo);
+
+
+		//Pausa de test
+		usleep(1000);		
+	}
+}
+
+void codetests_atomic(void)
+{
+		//Inicializar thread
+
+	if (pthread_create( &thread_codetests, NULL, &thread_codetests_function, NULL) ) {
+		debug_printf(VERBOSE_ERR,"Can not create codetests pthread");
+		exit(1);
+	}
+
+	scr_messages_debug=codetests_messages_debug;
+	verbose_level=VERBOSE_PARANOID;
+	scr_driver_name="";
+
+	z_atomic_reset(&codetest_semaforo);
+
+	//Empezar a escribir debug info en este pthread y en el otro
+	while (1) {
+		//Adquirir lock
+		/*while(z_atomic_test_and_set(&codetest_semaforo)) {
+			printf ("Esperando a adquirir lock en primary pthread\n");
+		}*/
+
+
+		//printf("Message from primary pthread\n");
+		debug_printf(VERBOSE_DEBUG,"Message from primary pthread\n");
+		usleep(1000);
+		//printf ("hola\n");
+
+		//Liberar lock
+		z_atomic_reset(&codetest_semaforo);
+
+
+		//Pausa de test
+		usleep(1000);
+	}	
+
+}
+
+
+void *thread_codetests_network_function(void *nada GCC_UNUSED)
+{
+	while (1) {
+		printf ("Abriendo conexion desde thread secundario\n");
+		fflush(stdout);
+		int sock=z_sock_open_connection("google.es",80,0);
+		printf ("socket para thread secundario: %d\n",sock);
+		fflush(stdout);
+
+		usleep(200000);
+		if (sock>=0) {
+			printf ("cerrando socket %d\n",sock);
+			fflush(stdout);
+			z_sock_close_connection(sock);
+		}
+		else {
+			printf ("socket no abierto en thread secundario\n");
+			fflush(stdout);
+		}
+
+
+	}
+}
+
+
+pthread_t thread_network_codetests;
+
+void codetests_network_atomic(void)
+{
+		//Inicializar thread
+
+	if (pthread_create( &thread_network_codetests, NULL, &thread_codetests_network_function, NULL) ) {
+		debug_printf(VERBOSE_ERR,"Can not create codetests network pthread");
+		exit(1);
+	}
+
+	scr_messages_debug=codetests_messages_debug;
+	verbose_level=VERBOSE_PARANOID;
+	scr_driver_name="";
+
+	//Empezar a abrir conexiones tcpen este pthread y en el otro
+	while (1) {
+
+		printf ("Abriendo conexion desde thread primario\n");
+		fflush(stdout);
+		int sock=z_sock_open_connection("google.es",80,0);
+		printf ("socket para thread primario: %d\n",sock);
+		fflush(stdout);
+
+		usleep(200000);
+		if (sock>=0) {
+			printf ("cerrando socket %d\n",sock);
+			fflush(stdout);
+			z_sock_close_connection(sock);
+		}
+		else {
+			printf ("socket no abierto en thread primario\n");
+			fflush(stdout);
+		}
+
+	}	
+
+}
+
+void codetests_open_sockets_infinite(void)
+{
+	int i;
+
+	for (i=0;i<9999;i++) {
+		printf ("Creating socket %d\n",i);
+		int socket=z_sock_assign_socket();
+		if (socket<0) {
+			printf ("Error: %s\n",z_sock_get_error(socket));
+			return;
+		}
+	}
+}
+
+
+#endif
+
 void codetests_main(int main_argc,char *main_argv[])
 {
 
@@ -671,9 +1350,61 @@ void codetests_main(int main_argc,char *main_argv[])
 		exit(0);
 	}
 
-	printf ("\nRunning assembler tests\n");
-	codetests_assembler();
+	scr_messages_debug=codetests_messages_debug;
+	verbose_level=VERBOSE_PARANOID;
+	scr_driver_name="";	
 
+	//printf ("\nRunning expression parser tests\n");
+	//codetests_expression_parser();
+
+
+	//printf ("\nRunning mid tests\n");
+	//codetests_mid_test();	
+
+
+	//int lineas=get_file_lines("pruebatrans.log.1x");
+	//printf ("lineas: %d\n",lineas);
+
+
+	/*printf ("Note: %d\n",get_mid_number_note("C0"));
+	printf ("Note: %d\n",get_mid_number_note("G9"));
+	printf ("Note: %d\n",get_mid_number_note("KK"));
+	printf ("Note: %d\n",get_mid_number_note(""));*/
+
+	//printf ("\nRunning assembler tests\n");
+	//codetests_assembler();
+
+	//printf ("\nRunning zeng tests\n");
+	//init_network_tables();
+	//codetests_zeng();
+	
+	//printf ("error: %s\n",z_sock_get_error(Z_ERR_NUM_READ_SOCKET));
+
+	//codetests_open_sockets_infinite();
+	
+	//printf ("\nRunning zsock http tests\n");
+	//init_network_tables();
+	//codetests_http();
+
+	//printf ("\nRunning zsock https tests\n");
+	//init_network_tables();
+	//codetests_https();	
+
+	//int r=z_sock_close_connection(44);
+	//if (r<0) printf ("Error: %s\n",z_sock_get_error(r));
+
+//#ifdef USE_PTHREADS
+//	printf ("\nRunning atomic tests\n");
+//  init_network_tables();
+//	codetests_atomic();
+//#endif
+
+
+//#ifdef USE_PTHREADS
+//	printf ("\nRunning network atomic tests\n");
+// init_network_tables();
+//	codetests_network_atomic();
+//#endif
 
 	//printf ("\nRunning tbblue layers strings\n");
 	//codetests_tbblue_layers();

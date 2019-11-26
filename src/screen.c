@@ -83,13 +83,19 @@ int screen_text_brightness=50;
 z80_bit screen_show_splash_texts={1};
 
 //mostrar uso de cpu en footer
-z80_bit screen_show_cpu_usage={0};
+z80_bit screen_show_cpu_usage={1};
 
 //Si pantalla final rainbow se reduce tamanyo a 4/3 (dividir por 4, mult por 3)
 z80_bit screen_reduce_075={0};
 
+//Antialias al reducir
+z80_bit screen_reduce_075_antialias={1};
+
 int screen_reduce_offset_x=0;
 int screen_reduce_offset_y=0;
+
+
+z80_bit ocr_settings_not_look_23606={0};
 
 //Rutinas de pantalla
 void (*scr_refresca_pantalla) (void);
@@ -104,7 +110,16 @@ void (*scr_actualiza_tablas_teclado) (void);
 
 void (*scr_putpixel_zoom) (int x,int y,unsigned int color);
 void (*scr_putpixel_zoom_rainbow)(int x,int y,unsigned int color);
+
 void (*scr_putpixel) (int x,int y,unsigned int color);
+void (*scr_putpixel_final_rgb) (int x,int y,unsigned int color_rgb);
+void (*scr_putpixel_final) (int x,int y,unsigned int color);
+
+int (*scr_get_menu_width) (void);
+int (*scr_get_menu_height) (void);
+
+int (*scr_driver_can_ext_desktop) (void);
+
 
 void (*scr_z88_cpc_load_keymap) (void);
 
@@ -195,6 +210,9 @@ total_palette_colours total_palette_colours_array[TOTAL_PALETAS_COLORES]={
 
 //simular modo video zx80/81 en spectrum
 z80_bit simulate_screen_zx8081;
+
+//Modo 16C de pentagon
+z80_bit pentagon_16c_mode_available={0};
 
 //Refrescar pantalla spectrum sin colores. Solo para modo no realvideo
 z80_bit scr_refresca_sin_colores={0};
@@ -491,6 +509,12 @@ int detect_rainbow_border_total_frames=0;
 void (*scr_putpixel_zoom_z88) (int x,int y,unsigned color);
 
 
+//Colores usados en pantalla panic, en logo de extended desktop etc. Son los colores del rainbow de spectrum
+//rojo, amarillo, verde, cyan,negro
+int screen_colores_rainbow[]={2+8,6+8,4+8,5+8,0};
+
+int screen_colores_rainbow_nobrillo[]={2,6,4,5,0};
+
 //devuelve 1 si hay que dibujar la linea, de acorde al entrelazado
 /*
 int if_store_scanline_interlace(int y)
@@ -523,6 +547,20 @@ int si_complete_video_driver(void)
 }
 
 
+//Retorna 1 si el driver grafico permite menu normal
+int si_normal_menu_video_driver(void)
+{
+
+	//printf ("video driver: %s\n",scr_driver_name);
+
+	if (si_complete_video_driver() ) return 1;
+
+	//curses, aa, caca, pero ningun otro (ni stdout, ni simpletext, ni null... )
+        if (!strcmp(scr_driver_name,"curses")) return 1;
+        if (!strcmp(scr_driver_name,"aa")) return 1;
+        if (!strcmp(scr_driver_name,"caca")) return 1;
+        return 0;
+}
 
 //establece valor de screen_indice_inicio_pant y screen_indice_fin_pant
 void screen_set_video_params_indices(void)
@@ -952,6 +990,10 @@ z80_byte compare_char_step(z80_byte *origen,z80_byte *inverse,int step)
 
 	caracter=compare_char_tabla_step(origen,inverse,tabla_leemos,step);
 	if (caracter!=0) return caracter;
+	
+	
+	//si no consultamos a 23606/7, retornar 0
+	if (ocr_settings_not_look_23606.v) return 0;
 
 	z80_int puntero_tabla_caracteres;
 	if (MACHINE_IS_SPECTRUM_16_48) {
@@ -1036,11 +1078,12 @@ z80_byte compare_char_step(z80_byte *origen,z80_byte *inverse,int step)
 		else {
 
 			int segmento;
-	                segmento=dir / 16384;
 			z80_int dir_orig=dir;
-        	        dir = dir & 16383;
-			if (MACHINE_IS_ZXUNO_BOOTM_DISABLED) puntero=zxuno_memory_paged_new[segmento];
-			else puntero=memory_paged[segmento];
+
+			segmento=dir / 16384;
+			dir = dir & 16383;
+			puntero=memory_paged[segmento];	
+	                
 
 
 			//Segmentos de 8kb
@@ -1057,6 +1100,13 @@ z80_byte compare_char_step(z80_byte *origen,z80_byte *inverse,int step)
                                 puntero=chloe_memory_paged[segmento];
 				puntero +=dir;
                         }
+
+			else if (MACHINE_IS_ZXUNO_BOOTM_DISABLED) {
+				segmento=dir_orig / 8192;
+				dir = dir_orig & 8191;
+				puntero=zxuno_memory_paged_brandnew[segmento];
+				puntero +=dir;
+			}
 
 
 			//Segmentos de 16 kb
@@ -1899,6 +1949,439 @@ void set_putpixel_zoom(void)
 	}
 }
 
+int ancho_layer_menu_machine=0;
+int alto_layer_menu_machine=0;
+
+
+z80_int *buffer_layer_machine=NULL;
+z80_int *buffer_layer_menu=NULL;
+
+
+//Especie de semaforo que indica:
+//Pantalla esta siendo actualizada
+//o
+//Se esta reasignando layers de menu machine
+//No se pueden dar las dos condiciones a la vez, pues si esta por debajo redibujando y reasignamos layers, petara todo
+int sem_screen_refresh_reallocate_layers=0;
+
+
+int running_realloc=0;
+
+void scr_reallocate_layers_menu(int ancho,int alto)
+{
+
+	//ancho +=screen_ext_desktop_enabled*scr_driver_can_ext_desktop()*screen_ext_desktop_width*zoom_x;
+
+	debug_printf (VERBOSE_DEBUG,"Allocating memory for menu layers %d X %d",ancho,alto);
+	//debug_exec_show_backtrace();
+
+	if (!menu_overlay_activo) {
+		//No estrictamente necesario, pero evitamos usos de buffer_layer_menu o machine (especialmente desde thread de redibujo de cocoa) mientras se reasignan layers
+		debug_printf (VERBOSE_DEBUG,"Returning reallocate layers as there are no active menu");
+		return;
+	}
+
+	//Si el tamanyo anterior es igual que ahora, no tiene sentido tocarlo
+	if (ancho_layer_menu_machine==ancho && alto_layer_menu_machine==alto) {
+		debug_printf (VERBOSE_DEBUG,"Returning reallocate layers as the current size is the same as the new (%d X %d)",ancho,alto);
+		return;
+	}
+
+
+	if (running_realloc) {
+		debug_printf (VERBOSE_DEBUG,"Another realloc already running. sem_screen_refresh_reallocate_layers: %d width %d height %d",sem_screen_refresh_reallocate_layers,ancho,alto);
+		return;
+	}
+
+  if (running_realloc) debug_printf (VERBOSE_DEBUG,"Reallocate layers, screen currently reallocating... wait");
+
+	while (running_realloc) {
+		//printf ("screen currently reallocating... wait\n");
+		usleep(100);
+	}	
+
+	running_realloc=1;
+
+	//No se puede reasignar layers si esta por debajo refrescando pantalla. Esperar a que finalice
+	if (sem_screen_refresh_reallocate_layers) debug_printf (VERBOSE_DEBUG,"Reallocate layers, screen currently redrawing... wait");
+	while (sem_screen_refresh_reallocate_layers) {
+		//printf ("screen currently redrawing... wait\n");
+		usleep(100);
+	}
+
+	sem_screen_refresh_reallocate_layers=1;
+
+
+
+
+	ancho_layer_menu_machine=ancho;
+	alto_layer_menu_machine=alto;	
+
+	//printf ("antes buffer_layer_machine %p buffer_layer_menu %p\n",buffer_layer_machine,buffer_layer_menu);
+	
+	//Liberar si conviene
+	if (buffer_layer_machine!=NULL) {
+		//printf ("liberando buffer_layer_machine\n");
+		free (buffer_layer_machine);
+		buffer_layer_machine=NULL;
+	}
+
+	//printf ("despues si liberar buffer_layer_machine\n");
+	
+	if (buffer_layer_menu!=NULL) {
+		//printf ("Liberando buffer_layer_menu\n");
+		free(buffer_layer_menu);
+		buffer_layer_menu=NULL;
+	}
+
+
+	//printf ("despues si liberar buffer_layer_menu\n");
+
+	//Asignar
+	int size_layers=ancho_layer_menu_machine*alto_layer_menu_machine*sizeof(z80_int);
+
+	//printf ("Asignando layer tamanyo %d\n",size_layers);
+
+	buffer_layer_machine=malloc(size_layers);
+	buffer_layer_menu=malloc(size_layers);
+
+
+	//printf ("despues buffer_layer_machine %p buffer_layer_menu %p\n",buffer_layer_machine,buffer_layer_menu);
+
+	if (buffer_layer_machine==NULL || buffer_layer_menu==NULL) {
+		//printf ("Cannot allocate memory for menu layers\n");
+		cpu_panic("Cannot allocate memory for menu layers");	
+	}
+
+
+	//Inicializar layers. Esto puede dar problemas si se llama aqui sin tener el driver de video inicializado del todo
+	//por esto hay que tener cuidado en que cuando se llama aqui, esta todo correcto
+	//Si esto da problemas, quiza quitar el scr_clear_layer_menu y hacerlo mas tarde
+	//o quiza scr_clear_layer_menu no deberia llamar a scr_redraw_machine_layer(); (y llamar a ahi desde otro sitio)
+
+	scr_clear_layer_menu();
+
+
+	sem_screen_refresh_reallocate_layers=0;	
+
+	running_realloc=0;
+
+}
+
+void scr_init_layers_menu(void)
+{
+	int ancho,alto;
+
+	ancho=screen_get_window_size_width_zoom_border_en();
+
+	ancho +=screen_ext_desktop_enabled*scr_driver_can_ext_desktop()*screen_ext_desktop_width*zoom_x;
+
+  alto=screen_get_window_size_height_zoom_border_en();
+
+	scr_reallocate_layers_menu(ancho,alto);
+
+}
+
+void scr_putpixel_layer_menu(int x,int y,int color)
+{
+	        int xzoom=x*zoom_x;
+        int yzoom=y*zoom_y;
+
+				int zx,zy;
+
+
+        //Escalado a zoom indicado
+        for (zx=0;zx<zoom_x;zx++) {
+                for (zy=0;zy<zoom_y;zy++) {
+												int xdestino=xzoom+zx;
+												int ydestino=yzoom+zy;
+                        //scr_putpixel(xzoom+zx,yzoom+zy,color);
+												if (buffer_layer_menu==NULL) printf ("scr_putpixel_layer_menu NULL\n");
+												buffer_layer_menu[ydestino*ancho_layer_menu_machine+xdestino]=color;
+
+												//Y hacer mix
+												screen_putpixel_mix_layers(xdestino,ydestino);   
+                }
+        }
+}
+
+void scr_redraw_machine_layer(void)
+{
+
+	debug_printf (VERBOSE_DEBUG,"Redraw machine layer");
+
+
+	if (scr_putpixel==NULL) return;	
+
+		if (buffer_layer_machine==NULL) return;
+		if (!si_complete_video_driver() ) return;	
+
+	int x,y;
+	//int posicion=0;
+
+	int ancho_layer=ancho_layer_menu_machine;
+	int alto_layer=alto_layer_menu_machine;
+
+	int ancho_ventana=screen_get_window_size_width_zoom_border_en();
+  int alto_ventana=screen_get_window_size_height_zoom_border_en();	
+
+	//Si son tamaños distintos, no hacer nada
+	if (ancho_ventana!=ancho_layer || alto_ventana!=alto_layer) {
+		//printf ("Window size does not match menu layers size\n");
+		return;
+	}
+
+  
+	//Obtener el tamaño menor
+	/*
+	Por que hacemos esto?
+	porque vamos a recorrer el layer de maquina, entero, y redibujar cada pixel en pantalla
+	Dado que puede haber diferencias de tamaños entre ambos (al redimensionar ventanas) nos limitamos
+	a la zona mas pequeña
+	*/
+	int ancho,alto;
+	if (ancho_layer<ancho_ventana) ancho=ancho_layer;
+	else ancho=ancho_ventana;
+
+	if (alto_layer<alto_ventana) alto=alto_layer;
+	else alto=alto_ventana;
+
+	for (y=0;y<alto;y++) {
+		for (x=0;x<ancho;x++) {
+			//printf ("x %d y %d p %p\n",x,y,scr_putpixel_final);
+			int posicion=ancho_layer_menu_machine*y+x;
+			z80_int color=buffer_layer_machine[posicion];
+			scr_putpixel_final(x,y,color);
+		}
+	}
+
+
+}
+
+unsigned int screen_get_color_from_rgb(unsigned char red,unsigned char green,unsigned char blue)
+{
+	return (red<<16)|(green<<8)|blue;
+}
+
+void screen_reduce_color_rgb(int percent,unsigned int *red,unsigned int *green,unsigned int *blue)
+{
+	*red=((*red)*percent)/100;
+	*green=((*green)*percent)/100;
+	*blue=((*blue)*percent)/100;
+}
+
+void screen_get_rgb_components(unsigned int color_rgb,unsigned int *red,unsigned int *green,unsigned int *blue)
+{
+	*blue=color_rgb & 0xFF;
+	color_rgb >>=8;
+
+	*green=color_rgb & 0xFF;
+	color_rgb >>=8;
+
+	*red=color_rgb & 0xFF;
+
+}
+
+/*
+0=Menu por encima de maquina, si no es transparente
+1=Menu por encima de maquina, si no es transparente. Y Color Blanco con brillo es transparente
+2=Mix de los dos colores, con control de transparecnai
+
+
+Otro setting=Maquina bajar brillo, se combina con los anteriores
+*/
+int screen_menu_mix_method=0; //Por defecto, no mezclar
+int screen_menu_mix_transparency=10; //Dice la opacidad de la capa de menu.  Si 100, transparente total. Si 0, opaco total
+
+//Si reducimos brillo de la maquina al abrir el menu, solo vale para metodos 0  y 1
+z80_bit screen_menu_reduce_bright_machine={0};
+
+//Color en blanco de y negro de maquina con menu abierto cuando multitask esta off
+z80_bit screen_machine_bw_no_multitask={0};
+
+char *screen_menu_mix_methods_strings[]={
+	"Over","Chroma","Mix"
+};
+
+unsigned int screen_convert_rgb_to_bw(unsigned int color_rgb)
+{
+					//blanco y negro
+				if (!menu_multitarea && menu_abierto && screen_machine_bw_no_multitask.v) {
+unsigned int red_machine,green_machine,blue_machine;
+
+					screen_get_rgb_components(color_rgb,&red_machine,&green_machine,&blue_machine);	
+					int color_gris=rgb_to_grey(red_machine,green_machine,blue_machine);
+					red_machine=green_machine=blue_machine=color_gris;
+					color_rgb=screen_get_color_from_rgb(red_machine,green_machine,blue_machine);
+				}
+
+
+	return color_rgb;
+}
+
+//Mezclar dos pixeles de layer menu y layer maquina
+void screen_putpixel_mix_layers(int x,int y)
+{
+        //Obtener los dos pixeles
+        z80_int color_menu=buffer_layer_menu[y*ancho_layer_menu_machine+x];
+        z80_int color_machine=buffer_layer_machine[y*ancho_layer_menu_machine+x];
+
+
+				unsigned int color_rgb;
+
+				unsigned int color_rgb_menu,color_rgb_maquina;
+
+				unsigned int red_menu,green_menu,blue_menu;
+				unsigned int red_machine,green_machine,blue_machine;
+
+				unsigned char red_final,green_final,blue_final;
+
+				z80_int color_indexado;
+
+				int metodo_mix=screen_menu_mix_method & 3;
+
+
+				switch (metodo_mix) {
+
+
+					case 1:
+        		//Si es transparente menu, o color 15, poner machine
+        		if (color_menu==SCREEN_LAYER_TRANSPARENT_MENU || color_menu==ESTILO_GUI_PAPEL_NORMAL) {
+							color_indexado=color_machine;
+							color_rgb=spectrum_colortable[color_indexado];
+
+							color_rgb=screen_convert_rgb_to_bw(color_rgb);
+
+							if (screen_menu_reduce_bright_machine.v) {
+								screen_get_rgb_components(color_rgb,&red_machine,&green_machine,&blue_machine);	
+								screen_reduce_color_rgb(50,&red_machine,&green_machine,&blue_machine);	
+								color_rgb=screen_get_color_from_rgb(red_machine,green_machine,blue_machine);						
+							}							
+						}
+        		else {
+							color_indexado=color_menu;
+							color_rgb=spectrum_colortable[color_indexado];
+						}
+
+											
+					break;
+
+					case 2:
+
+						//Mezclar los dos con control de opacidad, siempre que color_menu no sea transparente
+						if (color_menu==SCREEN_LAYER_TRANSPARENT_MENU) {
+							color_rgb=spectrum_colortable[color_machine];
+							color_rgb=screen_convert_rgb_to_bw(color_rgb);
+						}							
+
+						else {
+							color_rgb_menu=spectrum_colortable[color_menu];
+							
+
+							color_rgb_maquina=spectrum_colortable[color_machine];
+							color_rgb_maquina=screen_convert_rgb_to_bw(color_rgb_maquina);
+
+							screen_get_rgb_components(color_rgb_menu,&red_menu,&green_menu,&blue_menu);
+							screen_get_rgb_components(color_rgb_maquina,&red_machine,&green_machine,&blue_machine);
+
+
+							//Mezclarlos			
+
+							screen_reduce_color_rgb(100-screen_menu_mix_transparency,&red_menu,&green_menu,&blue_menu);
+
+
+							int machine_transparency=screen_menu_mix_transparency;
+							screen_reduce_color_rgb(machine_transparency,&red_machine,&green_machine,&blue_machine);
+
+							red_final=red_menu+red_machine;
+							green_final=green_menu+green_machine;
+							blue_final=blue_menu+blue_machine;
+
+							color_rgb=screen_get_color_from_rgb(red_final,green_final,blue_final);
+						}
+
+					break;
+
+					default:
+				
+        		//Si es transparente menu, poner machine
+        		if (color_menu==SCREEN_LAYER_TRANSPARENT_MENU) {
+							color_indexado=color_machine;
+							color_rgb=spectrum_colortable[color_indexado];
+
+							color_rgb=screen_convert_rgb_to_bw(color_rgb);
+
+							if (screen_menu_reduce_bright_machine.v) {
+								screen_get_rgb_components(color_rgb,&red_machine,&green_machine,&blue_machine);	
+								screen_reduce_color_rgb(50,&red_machine,&green_machine,&blue_machine);	
+								color_rgb=screen_get_color_from_rgb(red_machine,green_machine,blue_machine);						
+							}
+
+						}
+
+        		else {
+							color_indexado=color_menu;
+							color_rgb=spectrum_colortable[color_indexado];
+						}
+
+
+					break;					
+
+				}
+
+				//blanco y negro
+				//color_rgb=screen_convert_rgb_to_bw(color_rgb);
+				/*if (!menu_multitarea) {
+					screen_get_rgb_components(color_rgb,&red_machine,&green_machine,&blue_machine);	
+					int color_gris=rgb_to_grey(red_machine,green_machine,blue_machine);
+					red_machine=green_machine=blue_machine=color_gris;
+					color_rgb=screen_get_color_from_rgb(red_machine,green_machine,blue_machine);
+				}*/
+
+				scr_putpixel_final_rgb(x,y,color_rgb);
+}
+
+
+
+void scr_clear_layer_menu(void)
+{
+		if (buffer_layer_menu==NULL) return;
+		if (!si_complete_video_driver() ) return;
+
+		debug_printf (VERBOSE_DEBUG,"Clearing layer menu");
+		//sleep(1);
+
+
+		int i;
+		int size=ancho_layer_menu_machine*alto_layer_menu_machine;
+		//printf ("Clearing layer size %d. buffer_layer_menu %p realloc layers %d\n",size,buffer_layer_menu,sem_screen_refresh_reallocate_layers);
+		//size/=16;
+
+		z80_int *initial_p;
+
+
+
+		initial_p=buffer_layer_menu;
+		for (i=0;i<size;i++) {
+			//if (initial_p!=buffer_layer_menu) {
+			//if (buffer_layer_menu==NULL) {
+			//if (sem_screen_refresh_reallocate_layers) {
+			//	printf ("---i %d %p realloc layers %d\n",i,buffer_layer_menu,sem_screen_refresh_reallocate_layers);
+			//	sleep(5);
+			//}
+			buffer_layer_menu[i]=SCREEN_LAYER_TRANSPARENT_MENU; //color transparente	
+		}
+
+		//printf ("After Clearing layer size %d. buffer_layer_menu %p\n",size,buffer_layer_menu);
+
+		//printf ("Before clear putpixel cache\n");
+		clear_putpixel_cache();
+		//printf ("After clear putpixel cache\n");
+
+		//printf ("End clearing layer menu\n");
+
+}
+
 //Hacer un putpixel en la coordenada indicada pero haciendo tan gordo el pixel como diga zoom_level
 void scr_putpixel_gui_zoom(int x,int y,int color,int zoom_level)
 { 
@@ -1907,13 +2390,41 @@ void scr_putpixel_gui_zoom(int x,int y,int color,int zoom_level)
 	for (incy=0;incy<zoom_level;incy++) {
 		for (incx=0;incx<zoom_level;incx++) {
 			//printf("putpixel %d,%d\n",x+incx,y+incy);
-			if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(x+incx,y+incy,color);
+			scr_putpixel_layer_menu(x+incx,y+incy,color);
+			//if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(x+incx,y+incy,color);
 
-			else scr_putpixel_zoom(x+incx,y+incy,color);
+			//else scr_putpixel_zoom(x+incx,y+incy,color);
 		}
 	}
 }
 
+//Usado solo antes de iniciar emulador
+int scrgeneric_driver_can_ext_desktop(void)
+{
+	return 0;
+}
+
+
+void screen_init_ext_desktop(void)
+{
+	scr_driver_can_ext_desktop=scrgeneric_driver_can_ext_desktop;
+}
+
+
+//Gestion de extension de desktop a ventana. Antes se llamaba extended desktop. Ahora es ZX Desktop
+int screen_ext_desktop_enabled=0;
+int screen_ext_desktop_width=256; //se multiplicara por zoom
+int screen_ext_desktop_place_menu=0; //Si abrimos siempre ventanas en la zona de desktop por defecto
+
+int screen_get_ext_desktop_width_no_zoom(void)
+{
+	return screen_ext_desktop_enabled*scr_driver_can_ext_desktop()*screen_ext_desktop_width;
+}
+
+int screen_get_ext_desktop_width_zoom(void)
+{
+	return screen_get_ext_desktop_width_no_zoom()*zoom_x;
+}
 
 void scr_return_margenxy_rainbow(int *margenx_izq,int *margeny_arr)
 {
@@ -1958,7 +2469,288 @@ if (MACHINE_IS_Z88) {
 
 }
 
+
+//Muestra un caracter en pantalla, usado en menu
+//entrada: caracter
+//x,y: coordenadas en x-0..31 e y 0..23 
+//inverse si o no
+//ink, paper
+//y valor de zoom
+void scr_putchar_menu_comun_zoom(z80_byte caracter,int x,int y,z80_bit inverse,z80_byte tinta,z80_byte papel,int zoom_level)
+{
+
+	z80_byte color;
+  z80_byte bit;
+  z80_byte line;
+  z80_byte byte_leido;
+
+  //printf ("tinta %d papel %d\n",tinta,papel);
+
+  //margenes de zona interior de pantalla. Para modo rainbow
+  int margenx_izq;
+  int margeny_arr;
+
+	z80_byte *puntero;
+	puntero=&char_set[(caracter-32)*8];
+
+
+	scr_return_margenxy_rainbow(&margenx_izq,&margeny_arr);
+
+	//temp prueba
+	//margenx_izq=margeny_arr=0;
+
+	//Caso de pentagon y en footer
+	if (pentagon_timing.v && y>=31) margeny_arr=56*border_enabled.v;
+	
+  y=y*8;
+
+  for (line=0;line<8;line++,y++) {
+		byte_leido=*puntero++;
+		if (inverse.v==1) byte_leido = byte_leido ^255;
+
+		int px=0; //Coordenada x del pixel final
+		for (bit=0;bit<8;bit++) {
+			if (byte_leido & 128 ) color=tinta;
+			else color=papel;
+
+   
+
+			byte_leido=(byte_leido&127)<<1;
+
+			//este scr_putpixel_zoom_rainbow tiene en cuenta los timings de la maquina (borde superior, por ejemplo)
+
+			int xfinal,yfinal;
+
+			//xfinal=(((x*menu_char_width)+bit)*zoom_level);
+
+			xfinal=(((x*menu_char_width)+px)*zoom_level);
+			yfinal=y*zoom_level;
+
+
+			//No hay que sumar ya los margenes
+			/*if (rainbow_enabled.v==1) {
+				xfinal +=margenx_izq;
+
+				yfinal +=margeny_arr;
+			}*/
+
+
+
+
+			//Hacer zoom de ese pixel si conviene
+
+		
+			//Ancho de caracter 8, 7 y 6 pixeles
+			if (menu_char_width==8) {
+				scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+				px++;
+			}
+
+			//Si 7, saltar primer pixel a la izquierda
+			else if (menu_char_width==7) {
+				if (bit!=0) {
+					scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+					px++;
+				}
+			}
+
+			//Si 6, saltar dos pixeles: primero izquierda y primero derecha
+			else if (menu_char_width==6) {
+				if (bit!=0 && bit!=7) {
+					scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+					px++;
+				}
+			}
+
+			//Si 5, saltar tres pixeles: primero izquierda y centro y primero derecha
+			else if (menu_char_width==5) {
+				if (bit!=0 && bit!=6 && bit!=7) {
+					scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+					px++;
+				}
+			}
+
+
+
+    }
+  }
+}
+
+
+void scr_putchar_footer_comun_zoom(z80_byte caracter,int x,int y,z80_bit inverse,z80_byte tinta,z80_byte papel)
+{
+	        z80_byte color;
+        z80_byte bit;
+        z80_byte line;
+        z80_byte byte_leido;
+
+        //printf ("tinta %d papel %d\n",tinta,papel);
+
+        //margenes de zona interior de pantalla. Para modo rainbow
+        int margenx_izq;
+        int margeny_arr;
+
+	int zoom_level=1;
+
+	z80_byte *puntero;
+	puntero=&char_set[(caracter-32)*8];
+
+        scr_return_margenxy_rainbow(&margenx_izq,&margeny_arr);
+
+        //Caso de pentagon y en footer
+        if (pentagon_timing.v && y>=31) margeny_arr=56*border_enabled.v;
+
+        y=y*8;
+
+        for (line=0;line<8;line++,y++) {
+          byte_leido=*puntero++;
+          if (inverse.v==1) byte_leido = byte_leido ^255;
+          for (bit=0;bit<8;bit++) {
+                if (byte_leido & 128 ) color=tinta;
+                else color=papel;
+
+
+
+
+                byte_leido=(byte_leido&127)<<1;
+
+                //este scr_putpixel_zoom_rainbow tiene en cuenta los timings de la maquina (borde superior, por ejemplo)
+
+                int xfinal,yfinal;
+
+                if (rainbow_enabled.v==1) {
+                        //xfinal=(((x*8)+bit)*zoom_level);
+                        xfinal=(((x*8)+bit)*zoom_level);
+                        xfinal +=margenx_izq;
+
+                        yfinal=y*zoom_level;
+                        yfinal +=margeny_arr;
+                }
+
+                else {
+                        //xfinal=((x*8)+bit)*zoom_level;
+                        xfinal=((x*8)+bit)*zoom_level;
+                        yfinal=y*zoom_level;
+                }
+
+
+ //Hacer zoom de ese pixel si conviene
+
+
+                //Ancho de caracter 8, 7 y 6 pixeles
+                /*if (menu_char_width==8) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+
+                //Si 7, saltar primer pixel a la izquierda
+                else if (menu_char_width==7) {
+                        if (bit!=0) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+                }
+
+                //Si 6, saltar dos pixeles: primero izquierda y primero derecha
+                else if (menu_char_width==6) {
+                        if (bit!=0 && bit!=7) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+                }
+
+                //Si 5, saltar tres pixeles: primero izquierda y centro y primero derecha
+                else if (menu_char_width==5) {
+                        if (bit!=0 && bit!=6 && bit!=7) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+                }*/
+
+	                                if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(xfinal,yfinal,color);
+
+                                else scr_putpixel_zoom(xfinal,yfinal,color);							
+
+                /*int incx,incy;
+                for (incy=0;incy<zoom_level;incy++) {
+                        for (incx=0;incx<zoom_level;incx++) {
+                                if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(xfinal+incx,yfinal+incy,color);
+
+                                else scr_putpixel_zoom(xfinal+incx,yfinal+incy,color);
+                        }
+                }*/
+
+
+           }
+        }
+}								
+
+
+
+//Muestra un caracter en footer
+//Se utiliza solo al dibujar en zx81/81 y ace, y spectrum (simulado zx81) pero no en menu
+//entrada: puntero=direccion a tabla del caracter
+//x,y: coordenadas en x-0..31 e y 0..23 del zx81
+//inverse si o no
+//ink, paper
+//si emula fast mode o no
+//y valor de zoom
+void old_scr_putchar_footer_comun_zoom(z80_byte caracter,int x,int y,z80_bit inverse,z80_byte tinta,z80_byte papel)
+{
+
+        z80_byte color;
+        z80_byte bit;
+        z80_byte line;
+        z80_byte byte_leido;
+
+        //printf ("tinta %d papel %d\n",tinta,papel);
+
+        //margenes de zona interior de pantalla. Para modo rainbow
+        int margenx_izq;
+        int margeny_arr;
+
+
+	z80_byte *puntero;
+	puntero=&char_set[(caracter-32)*8];
+
+	scr_return_margenxy_rainbow(&margenx_izq,&margeny_arr);
+
+	//Caso de pentagon y en footer
+	//if (pentagon_timing.v && y>=31) margeny_arr=56*border_enabled.v;
+	
+        y=y*8;
+
+        for (line=0;line<8;line++,y++) {
+          byte_leido=*puntero++;
+          if (inverse.v==1) byte_leido = byte_leido ^255;
+          for (bit=0;bit<8;bit++) {
+                if (byte_leido & 128 ) color=tinta;
+                else color=papel;
+
+                //simular modo fast para zx81
+	
+
+                byte_leido=(byte_leido&127)<<1;
+
+		//este scr_putpixel_zoom_rainbow tiene en cuenta los timings de la maquina (borde superior, por ejemplo)
+
+		int xfinal,yfinal;
+
+		xfinal=(((x*8)+bit));
+		yfinal=y;
+
+		//if (rainbow_enabled.v==1) {
+			xfinal +=margenx_izq;
+
+			yfinal +=margeny_arr;
+		//}
+
+
+		//Hacer zoom de ese pixel si conviene		
+		scr_putpixel_gui_zoom(xfinal,yfinal,color,1);
+
+		//footer va en capa de machine
+
+		//printf ("%d %d\n",xfinal,yfinal);
+		//scr_putpixel_zoom(xfinal,yfinal,color);
+
+
+           }
+        }
+}
+
+
+
 //Muestra un caracter en pantalla, al estilo del spectrum o zx80/81 o jupiter ace
+//Se utiliza solo al dibujar en zx81/81 y ace, y spectrum (simulado zx81) pero no en menu
 //entrada: puntero=direccion a tabla del caracter
 //x,y: coordenadas en x-0..31 e y 0..23 del zx81
 //inverse si o no
@@ -1984,7 +2776,7 @@ void scr_putsprite_comun_zoom(z80_byte *puntero,int x,int y,z80_bit inverse,z80_
 	scr_return_margenxy_rainbow(&margenx_izq,&margeny_arr);
 
 	//Caso de pentagon y en footer
-	if (pentagon_timing.v && y>=31) margeny_arr=56*border_enabled.v;
+	//if (pentagon_timing.v && y>=31) margeny_arr=56*border_enabled.v;
 	
         y=y*8;
 
@@ -2006,51 +2798,28 @@ void scr_putsprite_comun_zoom(z80_byte *puntero,int x,int y,z80_bit inverse,z80_
 
 		int xfinal,yfinal;
 
+		xfinal=(((x*8)+bit)*zoom_level);
+		yfinal=y*zoom_level;
+
 		if (rainbow_enabled.v==1) {
-			//xfinal=(((x*8)+bit)*zoom_level);
-			xfinal=(((x*menu_char_width)+bit)*zoom_level);
 			xfinal +=margenx_izq;
 
-			yfinal=y*zoom_level;
 			yfinal +=margeny_arr;
 		}
 
-		else {
-			//xfinal=((x*8)+bit)*zoom_level;
-			xfinal=((x*menu_char_width)+bit)*zoom_level;
-			yfinal=y*zoom_level;
-		}
 
 
-		//Hacer zoom de ese pixel si conviene
 
-		
-		//Ancho de caracter 8, 7 y 6 pixeles
-		if (menu_char_width==8) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
+		//Hacer zoom de ese pixel si conviene		
+		//scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
 
-		//Si 7, saltar primer pixel a la izquierda
-		else if (menu_char_width==7) {
-			if (bit!=0) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
-		}
 
-		//Si 6, saltar dos pixeles: primero izquierda y primero derecha
-		else if (menu_char_width==6) {
-			if (bit!=0 && bit!=7) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
-		}
+                                if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(xfinal,yfinal,color);
 
-		//Si 5, saltar tres pixeles: primero izquierda y centro y primero derecha
-		else if (menu_char_width==5) {
-			if (bit!=0 && bit!=6 && bit!=7) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
-		}
+                                else scr_putpixel_zoom(xfinal,yfinal,color);		
 
-		/*int incx,incy;
-		for (incy=0;incy<zoom_level;incy++) {
-			for (incx=0;incx<zoom_level;incx++) {
-				if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(xfinal+incx,yfinal+incy,color);
 
-				else scr_putpixel_zoom(xfinal+incx,yfinal+incy,color);
-			}
-		}*/
+	
 
 
 
@@ -2281,43 +3050,34 @@ for (y=0;y<192;y+=8) {
 int scr_ver_si_refrescar_por_menu_activo(int x,int fila)
 {
 
+
+	//Esta funcion ya no tiene sentido. Escribir siempre 
+	return 1;
+
 	x /=menu_gui_zoom;
 	fila /=menu_gui_zoom;
 
-	//menu_char_width
-	//x=(x*menu_char_width)/8;
 
 	if (x>31 || fila>23) return 1;
 
 
 
-                        //Ver en casos en que puede que haya menu activo y hay que hacer overlay
-                        if (screen_refresh_menu==1) {
-                                if (menu_overlay_activo==1) {
+	//Ver en casos en que puede que haya menu activo y hay que hacer overlay
+  if (screen_refresh_menu==1) {
+		if (menu_overlay_activo==1) {
                                         //hay menu activo. no refrescar esa coordenada si hay texto del menu
-					int pos=fila*32+x;
+			int pos=fila*32+x;
 
-					if (overlay_usado_screen_array[pos]) {
+			if (overlay_usado_screen_array[pos]) {
                                         //if (overlay_screen_array[pos].caracter!=0) {
                                                 //no hay que repintar en esa zona
-						return 0;
-                                        }
+				return 0;
+			}
 
-					//segunda capa overlay. esto no hace falta. lo que haremos es que cada vez que se escribe en second_overlay,
-					//se copia al primero. cuando se hace cls tambien se copia al primero
-					//esto hace que sea mas rapido la llamada a esta funcion, porque asi solo hay que comprobar una capa
-					/*
-					if (menu_second_layer) {
-						if (second_overlay_screen_array[pos].caracter!=0) {
-                                            	    	//no hay que repintar en esa zona
-	                                                return 0;
-	                                        }
+			
 
-					}
-					*/
-
-                                }
-                        }
+		}
+	}
 	return 1;
 
 }
@@ -2467,20 +3227,25 @@ void scr_refresca_pantalla_timex_512x192(void)
 					//Colores en ulaplus en este modo son:
 					/*
 BITS INK PAPER BORDER
-000 24 31 31
-001 25 30 30
-010 26 29 29
-011 27 28 28
-100 28 27 27
-101 29 26 26
-110 30 25 25
-111 31 24 24
+000  24 31 31
+001  25 30 30
+010  26 29 29
+011  27 28 28
+100  28 27 27
+101  29 26 26
+110  30 25 25
+111  31 24 24
 					*/
 
 					tin6 +=16;
 					pap6 +=16;
+
+					//printf ("tin6: %d pap 6: %d\n",tin6,pap6);
+
 					tin6=ulaplus_palette_table[tin6]+ULAPLUS_INDEX_FIRST_COLOR;
 					pap6=ulaplus_palette_table[pap6]+ULAPLUS_INDEX_FIRST_COLOR;
+					//printf ("P tin6: %d pap 6: %d\n",tin6,pap6);
+
 				}
 
 				//Si tbblue
@@ -2563,7 +3328,12 @@ BITS INK PAPER BORDER
 
 }
 
-
+//Mezclar dos colores si estan en rango spectrum 0-15, retornando el gigascreen. Si no, devolver el primero
+z80_int screen_scale_075_mix_two(z80_int color1, z80_int color2)
+{
+	if (color1<16 && color2<16 && screen_reduce_075_antialias.v) return get_gigascreen_color(color1,color2);
+	else return color1;
+}	
 
 void screen_scale_rainbow_43(z80_int *orig,int ancho,int alto,z80_int *dest)
 {
@@ -2586,10 +3356,75 @@ void screen_scale_rainbow_43(z80_int *orig,int ancho,int alto,z80_int *dest)
 	dest +=screen_reduce_offset_x;
 	dest +=screen_reduce_offset_y*ancho;
 
+	z80_int color_izq;
+	z80_int color_der;
+	z80_int color_arr;
+	z80_int color_aba;
+/*
+
+La reducción funciona de la siguiente manera, se divide la imagen origen en bloques de 4x4 pixeles, y cada una de las de destino será de 3x3
+Se parte de la imagen origen:
+
+abcd
+efgh
+ijkl
+mnop
+
+A la de destino:
+
+ab3
+ef6
+789
+
+De la imagen origen, el primer bloque de 2x2 se traspasa tal cual, así:
+
+ab
+ef
+
+Se traspasa a:
+
+ab
+ef
+
+Luego, las primeras dos filas, se escalan asi:
+Las ultimas dos columnas se mezclan los colores, mediante la funcion de mezclado: si hay antialias, se saca el color medio de los dos pixeles, el de la izquierda y derecha. 
+Si no hay antialas, se escoge el primer pixel.
+Así:
+
+cd   -> 3
+gh   -> 6
+
+
+Luego las ultimas dos filas, se escalan así:
+
+Las primeras 3 columnas se mezclan los colores, de manera similar a la anterior, pero mezclando el pixel de arriba y abajo.
+Así:
+
+i 
+   ->  7
+m   
+
+
+j
+   -> 8
+n
+
+
+k
+   -> 9
+o
+
+De esto se ve que siempre se descarta dos pixeles como minimo, el l y p
+
+*/
+
 	for (y=0;y<alto;y++) {
 		
 
 		for (x=0;x<ancho;x+=4) {
+
+			//Las dos primeras lineas, las dos primeras columnas, color tal cual. La tercera columna, se mezclan
+			if ( (y%4)<2) {
 			*dest=*orig;
 			dest++;
 			orig++;
@@ -2597,24 +3432,68 @@ void screen_scale_rainbow_43(z80_int *orig,int ancho,int alto,z80_int *dest)
 			*dest=*orig;
 			dest++;
 			orig++;
-			
-			*dest=*orig;
+
+			//Mezclar los ultimos dos
+			color_izq=*orig;
+			orig++;
+			color_der=*orig;
+			orig++;
+
+			*dest=screen_scale_075_mix_two(color_izq,color_der);
+			dest++;
+			}
+
+			//Las ultimas dos lineas, mezclamos arriba y abajo en las tres primeras columnas. La cuarta columna se descarta
+			if ( (y%4)==2) {
+			color_arr=*orig;
+			color_aba=orig[ancho];
+
+			*dest=screen_scale_075_mix_two(color_arr,color_aba);
 			dest++;
 			orig++;
+
 			
-			//Saltar el cuarto
+			color_arr=*orig;
+			color_aba=orig[ancho];
+
+			*dest=screen_scale_075_mix_two(color_arr,color_aba);
+			dest++;
 			orig++;
+
+
+			//Mezclar los ultimos dos
+			/*color_izq=*orig;
+			orig++;
+			color_der=*orig;
+			orig++;
+
+			*dest=screen_scale_075_mix_two(color_izq,color_der);
+			dest++;*/
+
+			color_arr=*orig;
+			color_aba=orig[ancho];
+
+			*dest=screen_scale_075_mix_two(color_arr,color_aba);
+			dest++;
+			orig++;
+
+			orig++;
+			
+
+			}
+
+			
 			
 		}
 		
-		dest+=diferencia_ancho;
 
-
-		if ( (y%4)==3) {
+		if ( (y%4)==2) {
 			//Saltar la cuarta linea
 			orig+=ancho;
 			y++;
 		}
+
+		dest+=diferencia_ancho;
 	}
 
 }
@@ -2643,8 +3522,27 @@ void screen_generic_putpixel_no_rainbow_watermark(z80_int *destino GCC_UNUSED,in
 }
 
 
+//Mete un bitmap en formato ascii en un bitmap generico
+void screen_put_asciibitmap_generic(char **origen,z80_int *destino,int x,int y,int ancho_orig, int alto_orig, int ancho_destino, void (*putpixel) (z80_int *destino,int x,int y,int ancho_destino,int color) )
+{
+	int fila,columna;
+
+	for (fila=0;fila<alto_orig;fila++) {
+		//int offset_fila=fila*ancho_orig;
+		char *texto;
+		
+		texto=origen[fila];
+		for (columna=0;columna<ancho_orig;columna++) {
+			char caracter=texto[columna];
+
+			if (caracter!=' ') putpixel(destino,x+columna,y+fila,ancho_destino,return_color_zesarux_ascii(caracter));
+		}
+	}
+}
+
+
 //Mete la marca de agua en un bitmap generico
-void screen_put_watermark_generic(z80_int *destino,int x,int y,int ancho, void (*putpixel) (z80_int *destino,int x,int y,int ancho,int color) )
+/*void screen_put_watermark_generic(z80_int *destino,int x,int y,int ancho_destino, void (*putpixel) (z80_int *destino,int x,int y,int ancho_destino,int color) )
 {
 	int fila,columna;
 
@@ -2656,8 +3554,12 @@ void screen_put_watermark_generic(z80_int *destino,int x,int y,int ancho, void (
 			if (caracter!=' ') putpixel(destino,x+columna,y+fila,ancho,return_color_zesarux_ascii(caracter));
 		}
 	}
-}
+}*/
 
+void screen_put_watermark_generic(z80_int *destino,int x,int y,int ancho_destino, void (*putpixel) (z80_int *destino,int x,int y,int ancho,int color) )
+{
+		screen_put_asciibitmap_generic(zesarux_ascii_logo,destino,x,y,ZESARUX_ASCII_LOGO_ANCHO,ZESARUX_ASCII_LOGO_ALTO, ancho_destino,putpixel);
+}
 
 void screen_get_offsets_watermark_position(int position,int ancho, int alto, int *x, int *y)
 {
@@ -2665,7 +3567,7 @@ void screen_get_offsets_watermark_position(int position,int ancho, int alto, int
 	int watermark_x=*x;
 	int watermark_y=*y;
 
-	int rango_extremo=4;
+	int rango_extremo=ZESARUX_WATERMARK_LOGO_MARGIN; //4;
 
 		switch (position) {
 			case 0:
@@ -3263,7 +4165,14 @@ void scr_refresca_pantalla_comun(void)
                 	        byte_leido=screen[direccion];
 	                        attribute=screen[dir_atributo];
 
-				if (scr_refresca_sin_colores.v) attribute=56;
+				//Prueba de un modo de video inventado en que el color de la tinta sale de los 4 bits de la zona de pixeles
+				//int ink1,ink2;
+
+				if (scr_refresca_sin_colores.v) {
+					attribute=56;
+					//ink1=(byte_leido >>4)&0xF;
+					//ink2=(byte_leido    )&0xF;					
+				}
 
 
         	                ink=attribute &7;
@@ -3287,6 +4196,10 @@ void scr_refresca_pantalla_comun(void)
                         	for (bit=0;bit<8;bit++) {
 
 					color= ( byte_leido & 128 ? ink : paper );
+					//if (scr_refresca_sin_colores.v) {
+					//	if (bit<=3) color= ( byte_leido & 128 ? ink1 : paper );
+					//	else color= ( byte_leido & 128 ? ink2 : paper );
+					//}
 					scr_putpixel_zoom(x_hi+bit,y,color);
 
 	                                byte_leido=byte_leido<<1;
@@ -4481,6 +5394,151 @@ void screen_store_scanline_rainbow_solo_display_ulaplus_lineal(void)
         }
 
 
+
+
+}
+
+//Para modo 16C de pentagon
+void screen_store_scanline_rainbow_solo_display_16c(void)
+{
+
+        //printf ("scan line de pantalla fisica (no border): %d\n",t_scanline_draw);
+
+        //linea que se debe leer
+        int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
+
+              
+
+        //la copiamos a buffer rainbow
+        z80_int *puntero_buf_rainbow;
+        //esto podria ser un contador y no hace falta que lo recalculemos cada vez. TODO
+        int y;
+
+        y=t_scanline_draw-screen_invisible_borde_superior;
+        if (border_enabled.v==0) y=y-screen_borde_superior;
+
+        puntero_buf_rainbow=&rainbow_buffer[ y*get_total_ancho_rainbow() ];
+
+        puntero_buf_rainbow +=screen_total_borde_izquierdo*border_enabled.v;
+
+
+
+        int x;
+        z80_int direccion;
+        
+
+        z80_byte *screen;
+
+
+		screen=get_base_mem_pantalla();
+
+		direccion=screen_addr_table[(scanline_copia<<5)];
+
+		/*
+		Pentagon 16C mode
+		More info:
+
+		http://speccy.info/16col
+
+		http://zxpress.ru/article.php?id=8610
+
+		*/
+
+		
+		int page1=5;
+		int page2=4;
+		if (puerto_32765 & 8) {
+			page1=7;
+			page2=6;
+		}
+
+		z80_byte *vram1;
+		z80_byte *vram2;
+		z80_byte *vram3;
+		z80_byte *vram4;
+
+		vram1=ram_mem_table[page2];
+		vram2=ram_mem_table[page1];
+		vram3=ram_mem_table[page2]+0x2000;
+		vram4=ram_mem_table[page1]+0x2000;
+
+		vram1 +=direccion;
+		vram2 +=direccion;
+		vram3 +=direccion;
+		vram4 +=direccion;
+
+		int pix;
+
+		z80_byte byte_leido;
+
+        for (x=0;x<32;x++) {
+
+			for (pix=0;pix<4;pix++) {
+				int color_izq,color_der;			
+
+				//Bytes orden @RAM4 , @RAM5, @RAM4|0x2000, @RAM5|0x2000
+
+				switch (pix) {
+
+
+					case 0:
+						byte_leido=*vram1;
+					break;
+
+
+					case 1:
+						byte_leido=*vram2;
+					break;
+
+					case 2:
+						byte_leido=*vram3;
+					break;	
+
+					default:
+						byte_leido=*vram4;
+					break;									
+
+
+				}
+
+				z80_byte brillo_izq,brillo_der;
+
+				//Codificacion en byte:
+				// 7 6  5  4  3  2  1  0
+				//BD BI CD CD CD CI CI CI
+				//BD: brillo pixel derecho
+				//BI: brillo pixel izquierdo
+				//CD: color pixel derecho
+				//CI: color pixel izquierdo 
+
+				//de bit 6 a bit 3
+				brillo_izq=(byte_leido >>3)&0x8;
+
+				color_izq=byte_leido & 0x07;
+				color_izq |=brillo_izq;
+
+
+
+				//de bit 7 a bit 3
+				brillo_der=(byte_leido >>4)&0x8;
+
+				color_der=(byte_leido >> 3)&0x07;
+				color_der |=brillo_der;
+				
+
+				store_value_rainbow(puntero_buf_rainbow,color_izq);
+				store_value_rainbow(puntero_buf_rainbow,color_der);
+
+				
+
+			}
+			//direccion++;
+			vram1++;
+			vram2++;
+			vram3++;
+			vram4++;
+		}
+	        
 
 
 }
@@ -6015,6 +7073,12 @@ void screen_store_scanline_rainbow_solo_display(void)
 	if (MACHINE_IS_PRISM) {
 		screen_store_scanline_rainbow_solo_display_prism();
 		//TODO: no hace sprite chip
+		return;
+	}
+
+	//Si modo 16C pentagon
+	if (MACHINE_IS_PENTAGON && screen_mode_16c_is_enabled()) {
+		screen_store_scanline_rainbow_solo_display_16c();
 		return;
 	}
 
@@ -7633,6 +8697,7 @@ void scr_fadeout(void)
 		clear_putpixel_cache();
 		modificado_border.v=1;
 		screen_z88_draw_lower_screen();
+		menu_draw_ext_desktop();
 		all_interlace_scr_refresca_pantalla();
 
 		usleep(SLEEPTIME);
@@ -8976,28 +10041,8 @@ void cpc_putpixel_zoom(int x,int y,unsigned int color)
 void cpc_putpixel_border(int x,int y,unsigned int color)
 {
 
-	int margenx_izq=CPC_LEFT_BORDER_NO_ZOOM*border_enabled.v;
-        int margeny_arr=CPC_TOP_BORDER_NO_ZOOM*border_enabled.v;
+	scr_putpixel(x,y,color);
 
-	int margen_der=margenx_izq+256;
-	int margen_aba=margeny_arr+192;
-
-	int x2=x/zoom_x;
-	int y2=y/zoom_y;
-
-	int dibujar=0;
-
-        if (x2>=margen_der) dibujar=1;
-        else if (y2>=margen_aba) dibujar=1;
-	else if (x2<margenx_izq) dibujar=1;
-	else if (y2<margeny_arr) dibujar=1;
-        else if (scr_ver_si_refrescar_por_menu_activo((x2-margenx_izq)/8,(y2-margeny_arr)/8)) dibujar=1;
-
-
-        if (dibujar) {
-                scr_putpixel(x,y,color);
-                scr_putpixel(x,y+1,color);
-        }
 }
 
 
@@ -9016,10 +10061,9 @@ void scr_refresca_border_cpc(unsigned int color)
 
 
 	int ancho_border=CPC_LEFT_BORDER_NO_ZOOM+   (640-ancho_pantalla)/2;
-	int alto_border=CPC_TOP_BORDER_NO_ZOOM+ (200-alto_pantalla);
+	int alto_border=CPC_TOP_BORDER_NO_ZOOM+ (200-alto_pantalla)/2;
 
-	//printf ("ancho pantalla: %d alto_pantalla: %d offset_x_pantalla: %d anchoborder: %d altoborder: %d\n",
-	//	ancho_pantalla,alto_pantalla,offset_x_pantalla,ancho_border,alto_border);
+	//printf ("ancho pantalla: %d alto_pantalla: %d offset_x_pantalla: %d anchoborder: %d altoborder: %d\n",ancho_pantalla,alto_pantalla,offset_x_pantalla,ancho_border,alto_border);
 
 
 
@@ -10346,7 +11390,7 @@ void enable_gigascreen(void)
 {
 	debug_printf (VERBOSE_INFO,"Enable gigascreen");
 	if (gigascreen_enabled.v==0) {
-		screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling Gigascreen mode");
+		screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling Gigascreen mode");
 	}
 
 	gigascreen_enabled.v=1;
@@ -10392,7 +11436,7 @@ void enable_interlace(void)
 
 	debug_printf (VERBOSE_INFO,"Enable interlace");
 	if (video_interlaced_mode.v==0) {
-		screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling Interlace video mode");
+		screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling Interlace video mode");
 	}
 
 	//son excluyentes
@@ -10408,22 +11452,35 @@ void enable_interlace(void)
 	//Si zoom y no es multiple de 2
 	if ((zoom_y&1)!=0) reinicia_ventana=1;
 
+  void (*previous_function)(void);
+  int menu_antes;
 
         if (reinicia_ventana) {
-		scr_end_pantalla();
+	//Guardar funcion de texto overlay activo, para desactivarlo temporalmente. No queremos que se salte a realloc_layers simultaneamente,
+	//mientras se hace putpixel desde otro sitio -> provocaria escribir pixel en layer que se esta reasignando
+
+
+	screen_end_pantalla_save_overlay(&previous_function,&menu_antes);
 		zoom_y=2;
 		zoom_x=2;
 	}
 
         video_interlaced_mode.v=1;
 
-        if (reinicia_ventana) screen_init_pantalla_and_others();
+        if (reinicia_ventana) {
+					screen_init_pantalla_and_others();			
+				}
 
         set_putpixel_zoom();
 
 	interlaced_numero_frame=0;
 
 	clear_putpixel_cache();
+
+
+if (reinicia_ventana) {
+					screen_restart_pantalla_restore_overlay(previous_function,menu_antes);					
+				}	
 
 
 }
@@ -10577,50 +11634,10 @@ void screen_reset_putpixel_maxmin_y(void)
 }
 
 
-/*void old_screen_print_splash_text(z80_byte y,z80_byte tinta,z80_byte papel,char *texto)
-{
-
-	z80_byte x;
-
-	if (menu_abierto==0 && screen_show_splash_texts.v==1) {
-        	cls_menu_overlay();
 
 
-		//trocear maximo en 2 lineas
-		int longitud=strlen(texto);
-		if (longitud>32) {
-			char buffer[33];
-			strncpy(buffer,texto,32);
-			buffer[32]=0;
-			menu_escribe_texto(0,y++,tinta,papel,buffer);
-			texto=&texto[32];
-		}
 
 
-		//centramos en x
-		x=16-(strlen(texto))/2;
-
-		//si se va a negativo
-		if (x>=32) x=0;
-
-	        menu_escribe_texto(x,y,tinta,papel,texto);
-
-
-        	set_menu_overlay_function(normal_overlay_texto_menu);
-	        menu_splash_text_active.v=1;
-        	menu_splash_segundos=5;
-	}
-
-}*/
-
-
-/*
-void screen_text_send_ansi_cls(void)
-{
-        if (!screen_text_accept_ansi) return;
-        printf ("\x1b[2J");
-}
-*/
 
 void screen_text_send_ansi_go_home(void)
 {
@@ -12726,6 +13743,27 @@ void scr_refresca_pantalla_cpc_text(void (*fun_color) (z80_byte color,int *brill
 
 }
 
+//Guardamos funcion de overlay y lo desactivamos, y finalizamos pantalla
+void screen_end_pantalla_save_overlay(void (**previous_function)(void),int *menu_antes ) {
+	*previous_function=menu_overlay_function;	
+	*menu_antes=menu_overlay_activo;
+
+	menu_overlay_activo=0;			
+	scr_end_pantalla();
+}
+
+//Restauramos funcion de overlay y lo activamos
+void screen_restart_pantalla_restore_overlay(void (*previous_function)(void),int menu_antes)
+{
+	menu_overlay_function=previous_function;
+	menu_overlay_activo=menu_antes;
+
+
+	//Si hay menu activo, reallocate layers, ya que probablemente habra cambiado el tamaño (activar border, footer, etc)
+	if (menu_overlay_activo) {
+		scr_init_layers_menu();
+	}
+}
 
 void screen_set_window_zoom(int z)
 {
@@ -12735,7 +13773,18 @@ void screen_set_window_zoom(int z)
 		return;
 	}
 
-	scr_end_pantalla();
+	//printf ("funcion anterior: %p\n",menu_overlay_function);
+
+	//Guardar funcion de texto overlay activo, para desactivarlo temporalmente. No queremos que se salte a realloc_layers simultaneamente,
+	//mientras se hace putpixel desde otro sitio -> provocaria escribir pixel en layer que se esta reasignando
+  void (*previous_function)(void);
+	int menu_antes;
+
+	screen_end_pantalla_save_overlay(&previous_function,&menu_antes);
+
+	//printf ("funcion leida: %p\n",previous_function);
+
+	//printf ("despues end pantalla\n");
 
 	zoom_x=zoom_y=z;
 	modificado_border.v=1;
@@ -12745,6 +13794,16 @@ void screen_set_window_zoom(int z)
 
 
 	menu_init_footer();
+
+	//printf ("despues init footer\n");
+
+	screen_restart_pantalla_restore_overlay(previous_function,menu_antes);
+
+
+	//menu_overlay_function=previous_function;
+	//menu_overlay_activo=1;
+
+	//printf ("---------final cambio zooom\n");
 }
 
 
@@ -12975,6 +14034,15 @@ void generic_footertext_print_operating_aux(char *s)
 {
 
         if (generic_footertext_operating_counter) {
+        			
+								menu_footer_activity(s);
+        }
+}
+
+void old_delete_generic_footertext_print_operating_aux(char *s)
+{
+
+        if (generic_footertext_operating_counter) {
         			//01234567
         	char string_aux[]="        "; //2 espacios, 6 caracteres y 0 final
         	int longitud=strlen(s);
@@ -12994,17 +14062,20 @@ void generic_footertext_print_operating_aux(char *s)
         	string_aux[indice_string]=0;
 
                 //		      					       01234567
-                //menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_GENERICTEXT,1," 123456 ",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
-                menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_GENERICTEXT,1,string_aux,WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
+                //menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_GENERICTEXT,1,string_aux,WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
+								
+								menu_footer_activity(string_aux);
         }
 }
 
 void generic_footertext_print_operating(char *s)
 {
+	//printf ("footer %s\n",s);
 
         //Si ya esta activo, no volver a escribirlo. Porque ademas el menu_putstring_footer consumiria mucha cpu
         if (!generic_footertext_operating_counter) {  
         	//Borrar si habia alguno otro diferente
+					//printf ("delete footer\n");
         	delete_generic_footertext();
         	  
 		generic_footertext_operating_counter=2;
@@ -13018,7 +14089,7 @@ void generic_footertext_print_operating(char *s)
 
 void delete_generic_footertext(void)
 {
-        menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_GENERICTEXT,1,"        ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
+	menu_delete_footer_activity();
 }
 
 
@@ -13472,8 +14543,12 @@ dejando la ventana en negro como se comenta antes
 int screen_init_pantalla_and_others(void)
 {
 	int retorno=scr_init_pantalla();
-        //Siempre que se redimensiona tamanyo ventana (sin contar zoom) o se reinicia driver video hay que reiniciar cache putpixel
-        init_cache_putpixel();
+  
+	//Siempre que se redimensiona tamanyo ventana (sin contar zoom) o se reinicia driver video hay que reiniciar cache putpixel
+  init_cache_putpixel();
+
+	//printf ("screen_init_pantalla_and_others\n");
+	//menu_init_footer();
 
 	return retorno;
 }
@@ -13506,4 +14581,50 @@ char *get_spectrum_ula_string_video_mode(void)
 
 	return (char *)string_mode;
 
+}
+
+
+//Convertir paleta EGA de 16 colores a Spectrum
+int screen_ega_to_spectrum_colour(int ega_col)
+{
+//https://en.wikipedia.org/wiki/Enhanced_Graphics_Adapter
+	//Ega:      0 black, 1 blue, 2 green, 3 cyan,    4 red,   5 magenta, 6 brown,  7 white, bright black, bright blue, bright green, bright cyan, bright red, bright magenta, bright yellow, white, 
+	//Spectrum: 0 black, 1 blue, 2 red,   3 magenta, 4 green, 5 cyan,    6 yellow, 7 white, + brillos
+
+	int lookup_table[]={0,1,4,5,2,3,6,7};
+
+	int brillo=0;
+
+	if (ega_col>7) {
+		brillo=1;
+		ega_col -=8;
+	}
+	//Por si acaso
+
+	ega_col &=7;
+
+	int color_final=lookup_table[ega_col]+8*brillo;
+	return color_final;
+}
+
+
+
+int screen_mode_16c_is_enabled(void)
+{
+	if (pentagon_16c_mode_available.v && (puerto_eff7 & 1) ) return 1;
+	else return 0;
+}
+
+void enable_16c_mode(void)
+{
+    //necesita real video
+    enable_rainbow();
+	pentagon_16c_mode_available.v ^=1;
+}
+
+
+void disable_16c_mode(void)
+{
+
+	pentagon_16c_mode_available.v ^=1;
 }

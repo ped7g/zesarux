@@ -19,6 +19,9 @@
 
 */
 
+//This atomlite emulation code is derived from SimCoupe source code and help from its author, Simon Owen
+//http://www.simcoupe.org
+
 #include <stdio.h>
 #include <string.h>
 

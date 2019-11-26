@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <string.h>
 
 
 #include "pd765.h"
@@ -33,7 +34,7 @@
 #include "screen.h"
 #include "mem128.h"
 #include "operaciones.h"
-
+#include "tape.h"
 
 z80_bit pd765_enabled={0};
 
@@ -274,7 +275,6 @@ void pd765_disable(void)
 void pd765_motor_on(void)
 {
 	if (pd765_motor.v==0) {
-		//menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_DISK,1,"DISK",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
 		generic_footertext_print_operating("DISK");
 		pd765_motor.v=1;
 	}
@@ -283,7 +283,6 @@ void pd765_motor_on(void)
 void pd765_motor_off(void)
 {
 	if (pd765_motor.v) {
-		//menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_DISK,1,"    ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
 		pd765_motor.v=0;
 	}
 }
@@ -1513,7 +1512,7 @@ EXIT CONDITIONS
 				break;
 
 				case 274:
-					debug_printf(VERBOSE_DEBUG,"-----DOS READ. Address: %d Lenght: %d",reg_hl,reg_de);
+					debug_printf(VERBOSE_DEBUG,"-----DOS READ. Address: %d Length: %d",reg_hl,reg_de);
 					debug_printf(VERBOSE_DEBUG,"reg_pc=%d %04xH",reg_pc,reg_pc);
 					
 					//traps_plus3dos_handle_dos_read();
@@ -1911,4 +1910,13 @@ void dskplusthree_flush_contents_to_disk(void)
                 debug_printf (VERBOSE_ERR,"Error writing to DSK file");
         }
 
+}
+
+void dsk_insert_disk(char *nombre)
+{
+                strcpy(dskplusthree_file_name,nombre);
+                
+    if (noautoload.v==0) {
+		reset_cpu();
+	}
 }

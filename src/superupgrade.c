@@ -89,7 +89,7 @@ z80_bit superupgrade_pending_protect_flash={0};
 
 
 //Aviso de operacion de flash en footer
-int superupgrade_flash_operating_counter=0;
+//int superupgrade_flash_operating_counter=0;
 
 /* Codificacion de puertos de paginacion en superupgrade
 
@@ -134,28 +134,17 @@ int si_superupgrade_muestra_rom_interna(void)
 
 void superupgrade_footer_print_flash_operating(void)
 {
-	if (superupgrade_flash_operating_counter) {
-		//color inverso
-		menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_FLASH,1," FLASH ",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
-	}
+
+    generic_footertext_print_operating("FLASH");
+
 }
 
 void superupgrade_footer_flash_operating(void)
 {
+  superupgrade_footer_print_flash_operating();
 
-	//Si ya esta activo, no volver a escribirlo. Porque ademas el menu_putstring_footer consumiria mucha cpu
-	if (!superupgrade_flash_operating_counter) {
-		superupgrade_flash_operating_counter=2;
-		superupgrade_footer_print_flash_operating();
-
-	}
-	superupgrade_flash_operating_counter=2;
 }
 
-void delete_superupgrade_flash_text(void)
-{
-	menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_FLASH,1,"       ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
-}
 
 
 

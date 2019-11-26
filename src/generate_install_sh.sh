@@ -12,6 +12,7 @@ echo "Installing ZEsarUX under $INSTALLPREFIX ..."
 mkdir -p $INSTALLPREFIX
 mkdir -p $INSTALLPREFIX/bin
 mkdir -p $INSTALLPREFIX/share/zesarux/
+mkdir -p $INSTALLPREFIX/share/zesarux/licenses/
 
 cp zesarux $INSTALLPREFIX/bin/
 cp *.rom zxuno.flash tbblue.mmc $INSTALLPREFIX/share/zesarux/
@@ -22,7 +23,8 @@ cp editionnamegame.tap editionnamegame.tap.config $INSTALLPREFIX/share/zesarux/
 cp -r speech_filters $INSTALLPREFIX/share/zesarux/
 cp -r my_soft $INSTALLPREFIX/share/zesarux/
 
-cp ACKNOWLEDGEMENTS Changelog HISTORY LICENSE LICENSE_MOTOROLA_CORE LICENSE_SCMP_CORE README FEATURES INSTALL INSTALLWINDOWS ALTERNATEROMS INCLUDEDTAPES DONATE FAQ $INSTALLPREFIX/share/zesarux/
+cp ACKNOWLEDGEMENTS Changelog HISTORY README FEATURES LICENSE LICENSES_info INSTALL INSTALLWINDOWS ALTERNATEROMS INCLUDEDTAPES DONATE FAQ $INSTALLPREFIX/share/zesarux/
+cp licenses/* $INSTALLPREFIX/share/zesarux/licenses/
 find $INSTALLPREFIX/share/zesarux/ -type f -print0| xargs -0 chmod 444
 
 #chmod +x $INSTALLPREFIX/share/zesarux/macos_say_filter.sh

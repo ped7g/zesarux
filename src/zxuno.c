@@ -35,6 +35,9 @@
 #include "ay38912.h"
 #include "ulaplus.h"
 #include "operaciones.h"
+#include "chloe.h"
+#include "chardevice.h"
+#include "uartbridge.h"
 
 z80_byte last_port_FC3B=0;
 
@@ -96,7 +99,7 @@ z80_byte *zxuno_sram_mem_table_new[ZXUNO_SRAM_PAGES];
 
 
 //Direcciones actuales mapeadas, modo nuevo sin tener que distinguir entre bootm a 0 o 1
-z80_byte *zxuno_memory_paged_new[4];
+z80_byte *zxuno_memory_paged_brandnew[8];
 
 
 int zxuno_flash_must_flush_to_disk=0;
@@ -116,7 +119,7 @@ char zxuno_flash_spi_name[PATH_MAX]="";
 
 
 //Aviso de operacion de flash spi en footer
-int zxuno_flash_operating_counter=0;
+//int zxuno_flash_operating_counter=0;
 
 /*
 Para registro de COREID:
@@ -165,6 +168,10 @@ z80_int zxuno_dma_current_len;
 
 
 z80_bit zxuno_dma_disabled={0};
+
+
+
+
 
 void zxuno_test_if_prob(void)
 {
@@ -377,79 +384,21 @@ int zxuno_spi_is_write_enabled(void)
 
 void zxuno_footer_print_flash_operating(void)
 {
-	if (zxuno_flash_operating_counter) {
-		//color inverso
-		menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_FLASH,1," FLASH ",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
-	}
+
+
+	generic_footertext_print_operating("FLASH");
 }
 
 void zxuno_footer_flash_operating(void)
 {
 
-
-	//Si ya esta activo, no volver a escribirlo. Porque ademas el menu_putstring_footer consumiria mucha cpu
-	if (!zxuno_flash_operating_counter) {
-		zxuno_flash_operating_counter=2;
-		zxuno_footer_print_flash_operating();
-
-	}
-	zxuno_flash_operating_counter=2;
-}
-
-void delete_zxuno_flash_text(void)
-{
-	menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_FLASH,1,"       ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
-}
-
-/*void old_mem_set_normal_pages_zxuno(void)
-{
-
-	//En modo bootm a 1.
-
-	//Los 16kb de rom del zxuno
-	zxuno_bootm_memory_paged[0]=memoria_spectrum;
-
-	//Paginas 5,2
-	zxuno_bootm_memory_paged[1]=zxuno_sram_mem_table[5];
-	zxuno_bootm_memory_paged[2]=zxuno_sram_mem_table[2];
-
-	//Y pagina 0
-	zxuno_bootm_memory_paged[3]=zxuno_sram_mem_table[0];
-
-
-
-
-	//En modo bootm a 0
-	//La pagina sram 8 (la primera rom del spectrum emulado)
-	zxuno_no_bootm_memory_paged[0]=zxuno_sram_mem_table[8];
-
-	//Paginas 5,2
-	zxuno_no_bootm_memory_paged[1]=zxuno_sram_mem_table[5];
-	zxuno_no_bootm_memory_paged[2]=zxuno_sram_mem_table[2];
-
-	//Y pagina 0
-	zxuno_no_bootm_memory_paged[3]=zxuno_sram_mem_table[0];
-
-
-	//TODO
-	contend_pages_actual[0]=0;
-	contend_pages_actual[1]=contend_pages_128k_p2a[5];
-	contend_pages_actual[2]=contend_pages_128k_p2a[2];
-	contend_pages_actual[3]=contend_pages_128k_p2a[0];
-
-	zxuno_debug_paginas_memoria_mapeadas_bootm[0]=DEBUG_PAGINA_MAP_ES_ROM+0;
-	zxuno_debug_paginas_memoria_mapeadas_bootm[1]=5;
-	zxuno_debug_paginas_memoria_mapeadas_bootm[2]=2;
-	zxuno_debug_paginas_memoria_mapeadas_bootm[3]=0;
-
-	debug_paginas_memoria_mapeadas[0]=DEBUG_PAGINA_MAP_ES_ROM+0;
-	debug_paginas_memoria_mapeadas[1]=5;
-	debug_paginas_memoria_mapeadas[2]=2;
-	debug_paginas_memoria_mapeadas[3]=0;
+	zxuno_footer_print_flash_operating();
 
 
 }
-*/
+
+
+
 
 void zxuno_set_emulador_settings(void)
 {
@@ -501,16 +450,7 @@ void hard_reset_cpu_zxuno(void)
 }
 
 
-//Rutina mapeo pagina zxuno con modo bootm=1
-/*
-void old_zxuno_page_ram(z80_byte bank)
-{
-	zxuno_bootm_memory_paged[3]=zxuno_sram_mem_table[bank];
 
-	//contend_pages_actual[3]=contend_pages_128k_p2a[ramentra];
-	zxuno_debug_paginas_memoria_mapeadas_bootm[3]=bank;
-}
-*/
 
 //Escribir 1 byte en la memoria spi
 void zxuno_spi_page_program(int address,z80_byte valor_a_escribir)
@@ -797,6 +737,18 @@ Bit 7: set to 1 when DMAPROB address has been reached. It automatically reset to
 			return valor_retorno;
 		}
 
+
+		else if (last_port_FC3B==ZXUNO_UART_DATA_REG) {
+			//UART_DATA_REG
+			return zxuno_uartbridge_readdata();
+		}
+
+		else if (last_port_FC3B==ZXUNO_UART_STAT_REG) {
+			//UART_STAT_REG
+			return zxuno_uartbridge_readstatus();
+		}
+
+
 		return zxuno_ports[last_port_FC3B];
 	}
 
@@ -1020,6 +972,7 @@ void zxuno_write_port(z80_int puerto, z80_byte value)
 				zxuno_radasoffset_high_byte.v ^=1;
 
 			break;
+			
 
 			//Registros DMA de 16 bits
 			case 0xa1:
@@ -1053,13 +1006,44 @@ void zxuno_write_port(z80_int puerto, z80_byte value)
 				//sleep(1);
 			break;
 
+
+
+			//UART_DATA_REG
+			case ZXUNO_UART_DATA_REG:
+				zxuno_uartbridge_writedata(value);
+			break;
+
+			//UART_STAT_REG
+			//case ZXUNO_UART_STAT_REG:
+				//registro no es de escritura
+			//break;			
+
+			case 0xfd:
+				/*
+				COREBOOT
+				Registro de control de arranque. Escribiendo un 1 en el bit 0 de este registro (el resto de bits están reservados y deben quedarse a 0) hace que se desencadene el mecanismo interno de la FPGA que permite arrancar otro core. La dirección de comienzo de este segundo core será la última que se escribiera usando el registro COREADDR. 
+				*/
+				if (value & 1) hard_reset_cpu();
+			break;
+
+
 		}
 	}
 
 
 }
 
+z80_byte zxuno_get_devcontrol_di7ffd(void)
+{
+	//Paginacion desactivada por puertos de zxuno DEVCONTROL. DI7FFD
+	return zxuno_ports[0x0E]&4;
+}
 
+z80_byte zxuno_get_devcontrol_di1ffd(void)
+{
+	//Paginacion desactivada por puertos de zxuno DEVCONTROL. DI1FFD
+	return zxuno_ports[0x0E]&8;
+}
 
 //Rutinas de puertos paginacion zxuno pero cuando bootm=0, o sea, como plus2a
 void zxuno_p2a_write_page_port(z80_int puerto, z80_byte value)
@@ -1069,27 +1053,35 @@ void zxuno_p2a_write_page_port(z80_int puerto, z80_byte value)
 	if ( (puerto & 49154) == 16384 ) {
 		//ver si paginacion desactivada
 		if (puerto_32765 & 32) return;
-		puerto_32765=value;
-
-
-		//si modo de paginacion ram en rom, volver
-		if ((puerto_8189&1)==1) {
-			//printf ("Ram in ROM enabled. So RAM paging change with 32765 not allowed. out value:%d\n",value);
-			//Livingstone supongo II hace esto, continuamente cambia de Screen 5/7 y ademas cambia
-			//formato de paginas de 4,5,6,3 a 4,7,6,3 tambien continuamente
-			return;
-		}
 
 		//64 kb rom, 128 ram
 
 		//Paginacion desactivada por puertos de zxuno DEVCONTROL. DI7FFD
-		if (zxuno_ports[0x0E]&4) return;
+		//if (zxuno_ports[0x0E]&4) return;
+		if (zxuno_get_devcontrol_di7ffd()) return;
 
-		//asignar ram
-		//zxuno_mem_page_ram_p2a();
+		puerto_32765=value;
 
-		//asignar rom
-		//zxuno_mem_page_rom_p2a();
+
+		//si modo de paginacion ram en rom, volver
+		/*
+		Este es el comportamiento habitual en paginacion de 128kb, pero no en zxuno,
+		lo habitual es no repaginar cuando esta la paginacion ram en rom, ya que paginaria una ram probablemente distinta en c000h
+		Pero en zxuno esto ya lo detecto en la funcion siguiente zxuno_set_memory_pages,
+		ya que ahí verá que está la paginacion ram en rom y pondrá correctamente la paginacion que toca, sin poner una ram distinta en c000h
+		Realmente, si esta la paginación de ram en rom, los cambios en el puerto 32765 no tienen efecto a nivel de páginas (pero si 
+		a nivel de cambio video shadow 5/7 o incluso desactivar paginacion)
+		TODO: se deberia cambiar la paginacion habitual del 128kb tal y como la hago aqui, con una funcion comun set_memory_pages
+		para puertos 32765 y 8189 y detecte si esta paginacion ram en rom 
+		if ((puerto_8189&1)==1) {
+			//printf ("Ram in ROM enabled. So RAM paging change with 32765 not allowed. out value:%d\n",value);
+			//Livingstone supongo II hace esto, continuamente cambia de Screen 5/7 y ademas cambia
+			//formato de paginas de 4,5,6,3 a 4,7,6,3 tambien continuamente
+			//Hay que tener en cuenta que pese a que no hace cambio de paginacion,
+			//si que permite cambiar de video shadow 5/7 ya que el puerto_32765 ya se ha escrito antes de entrar aqui
+			return;
+		}
+		*/	
 
 		zxuno_set_memory_pages();
 
@@ -1104,11 +1096,12 @@ void zxuno_p2a_write_page_port(z80_int puerto, z80_byte value)
 		if (puerto_32765 & 32) return;
 
 		//Paginacion desactivada por puertos de zxuno DEVCONTROL. DI7FFD
-		if (zxuno_ports[0x0E]&4) return;
+		//if (zxuno_ports[0x0E]&4) return;
+		if (zxuno_get_devcontrol_di7ffd()) return;
 
 		//Paginacion desactivada por puertos de zxuno DEVCONTROL. DI1FFD
-		if (zxuno_ports[0x0E]&8) return;
-
+		//if (zxuno_ports[0x0E]&8) return;
+		if (zxuno_get_devcontrol_di1ffd()) return;
 
 		puerto_8189=value;
 
@@ -1416,6 +1409,69 @@ void zxuno_flush_flash_to_disk(void)
 //Nuevas funciones de MMU
 
 
+
+
+
+void zxuno_chloe_init_memory_tables(void)
+{
+	debug_printf (VERBOSE_DEBUG,"Initializing Chloe memory pages");
+
+	/*
+//Direcciones donde estan cada pagina de rom. 2 paginas de 16 kb
+//z80_byte *chloe_rom_mem_table[2];
+
+//Direcciones donde estan cada pagina de ram home
+//z80_byte *chloe_home_ram_mem_table[8];
+
+//Direcciones donde estan cada pagina de ram ex
+//z80_byte *chloe_ex_ram_mem_table[8];
+
+//Direcciones donde estan cada pagina de ram dock
+//z80_byte *chloe_dock_ram_mem_table[8];
+
+//Direcciones actuales mapeadas, bloques de 8 kb
+	*/
+
+	//memoria_spectrum
+	//32 kb rom
+	//128kb home
+	//64 kb ex
+	//64 kb dock
+
+	z80_byte *puntero;
+	
+
+	//int puntero=16384; //saltamos los primeros 16kb de rom del bootloader
+
+	puntero=zxuno_sram_mem_table_new[8]; //ROMS
+	chloe_rom_mem_table[0]=puntero;
+	chloe_rom_mem_table[1]=&puntero[16384];
+
+	int i;
+
+	puntero=zxuno_sram_mem_table_new[0]; //RAMS
+	for (i=0;i<8;i++) {
+		chloe_home_ram_mem_table[i]=puntero;
+		puntero +=16384;
+	}
+
+	puntero=zxuno_sram_mem_table_new[24]; //EXT
+	for (i=0;i<8;i++) {
+		chloe_ex_ram_mem_table[i]=puntero;
+		puntero +=8192;
+	}
+
+	puntero=zxuno_sram_mem_table_new[28]; //EXT
+	for (i=0;i<8;i++) {
+		chloe_dock_ram_mem_table[i]=puntero;
+		puntero +=8192;
+	}
+
+
+
+}
+
+
 void zxuno_init_memory_tables(void)
 {
 
@@ -1427,7 +1483,10 @@ void zxuno_init_memory_tables(void)
                         zxuno_sram_mem_table_new[i]=&memoria_spectrum[puntero];
                         puntero +=16384;
                 }
+
+	zxuno_chloe_init_memory_tables();
 }
+
 
 z80_byte zxuno_get_rom_page(void)
 {
@@ -1504,10 +1563,17 @@ void zxuno_set_memory_pages_ram_rom(void)
 
 		}
 
-		zxuno_memory_paged_new[0]=zxuno_sram_mem_table_new[pagina0];
-		zxuno_memory_paged_new[1]=zxuno_sram_mem_table_new[pagina1];
-		zxuno_memory_paged_new[2]=zxuno_sram_mem_table_new[pagina2];
-		zxuno_memory_paged_new[3]=zxuno_sram_mem_table_new[pagina3];
+		zxuno_memory_paged_brandnew[0*2]=zxuno_sram_mem_table_new[pagina0];
+		zxuno_memory_paged_brandnew[0*2+1]=zxuno_sram_mem_table_new[pagina0]+8192;
+
+		zxuno_memory_paged_brandnew[1*2]=zxuno_sram_mem_table_new[pagina1];
+		zxuno_memory_paged_brandnew[1*2+1]=zxuno_sram_mem_table_new[pagina1]+8192;
+
+		zxuno_memory_paged_brandnew[2*2]=zxuno_sram_mem_table_new[pagina2];
+		zxuno_memory_paged_brandnew[2*2+1]=zxuno_sram_mem_table_new[pagina2]+8192;
+
+		zxuno_memory_paged_brandnew[3*2]=zxuno_sram_mem_table_new[pagina3];
+		zxuno_memory_paged_brandnew[3*2+1]=zxuno_sram_mem_table_new[pagina3]+8192;
 
 		contend_pages_actual[0]=contend_pages_128k_p2a[pagina0];
 		contend_pages_actual[1]=contend_pages_128k_p2a[pagina1];
@@ -1523,8 +1589,32 @@ void zxuno_set_memory_pages_ram_rom(void)
 
 }
 
+int zxuno_is_chloe_mmu(void)
+{
+	return zxuno_ports[0x0e] & 64;
+}
+
+int is_zxuno_chloe_mmu(void)
+{
+	if (MACHINE_IS_ZXUNO && zxuno_is_chloe_mmu() ) return 1;
+	else return 0;
+}
+
 void zxuno_set_memory_pages(void)
 {
+
+	//Si hay habilitado paginacion timex/chloe
+	if (zxuno_is_chloe_mmu ()) {
+		//printf ("Usando chloe mmu\n");
+		chloe_set_memory_pages();
+
+		int i;
+		for (i=0;i<8;i++) {
+			zxuno_memory_paged_brandnew[i]=chloe_memory_paged[i];
+		}
+
+		return;
+	}
 
 
 	//Muy facil
@@ -1538,11 +1628,17 @@ void zxuno_set_memory_pages(void)
 		pagina3=zxuno_ports[1]&31;
 
 		//Los 16kb de rom del zxuno
-		zxuno_memory_paged_new[0]=memoria_spectrum;
+		zxuno_memory_paged_brandnew[0*2]=memoria_spectrum;
+		zxuno_memory_paged_brandnew[0*2+1]=memoria_spectrum+8192;
 
-		zxuno_memory_paged_new[1]=zxuno_sram_mem_table_new[pagina1];
-		zxuno_memory_paged_new[2]=zxuno_sram_mem_table_new[pagina2];
-		zxuno_memory_paged_new[3]=zxuno_sram_mem_table_new[pagina3];
+		zxuno_memory_paged_brandnew[1*2]=zxuno_sram_mem_table_new[pagina1];
+		zxuno_memory_paged_brandnew[1*2+1]=zxuno_sram_mem_table_new[pagina1]+8192;
+
+		zxuno_memory_paged_brandnew[2*2]=zxuno_sram_mem_table_new[pagina2];
+		zxuno_memory_paged_brandnew[2*2+1]=zxuno_sram_mem_table_new[pagina2]+8192;
+
+		zxuno_memory_paged_brandnew[3*2]=zxuno_sram_mem_table_new[pagina3];
+		zxuno_memory_paged_brandnew[3*2+1]=zxuno_sram_mem_table_new[pagina3]+8192;
 
 		contend_pages_actual[0]=0;
 		contend_pages_actual[1]=contend_pages_128k_p2a[pagina1];
@@ -1576,12 +1672,18 @@ void zxuno_set_memory_pages(void)
 			pagina3=zxuno_get_ram_page();
 
 
-			zxuno_memory_paged_new[0]=zxuno_sram_mem_table_new[pagina0+8];
+			zxuno_memory_paged_brandnew[0*2]=zxuno_sram_mem_table_new[pagina0+8];
+			zxuno_memory_paged_brandnew[0*2+1]=zxuno_sram_mem_table_new[pagina0+8]+8192;
 			//En la tabla zxuno_sram_mem_table hay que saltar las 8 primeras, que son las 8 rams del modo 128k
 
-			zxuno_memory_paged_new[1]=zxuno_sram_mem_table_new[pagina1];
-			zxuno_memory_paged_new[2]=zxuno_sram_mem_table_new[pagina2];
-			zxuno_memory_paged_new[3]=zxuno_sram_mem_table_new[pagina3];
+			zxuno_memory_paged_brandnew[1*2]=zxuno_sram_mem_table_new[pagina1];
+			zxuno_memory_paged_brandnew[1*2+1]=zxuno_sram_mem_table_new[pagina1]+8192;
+
+			zxuno_memory_paged_brandnew[2*2]=zxuno_sram_mem_table_new[pagina2];
+			zxuno_memory_paged_brandnew[2*2+1]=zxuno_sram_mem_table_new[pagina2]+8192;
+
+			zxuno_memory_paged_brandnew[3*2]=zxuno_sram_mem_table_new[pagina3];
+			zxuno_memory_paged_brandnew[3*2+1]=zxuno_sram_mem_table_new[pagina3]+8192;
 
 			contend_pages_actual[0]=0;
 			contend_pages_actual[1]=contend_pages_128k_p2a[pagina1];
@@ -1624,4 +1726,37 @@ hasta 64 colores en pantalla (cambiando de bloque de paleta cada vez que llega l
 */
 	return (zxuno_ports[0x43]&3)*16;
 
+}
+
+
+
+z80_byte zxuno_uartbridge_readdata(void)
+{
+
+	return uartbridge_readdata();
+}
+
+
+void zxuno_uartbridge_writedata(z80_byte value)
+{
+
+	uartbridge_writedata(value);
+
+
+}
+
+z80_byte zxuno_uartbridge_readstatus(void)
+{
+	//No dispositivo abierto
+	if (!uartbridge_available()) return 0;
+
+	
+	int status=chardevice_status(uartbridge_handler);
+	
+
+	z80_byte status_retorno=0;
+
+	if (status & CHDEV_ST_RD_AVAIL_DATA) status_retorno |= ZXUNO_UART_BYTE_RECEIVED_BIT;
+
+	return status_retorno;
 }

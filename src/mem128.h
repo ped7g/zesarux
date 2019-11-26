@@ -48,12 +48,13 @@ extern void mem_page_rom_128k(void);
 extern int get_actual_rom_p2a(void);
 extern int get_actual_rom_128k(void);
 extern void mem128_p2a_write_page_port(z80_int puerto, z80_byte value);
+
 extern z80_byte *get_base_mem_pantalla_attributes(void);
 
 extern void mem_init_memory_tables_128k(void);
 extern void mem_init_memory_tables_p2a(void);
 
 extern void mem_set_multiplicador_128(z80_byte valor);
-
+extern int mem_paging_is_enabled(void);
 
 #endif

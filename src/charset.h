@@ -30,8 +30,9 @@ extern unsigned char char_set_z88[];
 extern unsigned char char_set_sam[];
 extern unsigned char char_set_mansoftware[];
 extern unsigned char char_set_ql[];
+extern unsigned char char_set_retromac[];
 
-#define MAX_CHARSET_GRAPHIC 130
+#define MAX_CHARSET_GRAPHIC 136
 
 
 #endif

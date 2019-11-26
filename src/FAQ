@@ -61,7 +61,7 @@ A: Yes. There is a speech script which can be specified with --textspeechprogram
 Q: How can I create my own speech script?
 A: Windows scripts receive on parameter %1 a file containing the text to send to speech, and on parameter %2 a temporal file that must be deleted
 just at the end of the script (this temporal file indicates ZEsarUX when the script has finished).
-Rest of operating systems (Linux, Mac, Raspberry and other Unix systems) receive the text to send to speech from standard input.
+Rest of operating systems (GNU/Linux, Mac, Raspberry and other Unix systems) receive the text to send to speech from standard input.
 See folder speech_filters for examples
 
 
@@ -113,8 +113,8 @@ Then enable IDE emulation,  and enable DIVIDE on the menu. Then reset the machin
 
 Q: What are file formats with extensions .mmc and .ide?
 A: They are both the same, both are dumps of mmc or ide cards. I use different extensions to distinguish between mmc images and ide images.
-Besides using esxdos or other divide/divmmc firmware, you can also access those file image cards from Linux, Mac OS X, or Windows:
--Linux: you can use command "mount" with option -o loop to mount these images. It file image has a partition, you must first use losetup utility
+Besides using esxdos or other divide/divmmc firmware, you can also access those file image cards from GNU/Linux, Mac OS X, or Windows:
+-GNU/Linux: you can use command "mount" with option -o loop to mount these images. It file image has a partition, you must first use losetup utility
 -Mac OS X: change extension to .img and you can mount it using Finder. You should unmount it and change the extension back to .mmc or .ide for ZEsarUX 
 to list it in File Selector
 -Windows: Windows doesn't have native support for mounting file images. You may use ImDisk:
@@ -140,7 +140,7 @@ also disabling auto-enable real video) solves it. You may also hear some audio n
 Audio Drivers
 -------------
 
-Q: Audio has much latency using SDL audio driver. This audio is used on Linux/Unix and Windows. What can I do to reduce latency?
+Q: Audio has much latency using SDL audio driver. This audio is used on GNU/Linux/Unix and Windows. What can I do to reduce latency?
 A: Try setting a lower value for --sdlsamplesize parameter
 
 
@@ -163,7 +163,7 @@ A: There are three kind of video drivers:
 -XWindows: X11 Driver. Can run on Unix systems
 -SDL: SDL Driver. Can run on Unix systems and Windows (Mingw)
 -Cocoa: Cocoa Driver. Used on Mac OS X
--FBdev: Framebuffer driver. Used on Linux
+-FBdev: Framebuffer driver. Used on GNU/Linux
 
 2) Mixed graphical/text drivers. They are text drivers but simulate a graphical window using text:
 -AA. Ascii-Art video driver. Black & White text. Can run any support that has the library
@@ -222,7 +222,7 @@ export CFLAGS="-g -rdynamic"
 export LDFLAGS="-g -rdynamic"
 
 Before ./configure, then ./configure (with your desired settings) ; make clean ; make
-Then, when a ZEsarUX kernel panic is generated, you will see the call names on the backtrace. This is only valid on Linux or Mac (and Mac seems to enable these compilation settings by default)
+Then, when a ZEsarUX kernel panic is generated, you will see the call names on the backtrace. This is only valid on GNU/Linux or Mac (and Mac seems to enable these compilation settings by default)
 
 ----------------------------------------------------------------------------
 
@@ -237,12 +237,30 @@ A: You have two options to solve it:
 
 
 Q: How can I select files from other drives?
-A: On file selector window, you must switch to File name section (pressing TAB twice) and write letter number and ':', for example: C:
+A: On file selector window, press shift+D to select another drive.
+You can also switch to File name section (pressing TAB twice) and write letter number and ':', for example: C:
 Remember that : appears pressing symbol shift (Ctrl or Alt)+letter Z
 
 
 Q: I enabled the ZEsarUX remote command protocol, used a telnet client to client, but I only see the Welcome message and I can not type anything
 A: Try disabling Windows firewall
+
+
+Q: I hear some audio "clicking" when no sound is being generated from the emulated machine
+A: If you hear those annoying sounds, for example, in the copyright message of the Spectrum 48kb, without pressing any key, I'm sorry that problem doesn't have fix yet. The same audio libraries I use (SDL) works perfect on GNU/Linux or Mac, but not on Windows. Seems there's some kind of problem with Mingw+SDL+Windows and it doesn't happen always, it also depends on your sound card and the driver. You may reduce a bit this effect by enabling the Silence detector on Audio settings. More details:
+After spending two days testing the Windows audio clicking issue I can confirm:
+-It has nothing to do with my sdl audio module. The same is used in Mac and GNU/Linux and they don't have the same problem
+-Tested by filling the audio buffer with fixed value and the clicking also appears. Seems the clicking happens when a sample value of 0 "appears" in the final hardware buffer. If I fill the audio buffer with 0, no change is produced in the hardware buffer and you don't hear any clicking. If you fill the buffer with something else different than 0, you may hear a clicking
+-There's no difference on enabling real audio, ay audio chip, etc. So as I said, I can confirm there's not a bug in my module
+-My Windows development machine is Virtual box. The default virtual audio card is a Intel HD. That has a lot of clicking. I changed it to a AC97 virtual card and the clicking has gone in the 90% of cases
+-Seems there's some kind of issue with MinGW+SDL+Audio driver. With the same test, sometimes the clicking appear and some others don't. (With ac97 card)
+-As some of you had made tests with real windows machines and you don't have clicking, I can be sure, again, it's not a bug in my software
+-It seems also the audio module is sensible to O.S. multitask. I mean, if you change to another Windows task and leave ZEsarUX in the background, some clicking may appear. That doesn't happen in other operating systems. That confirms me, again, Windows is not my preferred operating system ;)
+-I tried changing the audio sdl module to another one, programming a Direct Sound native windows module. But I haven't found any examples to do that on my MinGW environment. 
+-So, until I couldn't change the audio module to something different (DirectSound or SDL2-which already have tested) some of you will have clicking on Windows. It will depend on your audio card and audio driver
+-That clicking issue is not related with clicks at startup or looping click in tbblue browser. These two others are probably bugs in my code
+
+
 
 
 ----------------------------------------------------------------------------
@@ -273,7 +291,7 @@ To be able to use this rom, you must enable RAM on addresses 2000h-3fffh. So:
 2) Machine Selection->Custom machine. Select sponzy rom and machine type ZX81. It will load only the first 8 KB of ROM. It will hang the ZX81 and 
 the display will show "trash", also the "Real Video" setting is auto-enabled.
 3) The trick here is to load the rest of the ROM on addresses 2000h-3fffh. To do that, go to menu Debugging-> Load binary block. Select the same
-sponzy rom file, set address to 0, and set lenght to 0 (to load the whole file). The emulator will load the whole file, but addresses 0000-1fffh are
+sponzy rom file, set address to 0, and set length to 0 (to load the whole file). The emulator will load the whole file, but addresses 0000-1fffh are
 write protected, but it is not a problem so these addresses are already loaded since pass 2. Addresses 2000h-3fffh will be written (so we enabled RAM here) with the rest of the Sponzy ROM
 4) Go to menu debugging->Reset
 5) The rom is working now but you will probably see only a white display. So, Sponzy rom uses WRX display mode. You must enable it on menu Display Settings->WRX
@@ -291,7 +309,7 @@ When you are using divmmc on other Spectrum models, the emulator loads esxdos 0.
 
 
 Q: Why using ZX-Uno some emulator settings on the menu are changed?
-A: Some settings on ZX-Uno are shared from the same ones on the menu. These are: DivMMC emulation, Keyboard Issue, Contended Memory and Timing (Timing can not be changed from the menu)
+A: Some settings on ZX-Uno are shared from the same ones on the menu. For example: DivMMC emulation, Keyboard Issue, Contended Memory, Timing (Timing can not be changed from the menu), ULAPlus, etc...
 So these settings on the emulator can be changed using the ZX-Uno bios, or even the ZX-Uno boot process changes them (specially divmmc emulation)
 
 
@@ -337,7 +355,9 @@ But these cards are recognized for reading when have data like a new oz release 
 
 
 Q: I'm very interested in the Cambridge Z88, but I don't know how to use it. Where can I find the documentation?
-A: Look at https://cambridgez88.jira.com/wiki/display/UG45/
+A: You can find it at https://cambridgez88.jira.com/wiki/display/UG45/
+or in the ZEsarUX extras package:
+extras/docs/z88/Z88UGV4.pdf
 
 ----------------------------------------------------------------------------
 
@@ -420,9 +440,11 @@ Q: I can't run TBBlue machine. I get the following error: "Erro ao inicializar c
 A: TBBlue machine needs a SD/MMC image to boot. You must select file image "media/disk_images/tbblue.mmc" on Storage->MMC->MMC File.
 Then enable MMC emulation and DivMMC ports (but not DivMMC paging), and do a hard reset
 Or you can select it from the command line with:
-./zesarux --mmc-file tbblue.mmc --enable-mmc --enable-divmmc-ports --machine tbblue
+./zesarux --mmc-file tbblue.mmc --enable-mmc --enable-divmmc-ports --machine tbblue --realvideo
 
-Note: tbblue.mmc is included on the base package (and not on extras) because it is needed to boot that machine
+Note 1: tbblue.mmc is included on the base package (and not on extras) because it is needed to boot that machine
+Note 2: --realvideo setting is only needed on the initial video screen adjust. After it writes the configuration to the mmc file, it won't appear again,
+and the Real Video setting is not usually needed on boot anymore
 
 Q: I have enabled divmmc on Tbblue bios, but seems it's not working (no esxdos or nextos)
 A: Sometimes, enabling divmmc on tbblue bios requires closing and reopening ZEsarUX. The technical answer for this issue,
@@ -458,11 +480,24 @@ But still, EXACT THE SAME TBBlue
 Q: Booting TBBlue is a bit slow. Can I run a sna snapshot without having to wait for the tbblue boot process?
 A: Yes. You can use the tbblue-fast-boot-mode setting and it will go directly to a 48 rom, but with all the Next features enabled (except divmmc). For example, you can run the Dungeonette game with: 
 
-./zesarux --noconfigfile --machine tbblue --realvideo --enabletimexvideo --tbblue-fast-boot-mode --sna-no-change-machine --enable-esxdos-handler --esxdos-root-dir /Users/cesarhernandez/Downloads/Dungeonette/ /Users/cesarhernandez/Downloads/Dungeonette/project.sna
+./zesarux --noconfigfile --zoom 1 --machine tbblue --realvideo --enabletimexvideo --tbblue-fast-boot-mode --sna-no-change-machine --enable-esxdos-handler --esxdos-root-dir /Users/cesarhernandez/Downloads/Dungeonette/ /Users/cesarhernandez/Downloads/Dungeonette/project.sna
+
+You can also load a .nex file with a similar command line:
+./zesarux --noconfigfile --zoom 1  --machine tbblue --realvideo --enabletimexvideo --tbblue-fast-boot-mode --enable-esxdos-handler --esxdos-root-dir /Users/cesarhernandez/Downloads/Warhawk/ /Users/cesarhernandez/Downloads/Warhawk/Warhawk.nex
 
 Q: Trying the breakout demo, it gives me the error: Nonsense in basic at line 10
 A: That is an old version which uses previous NextOS basic. Change line 10 to:
 10 LOAD "breakout.SPR" BANK 10 
+
+
+Q: Can I use CSpect SD card images from site http://www.zxspectrumnext.online/cspect/ ?
+A: Of course. As they say in the web page "for use with CSpect and real ZX Spectrum Next board", ZEsarUX behaves almost a real ZX Spectrum next board,
+so you can use the SD card images. Just some things to take into account:
+-You should rename the img file to extension .mmc. If you don't do it, it won't appear in the File Browser (unless you change the filter to show all files), but can be used even with .img extension
+-Those img file size are not multiple of 16 kb. It will tell you an error but the file can be used
+-Writing changes to a mmc file bigger than 2 gb may generate error on Mac OS. In these cases I recommend you to disable the "Persistent writes" setting
+-It seems the CSpect 2 GB image file is a bit smaller than 2gb, so it can be used even on Mac and write changes to it.
+-Using mmc files bigger than 1 gb may be slow. So be patient when opening the image or writing changes.
 
 ----------------------------------------------------------------------------
 
@@ -579,7 +614,7 @@ S like s on sing
 A like a on cat
 R like r on round 
 U like u on put
-X like x on linux
+X like x on GNU/Linux
 And saying the accent on the final syllable 
 You can also play zesarux.mp3 to hear how it sounds
 
@@ -592,14 +627,14 @@ ZsEarUX :P
 Second because it's my second emulator. The first was ZXSpectr:
 https://github.com/chernandezba/zxspectr
 Why the capital letters? Because one of the first names I thought was ZEUX, but there's another emulator called zeus... 
-Then I thought some name like mine (Cesar) and adding letters zx (for zx spectrum) and also UX for UNIX/Linux, so Linux was the first supported platform. Then I simply joined all these letters and have a translation for every letter to a word, on a phrase with sense: 
+Then I thought some name like mine (Cesar) and adding letters zx (for zx spectrum) and also UX for UNIX/Linux, so GNU/Linux was the first supported platform. Then I simply joined all these letters and have a translation for every letter to a word, on a phrase with sense: 
 ZX Second-Emulator And Released for UniX.
 It's important to write lowercase and uppercase characters correctly. Uppercase letters refer to the most important part of the name: "ZX", "Emulator", "UniX"
 And lowercase letters refer to the less important part : "second", "and", "released"
 
 
 Q: Can this emulator run on MS-DOS?
-A: No, it can not, you can only run it on Windows, Mac, Linux, Raspberry pi and other Unix compatible systems. But you can try my old ZXSpectr emulator:
+A: No, it can not, you can only run it on Windows, Mac, GNU/Linux, Raspberry pi and other Unix compatible systems. But you can try my old ZXSpectr emulator:
 https://github.com/chernandezba/zxspectr
 It does run on MS-DOS. It was created on June 1996, so it's more than 20 years old!
 
@@ -634,14 +669,14 @@ Q: Can I use ZEsarUX as a standalone AY player?
 A: Yes, you can run ZEsarUX from command line and enable a setting to exit emulator when finishing playing the ay file. 
 You can also specify a limit for "infinite" tracks (tracks defined with no limit length), for example:
 
-./zesarux extras/media/ay_files/Spectrum/Games/CHASEHQ.AY --ayplayer-inf-length 60 --ayplayer-end-exit --vo null
+./zesarux --noconfigfile extras/media/ay_files/Spectrum/Games/CHASEHQ.AY --ayplayer-inf-length 60 --ayplayer-end-exit --vo null
 
-Using Linux or Mac you can also use ZEsarUX as a random ay file player, with the following piece of code:
+Using GNU/Linux or Mac you can also use ZEsarUX as a random ay file player, with the following piece of code:
 
 while [ 1 == 1 ]; do
     ARCH=`ls -1 extras/media/ay_files/Spectrum/Games/| python -c "import sys; import random; print(random.choice(sys.stdin.readlines()).rstrip())"`
     echo $ARCH
-    ./zesarux extras/media/ay_files/Spectrum/Games/$ARCH --ayplayer-inf-length 60 --ayplayer-end-exit --vo null
+    ./zesarux --noconfigfile extras/media/ay_files/Spectrum/Games/$ARCH --ayplayer-inf-length 60 --ayplayer-end-exit --vo null
 done
 
 
@@ -652,6 +687,9 @@ You can find also a "Man Software GUI Style" on the ZEsarUX menu, that uses a fo
 
 Q: What is ZX Vision?
 A: ZX Vision is the new ZEsarUX windows style used since version 7.2. These windows can be moved, resized, scrolled, minimized and much more.... The name is inspired by "Turbo Vision" text windows environment used on old Borland Turbo C and Turbo Pascal compilers.
+
+Q: What is ZX Desktop?
+A: ZX Desktop enables you to have a space on the right to place zxvision windows or other widgets. This is a work in progress, so expect improvements in the next versions
 
 
 Q: What are the files required to run the emulator? I see lots of files, even the Extras packages have a lot more
@@ -675,7 +713,7 @@ A: No, you can't. Because I want that final video has that watermark, so anyone 
 However, you can move the letter, go to Settings->GUI->OSD->Watermark position
 
 
-Q: Why the emulator doesn't use more beautiful menus, like the usual menus on Windows/Mac/Linux etc? / Why are you limiting the GUI interface to these simple menus? / Why don't you have a better file selector?
+Q: Why the emulator doesn't use more beautiful menus, like the usual menus on Windows/Mac/GNU/Linux etc? / Why are you limiting the GUI interface to these simple menus? / Why don't you have a better file selector?
 A: The GUI interface is a custom one, I did it copying the style of the menus of Spectrum 128k machines. I'm not using any native menus on Mac, Windows, etc, because my menus are integrated inside the emulator window.
 This has the advantage of having the same style menus (and all the emulator) in all operating systems that you run ZEsarUX. All have the same appearance.
 Also, using some GUI needs additional libraries, and I want it to have the minimum dependencies.
@@ -689,7 +727,7 @@ Q: How do I uninstall ZEsarUX
 A: It's very easy. ZEsarUX doesn't create more files when installed, it only saves the configuration file.
 Depending on the operating system:
 
--Linux: 
+-GNU/Linux: 
 --if you compiled from sources and did a "make install", all your files were installed starting on the installation prefix, that can be changed with the "--prefix" setting to the configure folder, and by default it's /usr/local. Supose the instalation prefix it's called "INSTALLPREFIX", you need to remove:
 
 *executable emulator: INSTALLPREFIX/bin/zesarux
@@ -704,7 +742,7 @@ Depending on the operating system:
 
 -Mac:
 
---if you compiled from sources and did a "make install", follow the same procedure as Linux
+--if you compiled from sources and did a "make install", follow the same procedure as GNU/Linux
 --if you installed a binary version downloaded from the ZEsarUX web page, you only need to drag the ZEsarUX icon app to the Trash
 
 
@@ -713,7 +751,7 @@ Depending on the operating system:
 
 
 Finally, if you want to remove also the configuration file:
--Linux: located on $HOME/.zesaruxrc
+-GNU/Linux: located on $HOME/.zesaruxrc
 -Mac: located on $HOME/.zesaruxrc
 -Windows: located on your home folder, name ".zesaruxrc". Your home folder is something like "c:\users\myusername\"
 

@@ -95,6 +95,7 @@
 #define ZSF_DIVIFACE_MEM 17
 #define ZSF_CPC_RAMBLOCK 18
 #define ZSF_CPC_CONF 19
+#define ZSF_PENTAGON_CONF 20
 
 
 int zsf_force_uncompressed=0; //Si forzar bloques no comprimidos
@@ -284,8 +285,10 @@ Byte fields:
 56: Border color
 57: last crtc selected register
 
-
-
+-Block ID 20: ZSF_PENTAGON_CONF
+Ports and internal registers of Pentagon machine
+Byte fields:
+0: Port EFF7
 
 
 
@@ -299,7 +302,7 @@ Quizá numero de bloque y parametro que diga tamaño, para tener un block id com
 #define MAX_ZSF_BLOCK_ID_NAMELENGTH 30
 
 //Total de nombres sin contar el unknown final
-#define MAX_ZSF_BLOCK_ID_NAMES 20
+#define MAX_ZSF_BLOCK_ID_NAMES 21
 char *zsf_block_id_names[]={
  //123456789012345678901234567890
   "ZSF_NOOP",
@@ -322,6 +325,7 @@ char *zsf_block_id_names[]={
   "ZSF_DIVIFACE_MEM",
   "ZSF_CPC_RAMBLOCK",
   "ZSF_CPC_CONF",
+  "ZSF_PENTAGON_CONF",
 
   "Unknown"  //Este siempre al final
 };
@@ -335,7 +339,10 @@ char *zsf_get_block_id_name(int block_id)
   else return zsf_block_id_names[block_id];
 }
 
-int zsf_write_block(FILE *ptr_zsf_file, z80_byte *source,z80_int block_id, unsigned int lenght)
+//Si ptr_zsf_file no es NULL, lo guarda en archivo
+//Si ptr_zsf_file es NULL, lo guarda en destination_memory
+//El **destination_memory es el puntero al puntero donde esta la memoria destino, se modificara al salir con el siguiente byte del final
+int zsf_write_block(FILE *ptr_zsf_file, z80_byte **destination_memory, int *longitud_total, z80_byte *source,z80_int block_id, unsigned int lenght)
 {
   z80_byte block_header[6];
   block_header[0]=value_16_to_8l(block_id);
@@ -346,11 +353,37 @@ int zsf_write_block(FILE *ptr_zsf_file, z80_byte *source,z80_int block_id, unsig
   block_header[4]=(lenght>>16)  & 0xFF;
   block_header[5]=(lenght>>24)  & 0xFF;
 
+  z80_byte *puntero_memoria;
+  puntero_memoria=*destination_memory;
+
   //Write header
-  fwrite(block_header, 1, 6, ptr_zsf_file);
+  if (ptr_zsf_file!=NULL) {
+    fwrite(block_header, 1, 6, ptr_zsf_file);
+  }
+  else {
+    memcpy(puntero_memoria,block_header,6);
+    puntero_memoria +=6;
+  }
+
+  *longitud_total +=6;
+
+
 
   //Write data block
-  if (lenght) fwrite(source, 1, lenght, ptr_zsf_file);
+  if (lenght) {
+    if (ptr_zsf_file!=NULL) {
+      fwrite(source, 1, lenght, ptr_zsf_file);
+    }
+    else {
+      memcpy(puntero_memoria,source,lenght);
+      puntero_memoria +=lenght;      
+    }
+  }
+
+  *longitud_total +=lenght;
+
+  //Modificar puntero
+  if (ptr_zsf_file==NULL) *destination_memory=puntero_memoria;
 
   return 0;
 
@@ -491,8 +524,8 @@ void load_zsf_snapshot_block_data(z80_byte *block_data,int longitud_original)
 
   if (block_lenght==0) block_lenght=65536;
 
-  debug_printf (VERBOSE_DEBUG,"Block start: %d Lenght: %d Compressed: %s Length_source: %d",block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
-  //printf ("Block start: %d Lenght: %d Compressed: %d Length_source: %d\n",block_start,block_lenght,block_flags&1,longitud_original);
+  debug_printf (VERBOSE_DEBUG,"Block start: %d Length: %d Compressed: %s Length_source: %d",block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
+  //printf ("Block start: %d Length: %d Compressed: %d Length_source: %d\n",block_start,block_lenght,block_flags&1,longitud_original);
 
 
   longitud_original -=5;
@@ -522,7 +555,7 @@ void load_zsf_spec128_snapshot_block_data(z80_byte *block_data,int longitud_orig
   z80_byte ram_page=block_data[i];
   i++;
 
-  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Lenght: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
+  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Length: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
 
 
   longitud_original -=6;
@@ -551,7 +584,7 @@ void load_zsf_zxuno_snapshot_block_data(z80_byte *block_data,int longitud_origin
   z80_byte ram_page=block_data[i];
   i++;
 
-  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Lenght: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
+  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Length: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
 
 
   longitud_original -=6;
@@ -580,7 +613,7 @@ void load_zsf_cpc_snapshot_block_data(z80_byte *block_data,int longitud_original
   z80_byte ram_page=block_data[i];
   i++;
 
-  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Lenght: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
+  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Length: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
 
 
   longitud_original -=6;
@@ -607,7 +640,7 @@ void load_zsf_diviface_snapshot_block_data(z80_byte *block_data,int longitud_ori
 
   z80_int block_lenght=16384;
 
-  debug_printf (VERBOSE_DEBUG,"Block diviface ram_page: %d Lenght: %d Compressed: %s Length_source: %d",ram_page,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
+  debug_printf (VERBOSE_DEBUG,"Block diviface ram_page: %d Length: %d Compressed: %s Length_source: %d",ram_page,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
 
 
   longitud_original -=3;
@@ -640,7 +673,7 @@ void load_zsf_tsconf_snapshot_block_data(z80_byte *block_data,int longitud_origi
   z80_byte ram_page=block_data[i];
   i++;
 
-  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Lenght: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
+  debug_printf (VERBOSE_DEBUG,"Block ram_page: %d start: %d Length: %d Compressed: %s Length_source: %d",ram_page,block_start,block_lenght,(block_flags&1 ? "Yes" : "No"),longitud_original);
 
 
   longitud_original -=6;
@@ -830,12 +863,24 @@ void load_zsf_zxevo_nvram(z80_byte *header)
   int i;
 
   //Control de acceso a celdas nvram
-  zxevo_last_port_eff7=header[0];
+  puerto_eff7=header[0];
 
   //celda nvram seleccionada
   zxevo_last_port_dff7=header[1];
 
   for (i=0;i<256;i++) zxevo_nvram[i]=header[i+2];
+
+}
+
+void load_zsf_pentagon_conf(z80_byte *header)
+{
+
+  
+
+  //Puerto pentagon interno
+  puerto_eff7=header[0];
+
+
 
 }
 
@@ -946,17 +991,40 @@ Byte fields:
   //ulaplus_set_extended_mode(zxuno_ports[0x40]);
 }
 
-void load_zsf_snapshot(char *filename)
+
+int load_zsf_eof(FILE *ptr_zsf_file,int longitud_memoria)
+{
+
+  if (ptr_zsf_file!=NULL) {
+    return feof(ptr_zsf_file);
+  }
+  else {
+    if (longitud_memoria>0) return 0;
+    else return 1; 
+  }
+
+}
+
+//Load snapshot de disco o desde memoria
+//Si leer de archivo, filename contiene nombre y no se usa origin_memory ni longitud_memoria
+//Si leer en memoria, filename es NULL y origin_memory contiene puntero origen memoria y longitud_memoria contiene longitud bloque memoria
+void load_zsf_snapshot_file_mem(char *filename,z80_byte *origin_memory,int longitud_memoria,int load_fast_mode)
 {
 
   FILE *ptr_zsf_file;
 
-  ptr_zsf_file=fopen(filename,"rb");
-  if (!ptr_zsf_file) {
-          debug_printf (VERBOSE_ERR,"Error reading snapshot file %s",filename);
-          return;
+  if (filename!=NULL) {
+    ptr_zsf_file=fopen(filename,"rb");
+    if (!ptr_zsf_file) {
+            debug_printf (VERBOSE_ERR,"Error reading snapshot file %s",filename);
+            return;
+    }
   }
 
+  else {
+    ptr_zsf_file=NULL;
+  }
+ 
 
   //Verificar que la cabecera inicial coincide
   //zsf_magic_header
@@ -966,13 +1034,22 @@ void load_zsf_snapshot(char *filename)
   int longitud_magic=strlen(zsf_magic_header);
 
 
-  int leidos=fread(buffer_magic_header,1,longitud_magic,ptr_zsf_file);
+  if (filename!=NULL) {
+    int leidos=fread(buffer_magic_header,1,longitud_magic,ptr_zsf_file);
 
-  if (leidos!=longitud_magic) {
-    debug_printf(VERBOSE_ERR,"Invalid ZSF file, small magic header");
-    fclose(ptr_zsf_file);
-    return;
+    if (leidos!=longitud_magic) {
+      debug_printf(VERBOSE_ERR,"Invalid ZSF file, small magic header");
+      fclose(ptr_zsf_file);
+      return;
+    }
   }
+
+  else {
+    memcpy(buffer_magic_header,origin_memory,longitud_magic);
+    origin_memory +=longitud_magic;
+    longitud_memoria -=longitud_magic;
+  }
+
 
   //Comparar texto
   buffer_magic_header[longitud_magic]=0;
@@ -987,9 +1064,24 @@ void load_zsf_snapshot(char *filename)
   z80_byte block_header[6];
 
   //Read blocks
-  while (!feof(ptr_zsf_file)) {
+  //while (!feof(ptr_zsf_file)) {
+  while (!load_zsf_eof(ptr_zsf_file,longitud_memoria)) {
     //Read header block
-    unsigned int leidos=fread(block_header,1,6,ptr_zsf_file);
+    unsigned int leidos;
+
+    if (filename!=NULL) {
+      leidos=fread(block_header,1,6,ptr_zsf_file);
+    }
+    else {
+      if (longitud_memoria>0) {
+        memcpy(block_header,origin_memory,6);
+        origin_memory +=6;      
+        leidos=6;
+        longitud_memoria -=6;
+      }
+      else leidos=0;
+    }
+
     if (leidos==0) break; //End while
 
     if (leidos!=6) {
@@ -1001,7 +1093,7 @@ void load_zsf_snapshot(char *filename)
     block_id=value_8_to_16(block_header[1],block_header[0]);
     unsigned int block_lenght=block_header[2]+(block_header[3]*256)+(block_header[4]*65536)+(block_header[5]*16777216);
 
-    debug_printf (VERBOSE_INFO,"Block id: %u (%s) Lenght: %u",block_id,zsf_get_block_id_name(block_id),block_lenght);
+    debug_printf (VERBOSE_INFO,"Block id: %u (%s) Length: %u",block_id,zsf_get_block_id_name(block_id),block_lenght);
 
     z80_byte *block_data;
 
@@ -1009,6 +1101,8 @@ void load_zsf_snapshot(char *filename)
     //Por si acaso inicializar a algo
     z80_byte buffer_nothing;
     block_data=&buffer_nothing;
+
+    int cambio_maquina=1;
 
     if (block_lenght) {
       block_data=malloc(block_lenght);
@@ -1018,8 +1112,25 @@ void load_zsf_snapshot(char *filename)
         return;
       }
 
-      //Read block data
-      leidos=fread(block_data,1,block_lenght,ptr_zsf_file);
+      
+
+
+      if (filename!=NULL) {
+        //Read block data
+        leidos=fread(block_data,1,block_lenght,ptr_zsf_file);
+      }
+      else {
+        if (longitud_memoria>0) {
+          memcpy(block_data,origin_memory,block_lenght);
+          origin_memory +=block_lenght;      
+          leidos=block_lenght;
+          longitud_memoria -=block_lenght;
+        }
+        else leidos=0;
+      }
+
+
+
       if (leidos!=block_lenght) {
         debug_printf(VERBOSE_ERR,"Error reading snapshot file. Read: %u Expected: %u",leidos,block_lenght);
         return;
@@ -1035,9 +1146,18 @@ void load_zsf_snapshot(char *filename)
       break;
 
       case ZSF_MACHINEID:
-        current_machine_type=*block_data;
-        set_machine(NULL);
-        reset_cpu();
+        //Si modo rapido, no resetea maquina al cargar snapshot, esto se usa en zeng
+        if (load_fast_mode) {
+          if (current_machine_type==*block_data) {
+            cambio_maquina=0;
+          }
+        }
+
+        if (cambio_maquina) {
+          current_machine_type=*block_data;
+          set_machine(NULL);
+          reset_cpu();
+        }
       break;
 
       case ZSF_Z80_REGS_ID:
@@ -1107,7 +1227,11 @@ void load_zsf_snapshot(char *filename)
 
       case ZSF_CPC_CONF:
         load_zsf_cpc_conf(block_data);
-      break;      
+      break;     
+
+      case ZSF_PENTAGON_CONF:
+        load_zsf_pentagon_conf(block_data);
+      break;         
 
       default:
         debug_printf(VERBOSE_ERR,"Unknown ZSF Block ID: %u. Continue anyway",block_id);
@@ -1120,12 +1244,19 @@ void load_zsf_snapshot(char *filename)
 
   }
 
-  fclose(ptr_zsf_file);
+  if (filename!=NULL) fclose(ptr_zsf_file);
 
 
 }
 
-void save_zsf_snapshot_cpuregs(FILE *ptr)
+
+void load_zsf_snapshot(char *filename)
+{
+  load_zsf_snapshot_file_mem(filename,NULL,0,0);
+}
+
+
+void save_zsf_snapshot_cpuregs(FILE *ptr,z80_byte **destination_memory,int *longitud_total)
 {
 
   z80_byte header[27];
@@ -1172,7 +1303,7 @@ void save_zsf_snapshot_cpuregs(FILE *ptr)
   z80_byte bits_estado=(iff1.v) | (im_mode==2 ? 2 : 0);
   header[26]=bits_estado;
 
-  zsf_write_block(ptr, header,ZSF_Z80_REGS_ID, 27);
+  zsf_write_block(ptr, destination_memory, longitud_total, header,ZSF_Z80_REGS_ID, 27);
 
 }
 
@@ -1197,39 +1328,63 @@ int save_zsf_copyblock_compress_uncompres(z80_byte *origen,z80_byte *destino,int
   }
 }
 
-void save_zsf_snapshot(char *filename)
+
+
+
+
+
+//Guarda snapshot en disco on en memoria destino:
+//Si guardar en archivo, filename contiene nombre y no se usa destination_memory
+//Si guardar en memoria, filename es NULL y destination_memory contiene puntero destino memoria
+void save_zsf_snapshot_file_mem(char *filename,z80_byte *destination_memory,int *longitud_total)
 {
 
   FILE *ptr_zsf_file;
 
+  *longitud_total=0;
+
   //ZSF File
-  ptr_zsf_file=fopen(filename,"wb");
-  if (!ptr_zsf_file) {
-          debug_printf (VERBOSE_ERR,"Error writing snapshot file %s",filename);
-          return;
+  if (filename!=NULL) {
+    ptr_zsf_file=fopen(filename,"wb");
+    if (!ptr_zsf_file) {
+            debug_printf (VERBOSE_ERR,"Error writing snapshot file %s",filename);
+            return;
+    }
+  }
+  else {
+    ptr_zsf_file=NULL;
   }
 
+  int longitud_zsf_magic_header=strlen(zsf_magic_header);
 
-  //Save header
-  fwrite(zsf_magic_header, 1, strlen(zsf_magic_header), ptr_zsf_file);
+  if (filename!=NULL) {
+    //Save header
+    fwrite(zsf_magic_header, 1, longitud_zsf_magic_header, ptr_zsf_file);
+  }
+  else {
+    memcpy(destination_memory,zsf_magic_header,longitud_zsf_magic_header );
+    destination_memory +=longitud_zsf_magic_header;
+    (*longitud_total) +=longitud_zsf_magic_header;
+  }
   
 
 
   //First save machine ID
   z80_byte save_machine_id=current_machine_type;
-  zsf_write_block(ptr_zsf_file, &save_machine_id,ZSF_MACHINEID, 1);
+  zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, &save_machine_id,ZSF_MACHINEID, 1); 
 
 
 
   //Save cpu registers. Z80 or Moto or MK14
   if (CPU_IS_MOTOROLA) {
-
+    //TODO
   }
   else if (CPU_IS_SCMP) {
+    //TODO
   }
 
   else {
-    save_zsf_snapshot_cpuregs(ptr_zsf_file);
+    save_zsf_snapshot_cpuregs(ptr_zsf_file,&destination_memory,longitud_total);
   }
 
 
@@ -1240,7 +1395,7 @@ void save_zsf_snapshot(char *filename)
 
     ulablock[0]=out_254 & 7;
 
-    zsf_write_block(ptr_zsf_file, ulablock,ZSF_ULA, 1);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, ulablock,ZSF_ULA, 1);
 
   }
 
@@ -1265,7 +1420,7 @@ Byte fields:
         int i;
         for (i=0;i<64;i++) ulaplusblock[3+i]=ulaplus_palette_table[i];
 
-     zsf_write_block(ptr_zsf_file, ulaplusblock,ZSF_ULAPLUS, 67);
+     zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, ulaplusblock,ZSF_ULAPLUS, 67);
   }
 
   //Algunos flags zx80/81
@@ -1283,7 +1438,7 @@ Byte fields:
     zx8081confblock[1]=flags1;
     zx8081confblock[2]=flags2;
 
-    zsf_write_block(ptr_zsf_file, zx8081confblock,ZSF_ZX8081_CONF, 3);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, zx8081confblock,ZSF_ZX8081_CONF, 3);
 
 
   }
@@ -1342,7 +1497,7 @@ Byte fields:
     if (si_comprimido) compressed_ramblock[0]|=1;
 
     //Store block to file
-    zsf_write_block(ptr_zsf_file, compressed_ramblock,ZSF_RAMBLOCK, longitud_bloque+5);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, compressed_ramblock,ZSF_RAMBLOCK, longitud_bloque+5);
 
     free(compressed_ramblock);
 
@@ -1381,7 +1536,7 @@ Byte Fields:
 	memconf[1]=puerto_8189;
 	memconf[2]=mem128_multiplicador;
 
-  	zsf_write_block(ptr_zsf_file, memconf,ZSF_SPEC128_MEMCONF, 3);
+  	zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, memconf,ZSF_SPEC128_MEMCONF, 3);
 
 }
 
@@ -1389,13 +1544,24 @@ if (MACHINE_IS_ZXEVO) {
   //Grabar nvram
   z80_byte nvramblock[258];
 
-  nvramblock[0]=zxevo_last_port_eff7;
+  nvramblock[0]=puerto_eff7;
   nvramblock[1]=zxevo_last_port_dff7;
 
   int i;
   for (i=0;i<256;i++) nvramblock[i+2]=zxevo_nvram[i];
 
-  zsf_write_block(ptr_zsf_file, nvramblock,ZSF_ZXEVO_NVRAM, 258);
+  zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, nvramblock,ZSF_ZXEVO_NVRAM, 258);
+
+
+}
+
+if (MACHINE_IS_PENTAGON) {
+  //Grabar estado puertos
+  z80_byte pentagonconf[1];
+
+  pentagonconf[0]=puerto_eff7;
+
+  zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, pentagonconf,ZSF_PENTAGON_CONF, 1);
 
 
 }
@@ -1451,7 +1617,7 @@ Byte Fields:
 	  debug_printf(VERBOSE_DEBUG,"Saving ZSF_SPEC128_RAMBLOCK ram page: %d length: %d",ram_page,longitud_bloque);
 
 	  //Store block to file
-	  zsf_write_block(ptr_zsf_file, compressed_ramblock,ZSF_SPEC128_RAMBLOCK, longitud_bloque+6);
+	  zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, compressed_ramblock,ZSF_SPEC128_RAMBLOCK, longitud_bloque+6);
 
   }
 
@@ -1497,7 +1663,7 @@ Byte fields:
 
     for (i=0;i<8;i++) zxunoconfblock[266+i]=zxuno_spi_bus[i];
 
-    zsf_write_block(ptr_zsf_file, zxunoconfblock,ZSF_ZXUNO_CONF, 274);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, zxunoconfblock,ZSF_ZXUNO_CONF, 274);
 
 
 
@@ -1545,7 +1711,7 @@ Byte Fields:
     debug_printf(VERBOSE_DEBUG,"Saving ZSF_ZXUNO_RAMBLOCK ram page: %d length: %d",ram_page,longitud_bloque);
 
     //Store block to file
-    zsf_write_block(ptr_zsf_file, compressed_ramblock,ZSF_ZXUNO_RAMBLOCK, longitud_bloque+6);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, compressed_ramblock,ZSF_ZXUNO_RAMBLOCK, longitud_bloque+6);
 
   }
 
@@ -1583,7 +1749,7 @@ Byte fields:
                       cpcconfblock[57]=cpc_crtc_last_selected_register;
 
 
-  zsf_write_block(ptr_zsf_file, cpcconfblock,ZSF_CPC_CONF, 58);
+  zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, cpcconfblock,ZSF_CPC_CONF, 58);
 
 
 
@@ -1631,7 +1797,7 @@ Byte Fields:
     debug_printf(VERBOSE_DEBUG,"Saving ZSF_CPC_RAMBLOCK ram page: %d length: %d",ram_page,longitud_bloque);
 
     //Store block to file
-    zsf_write_block(ptr_zsf_file, compressed_ramblock,ZSF_CPC_RAMBLOCK, longitud_bloque+6);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, compressed_ramblock,ZSF_CPC_RAMBLOCK, longitud_bloque+6);
 
   }
 
@@ -1658,7 +1824,7 @@ Byte fields:
     for (i=0;i<256;i++) tsconfconfblock[i]=tsconf_af_ports[i];
     for (i=0;i<1024;i++) tsconfconfblock[i+256]=tsconf_fmaps[i];
 
-    zsf_write_block(ptr_zsf_file, tsconfconfblock,ZSF_TSCONF_CONF, 256+1024);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, tsconfconfblock,ZSF_TSCONF_CONF, 256+1024);
 
 
 
@@ -1704,7 +1870,7 @@ Byte Fields:
     debug_printf(VERBOSE_DEBUG,"Saving ZSF_TSCONF_RAMBLOCK ram page: %d length: %d",ram_page,longitud_bloque);
 
     //Store block to file
-    zsf_write_block(ptr_zsf_file, compressed_ramblock,ZSF_TSCONF_RAMBLOCK, longitud_bloque+6);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, compressed_ramblock,ZSF_TSCONF_RAMBLOCK, longitud_bloque+6);
 
   }
 
@@ -1736,7 +1902,7 @@ Byte fields:
       int j;
       for (j=0;j<16;j++) aycontents[3+j]=ay_3_8912_registros[i][j];
 
-      zsf_write_block(ptr_zsf_file, aycontents,ZSF_AYCHIP, 19);
+      zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, aycontents,ZSF_AYCHIP, 19);
     }
   }
 
@@ -1766,7 +1932,7 @@ Byte fields:
   divifaceblock[1]=diviface_control_register;
   divifaceblock[2]=diviface_paginacion_automatica_activa.v | (divmmc_diviface_enabled.v<<1) | (divmmc_mmc_ports_enabled.v<<2) | (divide_diviface_enabled.v<<3) | (divide_ide_ports_enabled.v<<4); 
 
-  zsf_write_block(ptr_zsf_file, divifaceblock,ZSF_DIVIFACE_CONF, 3);
+  zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, divifaceblock,ZSF_DIVIFACE_CONF, 3);
 
   //memoria divmmc solo en el caso que no sea ni zxuno, ni tbblue ni prism 
   if (!MACHINE_IS_ZXUNO && !MACHINE_IS_TBBLUE && !MACHINE_IS_PRISM) {
@@ -1809,7 +1975,7 @@ Byte Fields:
     debug_printf(VERBOSE_DEBUG,"Saving ZSF_DIVIFACE_MEM ram page: %d length: %d",ram_page,longitud_bloque);
 
     //Store block to file
-    zsf_write_block(ptr_zsf_file, compressed_ramblock,ZSF_DIVIFACE_MEM, longitud_bloque+3);
+    zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, compressed_ramblock,ZSF_DIVIFACE_MEM, longitud_bloque+3);
 
   }
 
@@ -1823,9 +1989,40 @@ Byte Fields:
 
 
   //test meter un NOOP
-  zsf_write_block(ptr_zsf_file, NULL,0, 0);
+  zsf_write_block(ptr_zsf_file,&destination_memory,longitud_total, NULL,0, 0);
+
+  if (filename!=NULL) {
+    fclose(ptr_zsf_file);
+  }
+
+}
 
 
-  fclose(ptr_zsf_file);
+
+void save_zsf_snapshot(char *filename)
+{
+  z80_byte *puntero;
+  puntero=NULL;
+  int longitud;
+  //Realmente el NULL del puntero a memoria no seria necesario, ya que como el filename no es NULL, se usa el archivo y no se usa el puntero a memoria
+  //Y la longitud no la usamos
+  save_zsf_snapshot_file_mem(filename,NULL,&longitud);
+}
+
+z80_byte *pending_zrcp_put_snapshot_buffer_destino=NULL;
+int pending_zrcp_put_snapshot_longitud;
+
+void check_pending_zrcp_put_snapshot(void)
+{
+  //Enviar un snapshot que se habia leido por ZRCP. Aqui se llama al final de cada frame de pantalla
+
+  if (pending_zrcp_put_snapshot_buffer_destino!=NULL) {
+    debug_printf (VERBOSE_DEBUG,"Putting snapshot coming from ZRCP");
+
+    load_zsf_snapshot_file_mem(NULL,pending_zrcp_put_snapshot_buffer_destino,pending_zrcp_put_snapshot_longitud,1);
+
+    free(pending_zrcp_put_snapshot_buffer_destino);
+    pending_zrcp_put_snapshot_buffer_destino=NULL;
+  }
 
 }

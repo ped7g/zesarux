@@ -375,14 +375,9 @@ void cpu_core_loop_sam(void)
                                                 t_estados += 14;
 
 
-                                                z80_byte reg_pc_h,reg_pc_l;
-                                                reg_pc_h=value_16_to_8h(reg_pc);
-                                                reg_pc_l=value_16_to_8l(reg_pc);
+                                              
 
-                                                //3 estados     
-                                                poke_byte(--reg_sp,reg_pc_h);
-                                                //3 estados
-                                                poke_byte(--reg_sp,reg_pc_l);
+												push_valor(reg_pc,PUSH_VALUE_TYPE_NON_MASKABLE_INTERRUPT);
 
 
                                                 reg_r++;
@@ -415,12 +410,9 @@ void cpu_core_loop_sam(void)
 						//Tratar interrupciones maskable
 						interrupcion_maskable_generada.v=0;
 
-						z80_byte reg_pc_h,reg_pc_l;
-                                                reg_pc_h=value_16_to_8h(reg_pc);
-                                                reg_pc_l=value_16_to_8l(reg_pc);
-
-                                                poke_byte(--reg_sp,reg_pc_h);
-                                                poke_byte(--reg_sp,reg_pc_l);
+					
+												
+												push_valor(reg_pc,PUSH_VALUE_TYPE_MASKABLE_INTERRUPT);
 
 						reg_r++;
 
@@ -442,19 +434,18 @@ void cpu_core_loop_sam(void)
 						//Modelos spectrum
 
 						if (im_mode==0 || im_mode==1) {
-							reg_pc=56;
-							t_estados += 7;
+							cpu_common_jump_im01();
 						}
 						else {
 						//IM 2.
 
-						        z80_int temp_i;
-                                                        z80_byte dir_l,dir_h;   
-                                                        temp_i=reg_i*256+255;
-                                                        dir_l=peek_byte(temp_i++);
-                                                        dir_h=peek_byte(temp_i);
-                                                        reg_pc=value_8_to_16(dir_h,dir_l);
-                                                        t_estados += 7;
+							z80_int temp_i;
+							z80_byte dir_l,dir_h;   
+							temp_i=reg_i*256+255;
+							dir_l=peek_byte(temp_i++);
+							dir_h=peek_byte(temp_i);
+							reg_pc=value_8_to_16(dir_h,dir_l);
+							t_estados += 7;
 
 
 						}

@@ -150,7 +150,7 @@ void scrxwindows_messages_debug(char *s)
 }
 
 
-#define SIZE (256 * 192)
+//#define SIZE (256 * 192)
 
 //;                               Bits:  4    3    2    1    0     ;desplazamiento puerto
 //puerto_65278    db              255  ; V    C    X    Z    Sh    ;0
@@ -228,11 +228,14 @@ int scrxwindows_setwindowparms(void)
 	sizeHints->base_width = 0;
 	sizeHints->base_height = 0;
 
-	sizeHints->min_width = screen_get_window_size_width_no_zoom_border_en();
+	//Fijamos el minimo de tamaño de la ventana
+	sizeHints->min_width = screen_get_window_size_width_no_zoom_border_en() + screen_get_ext_desktop_width_no_zoom();
 	sizeHints->min_height = screen_get_window_size_height_no_zoom_border_en();
 
+
+	//Y se fijan los incrementos de la ventana, para que se amplie en fracciones enteras
 	if (ventana_fullscreen==0) {
-	        sizeHints->width_inc    = screen_get_window_size_width_no_zoom_border_en();
+	        sizeHints->width_inc    = screen_get_window_size_width_no_zoom_border_en() + screen_get_ext_desktop_width_no_zoom();
 	        sizeHints->height_inc   = screen_get_window_size_height_no_zoom_border_en();
 	}
 
@@ -406,6 +409,8 @@ void scrxwindows_set_fullscreen(void)
 
 	//Resolucion de ventana
         widthspectrum=screen_get_window_size_width_no_zoom_border_en()*zoom_futuro_x;
+				widthspectrum +=(screen_get_ext_desktop_width_no_zoom()*zoom_futuro_x);
+
         heightspectrum=screen_get_window_size_height_no_zoom_border_en()*zoom_futuro_y;
 
 
@@ -603,6 +608,7 @@ void scrxwindows_resize(int width,int height)
 		modificado_border.v=1;
 
 
+
                 debug_printf (VERBOSE_INFO,"Calling XResizeWindow on fullscreen");
 
                 scrxwindows_alloc_image(fullscreen_width,fullscreen_height);
@@ -611,15 +617,20 @@ void scrxwindows_resize(int width,int height)
 
 		XMapRaised(dpy,ventana);
 
+	//printf ("resize %d %d\n",width,height);
+	scr_reallocate_layers_menu(fullscreen_width,fullscreen_height);	
+
 
 		return;
 
 	}
 
 
+
 	debug_printf (VERBOSE_INFO,"width: %d get_window_width: %d height: %d get_window_height: %d",width,screen_get_window_size_width_no_zoom_border_en(),height,screen_get_window_size_height_no_zoom_border_en());
 
-		zoom_x_calculado=width/screen_get_window_size_width_no_zoom_border_en();
+		//zoom_x_calculado=width/screen_get_window_size_width_no_zoom_border_en();
+		zoom_x_calculado=width/(screen_get_window_size_width_no_zoom_border_en()+screen_get_ext_desktop_width_no_zoom() );
 		zoom_y_calculado=height/screen_get_window_size_height_no_zoom_border_en();
 
 
@@ -636,16 +647,21 @@ void scrxwindows_resize(int width,int height)
 		modificado_border.v=1;
 
                 width=screen_get_window_size_width_zoom_border_en();
+								width+=screen_get_ext_desktop_width_zoom();
+
                 height=screen_get_window_size_height_zoom_border_en();
 
 
-		debug_printf (VERBOSE_INFO,"Calling XResizeWindow");
+		debug_printf (VERBOSE_INFO,"Calling XResizeWindow to %d X %d",width,height);
 
 		scrxwindows_alloc_image(width,height);
 
 		XResizeWindow( dpy, ventana, width, height);
 
 	}
+
+	//printf ("resize %d %d\n",width,height);
+	scr_reallocate_layers_menu(width,height);
 
 }
 
@@ -689,14 +705,33 @@ The  top three bits ( 010 ) of the high byte don't change.
 
 */
 
+//Funcion de poner pixel en pantalla de driver, teniendo como entrada el color en RGB
+void scrxwindows_putpixel_final_rgb(int x,int y,unsigned int color_rgb)
+{
+	XPutPixel(image,x,y,color_rgb);	
+}
+
+void scrxwindows_putpixel_final(int x,int y,unsigned int color)
+{
+	XPutPixel(image,x,y,spectrum_colortable[color]);
+}
+
 void scrxwindows_putpixel(int x,int y,unsigned int color)
 {
 
-	//Prueba dibujando solo la seccion modificada
-        //if (y>putpixel_max_y) putpixel_max_y=y;
-        //if (y<putpixel_min_y) putpixel_min_y=y;
+	if (menu_overlay_activo==0) {
+                //Putpixel con menu cerrado
+                scrxwindows_putpixel_final(x,y,color);
+                return;
+  }          
 
-	XPutPixel(image,x,y,spectrum_colortable[color]);
+  //Metemos pixel en layer adecuado
+	buffer_layer_machine[y*ancho_layer_menu_machine+x]=color;        
+
+  //Putpixel haciendo mix  
+  screen_putpixel_mix_layers(x,y);   
+
+
 }
 
 void scrxwindows_refresca_border(void)
@@ -717,15 +752,14 @@ void scrxwindows_putchar_zx8081(int x,int y, z80_byte caracter)
 void scrxwindows_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
 {
 
-        z80_bit inverse,f;
+        z80_bit inverse;
 
         inverse.v=0;
-        f.v=0;
 
 	//128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-        //scr_putsprite_comun     (&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f);
-        scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,menu_gui_zoom);
+
+        scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,menu_gui_zoom);
 
 
 }
@@ -740,13 +774,13 @@ void scrxwindows_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z8
 
         //scr_putchar_menu(x,yorigen+y,caracter,tinta,papel);
         y +=yorigen;
-        z80_bit inverse,f;
+        z80_bit inverse;
 
         inverse.v=0;
-        f.v=0;
         //128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-        scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,1);
+        //scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,1);
+				scr_putchar_footer_comun_zoom(caracter,x,y,inverse,tinta,papel);
 }
 
 
@@ -763,13 +797,17 @@ void scrxwindows_refresca_pantalla_solo_driver(void)
 {
    //Dibujar normal toda la pantalla entera
 
+	 int ancho=screen_get_window_size_width_zoom_border_en();
+
+	 ancho +=screen_get_ext_desktop_width_zoom();
+
         if( shm_used ) {
 
 #ifdef X_USE_SHM
                 //printf ("con shm dpy=%x ventana=%x gc=%x image=%x\n",dpy,ventana,gc,image);
                 //printf ("image=%x\n",image);
 
-                XShmPutImage(dpy, ventana, gc, image, 0, 0, 0, 0, screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en(), True);
+                XShmPutImage(dpy, ventana, gc, image, 0, 0, 0, 0, ancho, screen_get_window_size_height_zoom_border_en(), True);
 
                 //temp probar para ver si esto detiene el uso de cpu incrementandose
                 //XSync(dpy, False);
@@ -786,7 +824,7 @@ void scrxwindows_refresca_pantalla_solo_driver(void)
 
         else {
                 //printf ("sin shm dpy=%x ventana=%x gc=%x image=%x\n",dpy,ventana,gc,image);
-                XPutImage(dpy, ventana, gc, image, 0, 0, 0, 0, screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en() );
+                XPutImage(dpy, ventana, gc, image, 0, 0, 0, 0, ancho, screen_get_window_size_height_zoom_border_en() );
 
         }
 
@@ -794,6 +832,16 @@ void scrxwindows_refresca_pantalla_solo_driver(void)
 
 void scrxwindows_refresca_pantalla(void)
 {
+
+
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
+
+        sem_screen_refresh_reallocate_layers=1;
+
 
 
 	if (MACHINE_IS_ZX8081) {
@@ -868,8 +916,6 @@ void scrxwindows_refresca_pantalla(void)
 
 
 
-
-
 	//printf ("%d\n",spectrum_colortable[1]);
 
         if (menu_overlay_activo) {
@@ -877,10 +923,13 @@ void scrxwindows_refresca_pantalla(void)
         }
 
 	//Escribir footer
-	draw_footer();
+	draw_middle_footer();
 
 	scrxwindows_refresca_pantalla_solo_driver();
 
+
+
+sem_screen_refresh_reallocate_layers=0;
 
 }
 
@@ -1667,6 +1716,7 @@ void scrxwindows_actualiza_tablas_teclado(void)
 //                if (ultimo_resize_width!=event.xconfigure.width || ultimo_resize_height!=event.xconfigure.height) {
                         ultimo_resize_width=event.xconfigure.width;
                         ultimo_resize_height=event.xconfigure.height;
+
 			scrxwindows_resize(event.xconfigure.width,event.xconfigure.height);
 
 			//Redibujar zona inferior Z88 si conviene
@@ -1804,6 +1854,40 @@ void scrxwindows_detectedchar_print(z80_byte caracter)
 }
 
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrxwindows_get_menu_width(void)
+{
+        int max=screen_get_emulated_display_width_no_zoom_border_en();
+
+        max +=screen_get_ext_desktop_width_no_zoom();
+
+        max=max/menu_char_width/menu_gui_zoom;
+
+
+        if (max>OVERLAY_SCREEN_MAX_WIDTH) max=OVERLAY_SCREEN_MAX_WIDTH;
+
+                //printf ("max x: %d %d\n",max,screen_get_emulated_display_width_no_zoom_border_en());
+
+        return max;
+}
+
+
+int scrxwindows_get_menu_height(void)
+{
+        int max=screen_get_emulated_display_height_no_zoom_border_en()/8/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_HEIGTH) max=OVERLAY_SCREEN_MAX_HEIGTH;
+
+                //printf ("max y: %d %d\n",max,screen_get_emulated_display_height_no_zoom_border_en());
+        return max;
+}
+
+
+int scrxwindows_driver_can_ext_desktop (void)
+{
+        return 1;
+}
+
+
 int scrxwindows_init (void) {
 
 	debug_printf (VERBOSE_INFO,"Init XWindows Video Driver");
@@ -1825,11 +1909,20 @@ int scrxwindows_init (void) {
 
 	// Create the window
 
+	//Esto asignarlo antes para que el driver vea correctamente el tamaño
+	scr_driver_can_ext_desktop=scrxwindows_driver_can_ext_desktop;
 
-	ventana = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en(),0, blackColor, blackColor);
+int ancho,alto;
+ancho=screen_get_window_size_width_zoom_border_en();
+
+ancho +=screen_get_ext_desktop_width_zoom();
+
+alto=screen_get_window_size_height_zoom_border_en();
+
+	ventana = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, ancho, alto,0, blackColor, blackColor);
 
 	//printf ("crear ventana %d %d\n",screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en() );
-
+	debug_printf (VERBOSE_INFO,"Create XWindows Window %d X %d",ancho,alto);
 
 
 
@@ -1865,9 +1958,15 @@ int scrxwindows_init (void) {
 
 
 
-	scrxwindows_alloc_image(screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en());
 
 
+
+
+
+
+	scrxwindows_alloc_image(ancho, alto);
+
+scr_reallocate_layers_menu(ancho,alto);
 
 	if (!shm_used) debug_printf (VERBOSE_WARN,"No X11 Shared memory. Expect poor performance");
 
@@ -1890,6 +1989,12 @@ int scrxwindows_init (void) {
 
 	//Inicializaciones necesarias
 	scr_putpixel=scrxwindows_putpixel;
+  scr_putpixel_final=scrxwindows_putpixel_final;
+  scr_putpixel_final_rgb=scrxwindows_putpixel_final_rgb;
+        scr_get_menu_width=scrxwindows_get_menu_width;
+        scr_get_menu_height=scrxwindows_get_menu_height;	
+	
+
 	scr_putchar_zx8081=scrxwindows_putchar_zx8081;
         scr_debug_registers=scrxwindows_debug_registers;
         scr_messages_debug=scrxwindows_messages_debug;
@@ -1939,12 +2044,13 @@ static int try_shm (void)
 
   shm_eventtype = XShmGetEventBase( dpy ) + ShmCompletion;
 
-
+int ancho=screen_get_window_size_width_zoom_border_en();
+ancho +=screen_get_ext_desktop_width_zoom();
 
 image = XShmCreateImage( dpy, xdisplay_visual,
                            xdisplay_depth, ZPixmap,
                            NULL, &shm_info,
-screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en() );
+ancho, screen_get_window_size_height_zoom_border_en() );
 
 
 /*
@@ -2071,31 +2177,4 @@ int xdisplay_end (void)
 
 
 
-void disabled_getmouse_coordinates(void)
-{
 
-    Bool result;
-    Window window_returned;
-    int root_x, root_y;
-    int win_x, win_y;
-    unsigned int mask_return;
-
-
-        result = XQueryPointer(dpy, ventana, &window_returned,
-                &window_returned, &root_x, &root_y, &win_x, &win_y,
-                &mask_return);
-    if (result != True) {
-        printf("No mouse found.\n");
-        //return -1;
-    }
-
-    mouse_x=win_x;
-    mouse_y=win_y;
-
-
-
-    kempston_mouse_x=mouse_x/zoom_x;
-    kempston_mouse_y=255-mouse_y/zoom_y;
-    //printf("Mouse is at (%d,%d)\n", kempston_mouse_x, kempston_mouse_y);
-
-}

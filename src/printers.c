@@ -72,46 +72,14 @@ int zxprinter_alto_total;
 //contador se decrementa a cada segundo
 //sirve para indicar mediante overlay en pantalla que se esta imprimiendo
 //despues de imprimir, permanece durante x segundos en pantalla
-int printing_counter=0;
+//int printing_counter=0;
 
 void draw_print_text(void)
 {
 
-                printing_counter=2;
 
-		/*
-                int x=WINDOW_FOOTER_ELEMENT_X_PRINTING;
+		generic_footertext_print_operating("PRINT");
 
-                menu_putchar_footer(x++,1,' ',7+8,0);
-                menu_putchar_footer(x++,1,'P',7+8,0);
-                menu_putchar_footer(x++,1,'R',7+8,0);
-                menu_putchar_footer(x++,1,'I',7+8,0);
-                menu_putchar_footer(x++,1,'N',7+8,0);
-                menu_putchar_footer(x++,1,'T',7+8,0);
-                menu_putchar_footer(x++,1,' ',7+8,0);
-		*/
-
-
-		//color inverso
-		menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_PRINTING,1," PRINT ",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
-
-}
-
-void delete_print_text(void)
-{
-	/*
-        int x=WINDOW_FOOTER_ELEMENT_X_PRINTING;
-                                                //borrarlo, con caracter 0
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-                                                menu_putchar_footer(x++,1,' ',0,0);
-	*/
-
-	menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_PRINTING,1,"       ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
 }
 
 

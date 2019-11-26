@@ -178,6 +178,10 @@ z80_byte cpc_keyboard_table[16]={
 };
 
 
+z80_bit cpc_send_double_vsync={1};
+
+z80_bit cpc_vsync_signal={0};
+
 void cpc_set_memory_pages()
 {
 
@@ -503,9 +507,117 @@ void init_cpc_line_display_table(void)
 
 
 
+
+//Decir si vsync está activo o no, según en qué posición de pantalla estamos,
+//y resetear t_scanline_draw a 0 cuando finaliza dicha vsync
+//Ver http://www.cpcwiki.eu/index.php/CRTC#HSYNC_and_VSYNC
+/*
+The VSYNC is also modified before being sent to the monitor. It happens two lines* after the VSYNC from the CRTC 
+and stay two lines (same cut rule if VSYNC is lower than 4). PAL (50Hz) does need two lines VSYNC_width, and 4us HSYNC_width.
+*/
+void cpc_handle_vsync_state(void)
+{
+	//Duracion vsync
+	int vsync_lenght=cpc_crtc_registers[3]&15;
+
+	//Si es 0, en algunos chips significa 16
+	if (vsync_lenght==0) vsync_lenght=16;
+	//cpc_ppi_ports[1];
+
+	if (cpc_send_double_vsync.v) vsync_lenght *=2;	
+
+	int vsync_position=cpc_crtc_registers[7]&127;
+	//esta en caracteres
+	vsync_position *=8;
+
+
+	int final_vsync=vsync_position+vsync_lenght;
+
+	//Lo modificamos
+	//vsync_position +=2;
+
+	//final_vsync +=2;
+
+
+	if (t_scanline_draw>=vsync_position && t_scanline_draw<final_vsync) cpc_vsync_signal.v=1;
+	else cpc_vsync_signal.v=0;
+
+	//Y si está justo después, resetear posicion
+	if (t_scanline_draw==final_vsync) t_scanline_draw=0;
+
+	//printf ("vsync %d scanline %d scanline_draw %d\n",cpc_vsync_signal.v,t_scanline,t_scanline_draw);
+
+}
+
+z80_byte cpc_get_vsync_bit(void)
+{
+
+	//printf ("get vsync scanline %d scanline_draw %d : vsync %d\n",t_scanline,t_scanline_draw,cpc_vsync_signal.v);
+
+	//if (cpc_vsync_signal.v) printf ("1111111######\n");
+
+	return cpc_vsync_signal.v;
+}
+
+z80_byte old_cpc_get_vsync_bit(void)
+{
+				//Bit de vsync
+			//Duracion vsync
+			z80_byte vsync_lenght=cpc_crtc_registers[3]&15;
+
+			//Si es 0, en algunos chips significa 16
+			if (vsync_lenght==0) vsync_lenght=16;
+			//cpc_ppi_ports[1];
+
+		int vsync_position=cpc_crtc_registers[7]&127;
+		//esta en caracteres
+		vsync_position *=8;
+
+		int vertical_total=cpc_crtc_registers[4]+1; //en R0 tambien se suma 1
+		vertical_total *=8;
+
+		int vertical_displayed=cpc_crtc_registers[6];
+		vertical_displayed *=8;
+
+
+
+		//Dynamite dan 1 se pone a comprobar bit de rsync en lineas:
+		//0,52,104,156,208,260
+		//y vsync empieza en linea 240 y dura 14 lineas... no se cumple nunca
+		//esto sera debido a que los timings los tengo mal o las lineas se empiezan a contar diferente... anyway
+		//O al obtener la linea actual, no deberia ser t_scanline, sino t_scanline quitando la duracion del ultimo vsync
+
+		//workaround para algunos juegos, como bubble bobble. Lo hacemos durar mas
+		if (cpc_send_double_vsync.v) vsync_lenght *=2;		
+
+
+		int linea_actual=t_scanline;
+
+		//linea actual hay que evitar la zona no visible de arriba (precisamente el vsync)
+		linea_actual -=vsync_lenght;
+
+		if (linea_actual<0) {
+			//esta en vsync
+			return 1;
+		}
+
+		//Ver si esta en zona de vsync
+		//printf ("linea %d. lenght: %d vsync pos: %d vertical total: %d vertical displayed: %d\n",t_scanline,vsync_lenght,vsync_position,vertical_total,vertical_displayed);
+			if (linea_actual>=vsync_position && linea_actual<=vsync_position+vsync_lenght-1) {
+			//if (t_scanline>=0 && t_scanline<=7) {
+				//printf ("Enviando vsync\n");
+				return 1;
+			}
+
+			else {
+				//printf ("No Enviando vsync\n");
+				return 0;
+			}
+
+}
+
 //http://www.cpcwiki.eu/index.php/Programming:Keyboard_scanning
 //http://www.cpcwiki.eu/index.php/8255
-
 z80_byte cpc_in_ppi(z80_byte puerto_h)
 {
 	
@@ -585,7 +697,9 @@ I/O address	A9	A8	Description	Read/Write status	Used Direction	Used for
 			//Parallel, expansion port a 0
 			valor &=(255-64-32);
 
-			//Bit 0 (vsync) se actualiza en el core de cpc
+			//Bit 0 (vsync) 
+			valor &=(255-1);
+			valor |=cpc_get_vsync_bit();
 
  			if (realtape_inserted.v && realtape_playing.v) {
                         	if (realtape_last_value>=realtape_volumen) {
@@ -803,6 +917,6 @@ void cpc_splash_videomode_change(void) {
 
         }
 
-        screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
+        screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
 
 }

@@ -66,5 +66,7 @@ extern int adventure_keyboard_key_length;
 
 extern int adventure_keyboard_send_final_spc;
 
+extern z80_bit use_scrcursesw;
+
 #endif
 

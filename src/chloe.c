@@ -134,8 +134,8 @@ D5       Inhabilitacion de la paginacion
 	contend_pages_actual[3]=contend_pages_chloe[ram_entra];
 
 
-	//Aplicamos segun paginacion CHLOE 280SE
-	if (MACHINE_IS_CHLOE_280SE) {
+	//Aplicamos segun paginacion CHLOE 280SE, y MMU de Chloe en zxuno
+	if (MACHINE_IS_CHLOE_280SE || MACHINE_IS_ZXUNO) {
 		int bloque_ram;
 		z80_byte mascara_puerto_f4=1;
 

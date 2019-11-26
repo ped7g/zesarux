@@ -35,6 +35,15 @@ void scrnull_z88_cpc_load_keymap(void)
 	debug_printf (VERBOSE_INFO,"Loading keymap");
 }
 
+void scrnull_putpixel_final_rgb(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color_rgb GCC_UNUSED)
+{
+}
+
+void scrnull_putpixel_final(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color GCC_UNUSED)
+{
+}
+
+
 
 //Rutina de putchar para menu
 void scrnull_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
@@ -80,6 +89,23 @@ void scrnull_detectedchar_print(z80_byte caracter)
 	caracter++;
 }
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrnull_get_menu_width(void)
+{
+        return 32;
+}
+
+
+int scrnull_get_menu_height(void)
+{
+        return 24;
+}
+
+int scrnull_driver_can_ext_desktop (void)
+{
+        return 0;
+}
+
 
 //Null video drivers
 int scrnull_init (void){ 
@@ -91,6 +117,14 @@ debug_printf (VERBOSE_INFO,"Init Null Video Driver");
 
 	scr_putchar_menu=scrnull_putchar_menu;
 	scr_putchar_footer=scrnull_putchar_footer;
+
+	scr_putpixel_final=scrnull_putpixel_final;
+	scr_putpixel_final_rgb=scrnull_putpixel_final_rgb;
+
+
+        scr_get_menu_width=scrnull_get_menu_width;
+        scr_get_menu_height=scrnull_get_menu_height;
+	scr_driver_can_ext_desktop=scrnull_driver_can_ext_desktop;
 
 	scr_driver_name="null";
 

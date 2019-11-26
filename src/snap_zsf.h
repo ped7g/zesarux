@@ -31,4 +31,11 @@ extern char zsf_magic_header[];
 
 extern int zsf_force_uncompressed;
 
+extern void save_zsf_snapshot_file_mem(char *filename,z80_byte *destination_memory,int *longitud_total);
+extern void load_zsf_snapshot_file_mem(char *filename,z80_byte *origin_memory,int longitud_memoria,int load_fast_mode);
+
+extern z80_byte *pending_zrcp_put_snapshot_buffer_destino;
+extern int pending_zrcp_put_snapshot_longitud;
+extern void check_pending_zrcp_put_snapshot(void);
+
 #endif

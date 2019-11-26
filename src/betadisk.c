@@ -328,7 +328,7 @@ int betadisk_load_rom(void)
 
         open_sharedfile(BETADISK_ROM_FILENAME,&ptr_betadisk_romfile);
 
-  			ptr_betadisk_romfile=fopen(betadisk_rom_file_name,"rb");
+  			//ptr_betadisk_romfile=fopen(betadisk_rom_file_name,"rb");
         if (!ptr_betadisk_romfile) {
                         debug_printf (VERBOSE_ERR,"Unable to open ROM file");
         }

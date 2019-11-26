@@ -323,14 +323,17 @@ reached:
 //Rutinas propias
 
 //Si hay que hacer poke a memoria interna.
-void diviface_poke_byte_to_internal_memory(z80_int dir,z80_byte valor)
+//Retorna 0 si no ha escrito en divmmc memoria. Cualquier cosa diferente de 0, es que ha escrito
+//Nota: El valor de retorno solo se usa en chloe, para decirle que si ha escrito en memoria divmmc/ide no escriba en la memoria que haya por debajo,
+//pues desde chloe mete memoria RAM dock en el segmento 0000-3fffh y provocaria escritura ahí, cuando no debe hacerlo si esta encima la divmmc
+int diviface_poke_byte_to_internal_memory(z80_int dir,z80_byte valor)
 {
 
 	//Si en tbblue y escribiendo en memoria layer2, ignorar, dado que esa memoria layer2 en escritura se mapea en 0-3fffh
-	if (MACHINE_IS_TBBLUE && tbblue_write_on_layer2() ) return;
+	if (MACHINE_IS_TBBLUE && tbblue_write_on_layer2() ) return 0;
 
 	if ((diviface_control_register&128)==0 && diviface_paginacion_automatica_activa.v==0) {
-  	return;
+  	return 0;
   }
 
   else {
@@ -341,7 +344,7 @@ void diviface_poke_byte_to_internal_memory(z80_int dir,z80_byte valor)
 		//Por tanto solo hay que determinar si la memoria divmmc se debe escribir (valor en MMU 255),
 		//Y si no se debe, simplemente hacer return de aqui
 	        z80_byte reg_mmu_value=return_tbblue_mmu_segment(dir);
-                if (reg_mmu_value!=255) return;
+                if (reg_mmu_value!=255) return 0;
 	}
 
 		//Si poke a eprom o ram 3 read only.
@@ -354,19 +357,19 @@ void diviface_poke_byte_to_internal_memory(z80_int dir,z80_byte valor)
 				//Escribir en eprom siempre que jumper eprom está permitiendolo
 				z80_byte *puntero=diviface_return_memory_paged_pointer(dir);
 				*puntero=valor;
-				return;
+				return 1;
 			}
 
 			//No escribir
-			return;
+			return 0;
 		}
 
     if (dir<16384) {
     	z80_byte *puntero=diviface_return_memory_paged_pointer(dir);
 			*puntero=valor;
-			return;
+			return 1;
     }
-		return;
+		return 0;
 
   }
 }
@@ -391,6 +394,29 @@ z80_byte diviface_poke_byte(z80_int dir,z80_byte valor)
 	return 0;
 }
 
+
+
+z80_byte diviface_chloe_poke_byte_no_time(z80_int dir,z80_byte valor)
+{
+	//Si ya escribe en divmmc memoria, no escribir en el layer de debajo
+	if (diviface_poke_byte_to_internal_memory(dir,valor)) return 0;
+
+	debug_nested_poke_byte_no_time_call_previous(diviface_nested_id_poke_byte_no_time,dir,valor);
+
+	//Para que no se queje el compilador
+	return 0;
+}
+
+z80_byte diviface_chloe_poke_byte(z80_int dir,z80_byte valor)
+{
+	//Si ya escribe en divmmc memoria, no escribir en el layer de debajo
+	if (diviface_poke_byte_to_internal_memory(dir,valor)) return 0;
+
+	debug_nested_poke_byte_call_previous(diviface_nested_id_poke_byte,dir,valor);
+
+	//Para que no se queje el compilador
+	return 0;
+}
 
 z80_byte *diviface_return_tbblue_memory_pointer(z80_int dir)
 {
@@ -502,9 +528,17 @@ void diviface_set_peek_poke_functions(void)
 	if (activar) {
 		debug_printf (VERBOSE_DEBUG,"Setting DIVIFACE poke / peek functions");
 
+				if (MACHINE_IS_CHLOE) {
+        	diviface_nested_id_poke_byte=debug_nested_poke_byte_add(diviface_chloe_poke_byte,"Diviface poke_byte");
+        	diviface_nested_id_poke_byte_no_time=debug_nested_poke_byte_no_time_add(diviface_chloe_poke_byte_no_time,"Diviface poke_byte_no_time");
+				}
 
-        diviface_nested_id_poke_byte=debug_nested_poke_byte_add(diviface_poke_byte,"Diviface poke_byte");
-        diviface_nested_id_poke_byte_no_time=debug_nested_poke_byte_no_time_add(diviface_poke_byte_no_time,"Diviface poke_byte_no_time");
+				else {
+        	diviface_nested_id_poke_byte=debug_nested_poke_byte_add(diviface_poke_byte,"Diviface poke_byte");
+        	diviface_nested_id_poke_byte_no_time=debug_nested_poke_byte_no_time_add(diviface_poke_byte_no_time,"Diviface poke_byte_no_time");
+				}
+
+
         diviface_nested_id_peek_byte=debug_nested_peek_byte_add(diviface_peek_byte,"Diviface peek_byte");
         diviface_nested_id_peek_byte_no_time=debug_nested_peek_byte_no_time_add(diviface_peek_byte_no_time,"Diviface peek_byte_no_time");
 

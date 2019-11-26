@@ -149,9 +149,36 @@ typedef struct s_nota_musical nota_musical;
 #define MAX_NOTAS_MUSICALES (NOTAS_MUSICALES_OCTAVAS*NOTAS_MUSICALES_NOTAS_POR_OCTAVA)
 
 extern char *get_note_name(int frecuencia);
+extern int get_mid_number_note(char *str);
+extern void get_note_values(char *texto,int *nota_final,int *si_sostenido,int *octava);
 extern int set_audiodriver_null(void);
 extern void fallback_audio_null(void);
 extern void audio_empty_buffer(void);
+
+extern int mid_mete_cabecera(z80_byte *midi_file,int pistas,int division);
+extern int mid_mete_inicio_pista(z80_byte *mem,int division);
+extern int mid_mete_evento_final_pista(unsigned char *mem);
+extern int mid_mete_nota(z80_byte *mem,int silencio_anterior,int duracion,int canal_midi,int keynote,int velocity);
+extern void mid_mete_longitud_pista(z80_byte *mem,int longitud);
+extern void mid_frame_event(void);
+extern int audio_midi_output_initialized;
+extern void audio_midi_output_frame_event(void);
+
+//Para cuantas notas da esto aprox?
+#define MAX_MID_EXPORT_BUFFER 1000000
+
+extern z80_bit mid_is_recording;
+extern z80_bit mid_is_paused;
+extern char mid_export_file[];
+extern int mid_chips_al_start;
+//extern int mid_record_at_least_one;
+extern int mid_notes_recorded;
+extern z80_bit mid_record_noisetone;
+extern int mid_has_been_initialized(void);
+extern void mid_flush_file(void);
+extern void mid_initialize_export(void);
+extern void mid_reset_export_buffers(void);
+extern int mid_max_buffer(void);
 
 extern char audio_valor_enviar_sonido;
 
@@ -255,7 +282,30 @@ extern void audio_send_stereo_sample(char valor_sonido_izquierdo,char valor_soni
 
 extern void audiodac_send_sample_value(z80_byte value);
 
+extern void midi_output_frame_event(void);
+extern int audio_midi_output_init(void);
+extern void audio_midi_output_finish(void);
+
+extern z80_bit midi_output_record_noisetone;
+
 #define FREQ_TOP_SPEED_CHANGE 12800
 
+extern int audio_midi_client;
+extern int audio_midi_port;
+extern int audio_midi_available(void);
+
+
+#ifdef MINGW
+
+//extern int windows_midi_midiport;
+extern void windows_midi_output_flush_output(void);
+extern int windows_mid_initialize_all(void);
+extern void windows_mid_finish_all(void);
+extern int windows_note_on(unsigned char channel, unsigned char note,unsigned char velocity);
+extern int windows_note_off(unsigned char channel, unsigned char note,unsigned char velocity);
+
+
+
+#endif
 
 #endif

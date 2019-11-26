@@ -66,7 +66,7 @@ z80_byte baseconf_last_port_bf;
 z80_byte baseconf_last_port_eff7;
 
 //ver Xpeccy - http://github.com/samstyle/Xpeccy Baseconf ports and memory maping is in ./src/libxpeccy/hardware/pentevo.c
-
+ 
 int baseconf_shadow_ports_available(void)
 {
 
@@ -80,6 +80,12 @@ int baseconf_shadow_ports_available(void)
         }
 
         return 0;
+}
+
+
+void lee_byte_evo_aux(z80_int direccion GCC_UNUSED)
+{
+        //TODO: funcion que se usa en el core baseconf de testing
 }
 
 void baseconf_reset_cpu(void)
@@ -376,14 +382,14 @@ segmento 0 pagina 0
         }
 
         //Puertos NVRAM. 
-	else if (puerto==0xeff7 && !baseconf_shadow_ports_available() ) zxevo_last_port_eff7=valor;
+	else if (puerto==0xeff7 && !baseconf_shadow_ports_available() ) puerto_eff7=valor;
 	else if (puerto==0xdff7 && !baseconf_shadow_ports_available() ) zxevo_last_port_dff7=valor;
         else if (puerto==0xdef7 && baseconf_shadow_ports_available() ) zxevo_last_port_dff7=valor;
 
 
 	else if (puerto==0xbff7 && !baseconf_shadow_ports_available() ) {
 						//Si esta permitida la escritura
-						if (zxevo_last_port_eff7&128) zxevo_nvram[zxevo_last_port_dff7]=valor;
+						if (puerto_eff7&128) zxevo_nvram[zxevo_last_port_dff7]=valor;
 	}
 
         else if (puerto==0xbef7 && baseconf_shadow_ports_available() ) {

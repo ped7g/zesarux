@@ -94,6 +94,7 @@
 #include "tbblue.h"
 #include "tsconf.h"
 #include "kartusho.h"
+#include "ifrom.h"
 #include "mdvtool.h"
 #include "betadisk.h"
 #include "multiface.h"
@@ -101,6 +102,11 @@
 #include "baseconf.h"
 #include "settings.h"
 #include "chloe.h"
+#include "zeng.h"
+#include "network.h"
+#include "stats.h"
+#include "scl2trd.h"
+#include "zip.h"
 
 //Archivo usado para entrada de teclas
 FILE *ptr_input_file_keyboard;
@@ -144,7 +150,7 @@ int write_rom_nested_id_poke_byte_no_time;
 
 //Utilidades externas
 char external_tool_sox[PATH_MAX]="/usr/bin/sox";
-char external_tool_unzip[PATH_MAX]="/usr/bin/unzip";
+//char external_tool_unzip[PATH_MAX]="/usr/bin/unzip";
 char external_tool_gunzip[PATH_MAX]="/bin/gunzip";
 char external_tool_tar[PATH_MAX]="/bin/tar";
 char external_tool_unrar[PATH_MAX]="/usr/bin/unrar";
@@ -374,6 +380,11 @@ struct x_tabla_teclado mk14_tabla_teclado_numeros[]={
 
 };
 
+
+//Para guardar geometria de ventanas
+int total_config_window_geometry=0;
+saved_config_window_geometry saved_config_window_geometry_array[MAX_CONFIG_WINDOW_GEOMETRY];
+
 /*
 
 Lista fabricantes
@@ -385,7 +396,7 @@ Investronica
 Microdigital Eletronica
 Zxuno team
 Chloe Corporation
-Jeff Braine
+New Horizons (Jeff Braine)
 Cambridge computers
 Jupiter cantab
 Miles Gordon Tech
@@ -405,7 +416,7 @@ char *array_fabricantes[]={
   "Pentagon",
   "Chloe Corporation",
   "Mario Prato",
-  "Jeff Braine",
+  "New Horizons",
 	"ZXUno Team",
         "NedoPC",
   "TS Labs",
@@ -426,7 +437,7 @@ char *array_fabricantes_hotkey[]={
         "~~Pentagon",
         "~~Chloe Corporation",
         "Ma~~rio Prato",
-        "~~Jeff Braine",
+        "Ne~~w Horizons",
         "~~ZXUno Team",
         "N~~edoPC",
         "TS ~~Labs",
@@ -438,7 +449,7 @@ char *array_fabricantes_hotkey[]={
 };
 
 //Si letra es espacio->no hay letra
-char array_fabricantes_hotkey_letra[]="nsatimbgpcrjzelvu";
+char array_fabricantes_hotkey_letra[]="nsatimbgpcrwzelvu";
 
 
 
@@ -3119,6 +3130,8 @@ int util_write_configfile(void)
   int indice_string=0;
 
   int i;
+  
+  
 
 //Macro para no repetir tantas veces lo mismo
 #define ADD_STRING_CONFIG indice_string +=util_write_config_add_string(&config_settings[indice_string]
@@ -3133,6 +3146,7 @@ int util_write_configfile(void)
   if (menu_char_width!=8)		      ADD_STRING_CONFIG,"--menucharwidth %d",menu_char_width);
 
   if (screen_reduce_075.v)			ADD_STRING_CONFIG,"--reduce-075");
+  if (screen_reduce_075_antialias.v==0)		ADD_STRING_CONFIG,"--reduce-075-no-antialias");
 
 
 
@@ -3145,10 +3159,25 @@ int util_write_configfile(void)
                                                 ADD_STRING_CONFIG,"--watermark-position %d",screen_watermark_position);
 
 
+  if (screen_ext_desktop_enabled)             ADD_STRING_CONFIG,"--enable-zxdesktop");   
+                                              ADD_STRING_CONFIG,"--zxdesktop-width %d",screen_ext_desktop_width);  
+
+
+
+                                              ADD_STRING_CONFIG,"--zxdesktop-fill-type %d",menu_ext_desktop_fill);
+                                              ADD_STRING_CONFIG,"--zxdesktop-fill-solid-color %d",menu_ext_desktop_fill_solid_color);
+				
+
+
+                          
+  if (screen_ext_desktop_place_menu)          ADD_STRING_CONFIG,"--zxdesktop-new-items");                   
+
+
   if (autoframeskip.v==0)                     ADD_STRING_CONFIG,"--disable-autoframeskip");
   if (no_cambio_parametros_maquinas_lentas.v) ADD_STRING_CONFIG,"--nochangeslowparameters");
   if (ventana_fullscreen)                     ADD_STRING_CONFIG,"--fullscreen");
   if (verbose_level)                          ADD_STRING_CONFIG,"--verbose %d",verbose_level);
+  if (debug_always_show_messages_in_console.v) ADD_STRING_CONFIG,"--verbose-always-console");
   if (windows_no_disable_console.v)           ADD_STRING_CONFIG,"--nodisableconsole");
   if (porcentaje_velocidad_emulador!=100)     ADD_STRING_CONFIG,"--cpuspeed %d",porcentaje_velocidad_emulador);
   if (zxuno_deny_turbo_bios_boot.v)           ADD_STRING_CONFIG,"--denyturbozxunoboot");
@@ -3209,6 +3238,10 @@ int util_write_configfile(void)
                                               ADD_STRING_CONFIG,"--machine %s",buffer_temp);
   }
   if (video_fast_mode_emulation.v)            ADD_STRING_CONFIG,"--videofastblack");
+
+  if (ocr_settings_not_look_23606.v)          ADD_STRING_CONFIG,"--no-ocr-alternatechars");
+
+
   if (zx8081_vsync_sound.v)                   ADD_STRING_CONFIG,"--zx8081vsyncsound");
   if (ram_in_8192.v)                          ADD_STRING_CONFIG,"--zx8081ram8K2000");
   if (ram_in_32768.v)                         ADD_STRING_CONFIG,"--zx8081ram16K8000");
@@ -3284,11 +3317,17 @@ int util_write_configfile(void)
  	ADD_STRING_CONFIG,"--tempdir \"%s\"",buffer_temp);
   }
 
-  if (sna_setting_no_change_machine.v)      ADD_STRING_CONFIG,"--sna-no-change-machine");
+  if (sna_setting_no_change_machine.v)      ADD_STRING_CONFIG,"--snap-no-change-machine");
 
+  if (no_close_menu_after_smartload.v)      ADD_STRING_CONFIG,"--no-close-after-smartload");
+  		
 
   if (texto_artistico.v==0)                   ADD_STRING_CONFIG,"--disablearttext");
                                               ADD_STRING_CONFIG,"--arttextthresold %d",umbral_arttext);
+
+  if (use_scrcursesw.v)                       ADD_STRING_CONFIG,"--curses-ext-utf");
+
+
   if (chardetect_printchar_enabled.v)         ADD_STRING_CONFIG,"--enableprintchartrap");
   if (stdout_simpletext_automatic_redraw.v)   ADD_STRING_CONFIG,"--autoredrawstdout");
   if (screen_text_accept_ansi)                ADD_STRING_CONFIG,"--sendansi");
@@ -3309,7 +3348,7 @@ int util_write_configfile(void)
   if (textspeech_also_send_menu.v)            ADD_STRING_CONFIG,"--textspeechmenu");
   if (textspeech_timeout_no_enter)            ADD_STRING_CONFIG,"--textspeechtimeout %d",textspeech_timeout_no_enter);
                                               ADD_STRING_CONFIG,"--tool-sox-path \"%s\"",external_tool_sox);
-                                              ADD_STRING_CONFIG,"--tool-unzip-path \"%s\"",external_tool_unzip);
+                                              //ADD_STRING_CONFIG,"--tool-unzip-path \"%s\"",external_tool_unzip);
                                               ADD_STRING_CONFIG,"--tool-gunzip-path \"%s\"",external_tool_gunzip);
                                               ADD_STRING_CONFIG,"--tool-tar-path \"%s\"",external_tool_tar);
                                               ADD_STRING_CONFIG,"--tool-unrar-path \"%s\"",external_tool_unrar);
@@ -3364,6 +3403,9 @@ int util_write_configfile(void)
   if (kartusho_rom_file_name[0]!=0)         ADD_STRING_CONFIG,"--kartusho-rom \"%s\"",kartusho_rom_file_name);
   if (kartusho_enabled.v)                   ADD_STRING_CONFIG,"--enable-kartusho");
 
+  if (ifrom_rom_file_name[0]!=0)         ADD_STRING_CONFIG,"--ifrom-rom \"%s\"",ifrom_rom_file_name);
+  if (ifrom_enabled.v)                   ADD_STRING_CONFIG,"--enable-ifrom");  
+
   if (betadisk_enabled.v)                   ADD_STRING_CONFIG,"--enable-betadisk");
 
   if (trd_file_name[0]!=0)                    ADD_STRING_CONFIG,"--trd-file \"%s\"",trd_file_name);
@@ -3402,8 +3444,18 @@ int util_write_configfile(void)
 
 
   for (i=0;i<MAX_BREAKPOINTS_CONDITIONS;i++) {
-		if (debug_breakpoints_conditions_array[i][0]!=0)
-                                              ADD_STRING_CONFIG,"--set-breakpoint %d \"%s\"",i+1,debug_breakpoints_conditions_array[i]);
+
+
+
+			if (debug_breakpoints_conditions_array_tokens[i][0].tipo!=TPT_FIN) {
+
+				//nuevo parser de breakpoints
+				char buffer_temp[MAX_BREAKPOINT_CONDITION_LENGTH];
+				exp_par_tokens_to_exp(debug_breakpoints_conditions_array_tokens[i],buffer_temp,MAX_PARSER_TOKENS_NUM);
+                                ADD_STRING_CONFIG,"--set-breakpoint %d \"%s\"",i+1,buffer_temp);
+			}
+
+
 	}
 
   for (i=0;i<MAX_BREAKPOINTS_CONDITIONS;i++) {
@@ -3411,12 +3463,30 @@ int util_write_configfile(void)
                                               ADD_STRING_CONFIG,"--set-breakpointaction %d \"%s\"",i+1,debug_breakpoints_actions_array[i]);
   }
 
+
+
+  for (i=0;i<DEBUG_MAX_WATCHES;i++) {
+
+			if (debug_watches_array[i][0].tipo!=TPT_FIN) {
+
+				char buffer_temp[MAX_BREAKPOINT_CONDITION_LENGTH];
+				exp_par_tokens_to_exp(debug_watches_array[i],buffer_temp,MAX_PARSER_TOKENS_NUM);
+                                ADD_STRING_CONFIG,"--set-watch %d \"%s\"",i+1,buffer_temp);
+			}
+
+	}
+
+  
+
   for (i=0;i<65536;i++) {
 		if (mem_breakpoint_array[i]!=0)
                                               ADD_STRING_CONFIG,"--set-mem-breakpoint %04XH %d",i,mem_breakpoint_array[i]);
 	}  
 
   if (hardware_debug_port.v)                  ADD_STRING_CONFIG,"--hardware-debug-ports");
+  if (zesarux_zxi_hardware_debug_file[0]!=0)  ADD_STRING_CONFIG,"--hardware-debug-ports-byte-file \"%s\"",zesarux_zxi_hardware_debug_file);
+
+  if (debug_dump_zsf_on_cpu_panic.v)          ADD_STRING_CONFIG,"--dump-snapshot-panic");
 
   if (autoselect_snaptape_options.v==0)       ADD_STRING_CONFIG,"--noautoselectfileopt");
   if (screen_show_splash_texts.v==0)          ADD_STRING_CONFIG,"--nosplash");
@@ -3433,6 +3503,18 @@ int util_write_configfile(void)
   if (menu_invert_mouse_scroll.v)             ADD_STRING_CONFIG,"--invert-menu-mouse-scroll");
 
 
+                                              ADD_STRING_CONFIG,"--menu-mix-method \"%s\"",screen_menu_mix_methods_strings[screen_menu_mix_method]);
+
+
+                                                ADD_STRING_CONFIG,"--menu-transparency-perc %d",screen_menu_mix_transparency);
+
+	
+
+  if (screen_menu_reduce_bright_machine.v)   ADD_STRING_CONFIG,"--menu-darken-when-open");
+  if (screen_machine_bw_no_multitask.v)      ADD_STRING_CONFIG,"--menu-bw-multitask");
+
+
+
   if (rainbow_enabled.v)                      ADD_STRING_CONFIG,"--realvideo");
 
   if (autodetect_rainbow.v==0)                ADD_STRING_CONFIG,"--no-detect-realvideo");
@@ -3447,6 +3529,7 @@ int util_write_configfile(void)
   if (spectra_enabled.v)                      ADD_STRING_CONFIG,"--enablespectra");
   if (timex_video_emulation.v)                ADD_STRING_CONFIG,"--enabletimexvideo");
   if (timex_mode_512192_real.v==0)	      ADD_STRING_CONFIG,"--disablerealtimex512");
+  if (pentagon_16c_mode_available.v)          ADD_STRING_CONFIG,"--enable16c");
 
 
   if (spritechip_enabled.v)                   ADD_STRING_CONFIG,"--enablezgx");
@@ -3471,11 +3554,26 @@ int util_write_configfile(void)
   if (ay_player_limit_any_track!=0)           ADD_STRING_CONFIG,"--ayplayer-any-length %d",ay_player_limit_any_track/50);
   if (ay_player_cpc_mode.v)                   ADD_STRING_CONFIG,"--ayplayer-cpc");
 
+
+  if (audio_midi_output_initialized)          ADD_STRING_CONFIG,"--enable-midi");
+                                              ADD_STRING_CONFIG,"--midi-client %d",audio_midi_client);
+                                              ADD_STRING_CONFIG,"--midi-port %d",audio_midi_port);
+
+  if (midi_output_record_noisetone.v)         ADD_STRING_CONFIG,"--midi-allow-tone-noise");			
+
+
+
   //Este setting lo permitimos siempre, aunque no se haya compilado driver sdl, pues es una variable global, aunque no se verá en la ayuda,
   if (sdl_raw_keyboard_read.v)                ADD_STRING_CONFIG,"--sdlrawkeyboard");
-  
+
+  if (tape_any_flag_loading.v)                ADD_STRING_CONFIG,"--anyflagloading");
+                                
   if (tape_loading_simulate.v)                ADD_STRING_CONFIG,"--simulaterealload");
   if (tape_loading_simulate_fast.v)           ADD_STRING_CONFIG,"--simulaterealloadfast");
+
+  if (accelerate_loaders.v)                   ADD_STRING_CONFIG,"--realloadfast");
+		
+
   if (screen_gray_mode&1)                     ADD_STRING_CONFIG,"--blue");
   if (screen_gray_mode&2)                     ADD_STRING_CONFIG,"--green");
   if (screen_gray_mode&4)                     ADD_STRING_CONFIG,"--red");
@@ -3501,9 +3599,47 @@ int util_write_configfile(void)
 
   if (menu_desactivado.v)                     ADD_STRING_CONFIG,"--disablemenu");
 
+  if (menu_desactivado_andexit.v)              ADD_STRING_CONFIG,"--disablemenuandexit");
+			
+
+  if (menu_desactivado_file_utilities.v)      ADD_STRING_CONFIG,"--disablemenufileutils");
+
+
   if (menu_force_writing_inverse_color.v)     ADD_STRING_CONFIG,"--forcevisiblehotkeys");
   if (force_confirm_yes.v)                    ADD_STRING_CONFIG,"--forceconfirmyes");
                                               ADD_STRING_CONFIG,"--gui-style \"%s\"",definiciones_estilos_gui[estilo_gui_activo].nombre_estilo);
+
+  if (zeng_remote_hostname[0]!=0)             ADD_STRING_CONFIG,"--zeng-remote-hostname %s",zeng_remote_hostname);
+                                              ADD_STRING_CONFIG,"--zeng-remote-port %d",zeng_remote_port);
+                                              ADD_STRING_CONFIG,"--zeng-snapshot-interval %d",zeng_segundos_cada_snapshot);
+  if (zeng_i_am_master)                       ADD_STRING_CONFIG,"--zeng-iam-master");
+		
+
+
+                                              
+                                              ADD_STRING_CONFIG,"--total-minutes-use %d",total_minutes_use);	
+
+
+  if (stats_asked.v)                          ADD_STRING_CONFIG,"--stats-send-already-asked");
+  if (stats_enabled.v)                        ADD_STRING_CONFIG,"--stats-send-enabled");
+          
+
+  if (stats_uuid[0]!=0)                      ADD_STRING_CONFIG,"--stats-uuid %s",stats_uuid);
+  
+  			ADD_STRING_CONFIG,"--stats-speccy-queries %d",stats_total_speccy_browser_queries);
+			
+			ADD_STRING_CONFIG,"--stats-zx81-queries %d",stats_total_zx81_browser_queries);
+			
+  
+  
+  
+
+  if (stats_check_updates_enabled.v==0)        ADD_STRING_CONFIG,"--stats-disable-check-updates");
+		
+
+
+  if (stats_last_remote_version[0]!=0)       ADD_STRING_CONFIG,"--stats-last-avail-version %s",stats_last_remote_version);
+   
 
 					      ADD_STRING_CONFIG,"--last-version \"%s\"",BUILDNUMBER);
 
@@ -3511,6 +3647,13 @@ int util_write_configfile(void)
 
 
   if (parameter_disablebetawarning[0])        ADD_STRING_CONFIG,"--disablebetawarning \"%s\"",parameter_disablebetawarning);
+
+  for (i=0;i<total_config_window_geometry;i++) {
+       ADD_STRING_CONFIG,"--windowgeometry %s %d %d %d %d", saved_config_window_geometry_array[i].nombre,
+       saved_config_window_geometry_array[i].x,saved_config_window_geometry_array[i].y,
+        saved_config_window_geometry_array[i].ancho,saved_config_window_geometry_array[i].alto);
+  }
+
 
 
   for (i=0;i<MAX_F_FUNCTIONS_KEYS;i++) {
@@ -3532,6 +3675,8 @@ int util_write_configfile(void)
                                               ADD_STRING_CONFIG,"--remoteprotocol-port %d",remote_protocol_port);
 
   if (realjoystick_disabled.v==1)              ADD_STRING_CONFIG,"--disablerealjoystick");
+  
+                          ADD_STRING_CONFIG,"--realjoystickpath %s",string_dev_joystick);
 
 
   //real joystick buttons to events
@@ -3606,8 +3751,8 @@ int util_write_configfile(void)
 
 //Leer archivo de configuracion en buffer
 //Devuelve 0 si no existe
-//Max 64 kb
-int configfile_read(char *mem)
+//Detecta que no exceda el limite
+int configfile_read(char *mem,int limite)
 {
 
 
@@ -3620,6 +3765,7 @@ int configfile_read(char *mem)
   }
 
 
+
 	//Ver si archivo existe
 
 	if (!si_existe_archivo(configfile)) {
@@ -3628,6 +3774,12 @@ int configfile_read(char *mem)
     if (util_create_sample_configfile(1)==0) return 0;
 
 	}
+
+        int tamanyo_archivo=get_file_size(configfile);
+
+        if (tamanyo_archivo>limite) {
+             cpu_panic("Configuration file larger than maximum allowed size. Exiting");  
+        }
 
 	return configfile_read_aux(configfile,mem);
 
@@ -3747,7 +3899,7 @@ void configfile_parse(void)
 		cpu_panic("Unable to allocate memory for configuration file");
 	}
 
-	if (configfile_read(mem_config)==0) {
+	if (configfile_read(mem_config,MAX_SIZE_CONFIG_FILE)==0) {
 		//No hay archivo de configuracion. Parametros vacios
 		configfile_argv[0]="";
 		configfile_argc=1;
@@ -4143,9 +4295,12 @@ int quickload_valid_extension(char *nombre) {
                 || !util_compare_file_extension(nombre,"sp")
                 || !util_compare_file_extension(nombre,"zsf")
                 || !util_compare_file_extension(nombre,"spg")
+                || !util_compare_file_extension(nombre,"nex")
                 || !util_compare_file_extension(nombre,"trd")
+                || !util_compare_file_extension(nombre,"dsk")
                 || !util_compare_file_extension(nombre,"z80")
                 || !util_compare_file_extension(nombre,"tzx")
+                || !util_compare_file_extension(nombre,"pzx")
                 || !util_compare_file_extension(nombre,"sna")
                 || !util_compare_file_extension(nombre,"tap")
 
@@ -4311,6 +4466,7 @@ int quickload_continue(char *nombre) {
                            !util_compare_file_extension(nombre,"zx")
                         || !util_compare_file_extension(nombre,"sp")
                         || !util_compare_file_extension(nombre,"zsf")
+                        || !util_compare_file_extension(nombre,"nex")
                         || !util_compare_file_extension(nombre,"spg")
                         || !util_compare_file_extension(nombre,"z80")
                         || !util_compare_file_extension(nombre,"sna")
@@ -4389,10 +4545,11 @@ int quickload_continue(char *nombre) {
         }
 
 
-	//wav y smp suponemos real audio tape Spectrum
+	//wav, smp y pzx suponemos real audio tape Spectrum
         else if (
                    !util_compare_file_extension(nombre,"wav")
                 || !util_compare_file_extension(nombre,"smp")
+                || !util_compare_file_extension(nombre,"pzx")
 
         ) {
 		quickload_real_tape(nombre);
@@ -4495,6 +4652,38 @@ int quickload_continue(char *nombre) {
                                
                 betadisk_enable();
                 trd_insert_disk(nombre);
+
+
+		return 0;
+
+	}        
+	
+	
+	//DSK
+	else if (
+		!util_compare_file_extension(nombre,"dsk")
+	) {
+		//Aqui el autoload da igual. cambiamos siempre a P3 si conviene
+		if (!MACHINE_IS_SPECTRUM_P3) {
+			current_machine_type=MACHINE_ID_SPECTRUM_P3_40;
+			set_machine(NULL);
+
+                        //establecer parametros por defecto. Incluido quitar slots de memoria
+                        set_machine_params();
+                        reset_cpu();
+                      
+                       
+                }
+                dsk_insert_disk(nombre);
+                //strcpy(dskplusthree_file_name,nombre);
+                
+                dskplusthree_enable();
+		pd765_enable();
+		plus3dos_traps.v=1;
+		
+                               
+               
+                
 
 
 		return 0;
@@ -4709,6 +4898,73 @@ long int get_file_size(char *nombre)
 			return buf_stat.st_size;
                 }
 }
+
+
+
+
+
+//Retorna numero lineas archivo.
+int get_file_lines(char *filename)
+{
+
+	int leidos;
+        int total_lineas=0;
+
+        //Leemos primero todo el archivo en memoria
+        long int tamanyo_archivo=get_file_size(filename);
+
+        z80_byte *buffer_memoria;
+        z80_byte *buffer_memoria_copia;
+
+        if (tamanyo_archivo>0) {
+                //printf ("asignando memoria\n");
+                buffer_memoria=malloc(tamanyo_archivo);
+                if (buffer_memoria==NULL) cpu_panic("Can not allocate memory for counting file lines");
+                buffer_memoria_copia=buffer_memoria;
+        }
+
+        FILE *ptr_archivo;
+        ptr_archivo=fopen(filename,"rb");
+        if (!ptr_archivo) {
+                debug_printf (VERBOSE_DEBUG,"Can not open %s",filename);
+                return 0;
+        }
+
+        leidos=fread(buffer_memoria,1,tamanyo_archivo,ptr_archivo);
+        fclose(ptr_archivo);
+
+        /*
+        Nota: leyendo de fread todo de golpe, o byte a byte, suele tardar lo mismo, EXCEPTO, en el caso que el archivo este en cache
+        del sistema operativo, parece que leer byte a byte no tira de cache. En cambio, leyendo todo de golpe, si que usa la cache
+        Ejemplo:
+        Leer archivo de 371 MB. lineas total: 14606365
+        25 segundos aprox en leer y contar lineas, usando fread byte a byte
+        Si uso fread leyendo todo de golpe, tarda menos de 1 segundo
+        */
+
+        z80_byte byte_leido;
+
+        while (leidos>0) {
+                byte_leido=*buffer_memoria_copia;
+                buffer_memoria_copia++;
+                leidos--;
+
+                if (byte_leido=='\n') total_lineas++;
+
+                //if (leidos<5) printf ("leyendo de memoria\n");
+        } 
+                
+        if (tamanyo_archivo>0) {
+                //printf ("liberando memoria\n");
+                free(buffer_memoria);
+        }
+
+        //printf ("lineas total: %d\n",total_lineas);
+
+	return total_lineas;
+
+}
+
 
 //0 desconocido o inexistente
 //1 normal
@@ -5374,7 +5630,7 @@ void util_set_reset_key_chloe(void)
 //Decir si el raton funciona sobre el menu
 int si_menu_mouse_activado(void)
 {
-  if (kempston_mouse_emulation.v) return 0;
+  //if (kempston_mouse_emulation.v) return 0;
   if (gunstick_emulation) return 0;
   if (mouse_menu_disabled.v) return 0;
 
@@ -5427,8 +5683,10 @@ void util_set_reset_mouse(enum util_mouse_buttons boton,int pressrelease)
 
         //printf ("Leido press release mouse\n");
         if (si_menu_mouse_activado() ) {
-          //Si no esta menu abierto, hace accion de abrir menu
-          if (menu_abierto==0) menu_fire_event_open_menu();
+          //Si no esta menu abierto, hace accion de abrir menu, siempre que no este kempston
+          if (menu_abierto==0) {
+                  if (kempston_mouse_emulation.v==0) menu_fire_event_open_menu();
+          }
           else {
             //Si esta menu abierto, es como enviar enter, pero cuando no esta la ventana en background
             if (zxvision_keys_event_not_send_to_machine) {
@@ -5468,8 +5726,10 @@ void util_set_reset_mouse(enum util_mouse_buttons boton,int pressrelease)
         //Si esta menu abierto, hace como ESC
 
         if (si_menu_mouse_activado() ) {
-          //Si no esta menu abierto, hace accion de abrir menu
-          if (menu_abierto==0) menu_fire_event_open_menu();
+          //Si no esta menu abierto, hace accion de abrir menu, siempre que no este kempston
+          if (menu_abierto==0) {
+                  if (kempston_mouse_emulation.v==0) menu_fire_event_open_menu();
+          }
           else {
             //Si esta menu abierto, es como enviar ESC
             if (zxvision_keys_event_not_send_to_machine) {
@@ -5711,13 +5971,7 @@ void util_set_reset_key(enum util_teclas tecla,int pressrelease)
 void convert_numeros_letras_puerto_teclado(z80_byte tecla,int pressrelease)
 {
 
-
-
-	//else {
-	        convert_numeros_letras_puerto_teclado_continue(tecla,pressrelease);
-	//}
-
-
+        convert_numeros_letras_puerto_teclado_continue(tecla,pressrelease);
 }
 
 
@@ -6020,6 +6274,20 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
   //Ver si hay teclas F redefinidas
   if (util_set_reset_key_continue_f_functions(tecla,pressrelease)) return;
 
+
+  //No estoy seguro que este sea el mejor sitio para llamar a zeng, pero...
+
+  //Enviar tecla si no es cursor (esto se trata como joystick aparte)
+  if (tecla!=UTIL_KEY_HOME && tecla!=UTIL_KEY_LEFT && tecla!=UTIL_KEY_RIGHT && tecla!=UTIL_KEY_DOWN && tecla!=UTIL_KEY_UP) {
+        zeng_send_key_event(tecla,pressrelease);
+  }
+
+  util_set_reset_key_continue_after_zeng(tecla,pressrelease);
+}
+
+void util_set_reset_key_continue_after_zeng(enum util_teclas tecla,int pressrelease)
+{
+
         //temp reasignacion
         //if (tecla==UTIL_KEY_ALT_R) tecla=UTIL_KEY_ENTER;
 
@@ -6273,13 +6541,13 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
 
                         case UTIL_KEY_HOME:
                                 if (pressrelease) {
-                                        joystick_set_fire();
+                                        joystick_set_fire(1);
 
 					//Home en cpc es copy
 					cpc_keyboard_table[1] &=(255-2);
                                 }
                                 else {
-                                        joystick_release_fire();
+                                        joystick_release_fire(1);
 
 					//Home en cpc es copy
 					cpc_keyboard_table[1] |=2;
@@ -6290,7 +6558,7 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 if (pressrelease) {
                                         //puerto_65278 &=255-1;
                                         //puerto_63486 &=255-16;
-                                        joystick_set_left();
+                                        joystick_set_left(1);
                                         blink_kbd_a12 &= (255-64);
 					cpc_keyboard_table[1] &=(255-1);
 
@@ -6300,7 +6568,7 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 else {
                                         //puerto_65278 |=1;
                                         //puerto_63486 |=16;
-                                        joystick_release_left();
+                                        joystick_release_left(1);
                                         blink_kbd_a12 |= 64;
 					                              cpc_keyboard_table[1] |=1;
                                         ql_keyboard_table[1] |= 2;
@@ -6310,7 +6578,7 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 if (pressrelease) {
                                         //puerto_65278 &=255-1;
                                         //puerto_61438 &=255-4;
-                                        joystick_set_right();
+                                        joystick_set_right(1);
                                         blink_kbd_a11 &= (255-64);
 					                              cpc_keyboard_table[0] &=(255-2);
                                         ql_keyboard_table[1] &= (255-16);
@@ -6318,7 +6586,7 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 else {
                                         //puerto_65278 |=1;
                                         //puerto_61438 |=4;
-                                        joystick_release_right();
+                                        joystick_release_right(1);
                                         blink_kbd_a11 |= 64;
                                         cpc_keyboard_table[0] |=2;
                                         ql_keyboard_table[1] |= 16;
@@ -6329,7 +6597,7 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 if (pressrelease) {
                                         //puerto_65278 &=255-1;
                                         //puerto_61438 &=255-16;
-                                        joystick_set_down();
+                                        joystick_set_down(1);
 
                                         blink_kbd_a10 &= (255-64);
 					cpc_keyboard_table[0] &=(255-4);
@@ -6339,7 +6607,7 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 else {
                                         //puerto_65278 |=1;
                                         //puerto_61438 |=16;
-                                        joystick_release_down();
+                                        joystick_release_down(1);
 
                                         blink_kbd_a10 |= 64;
 					cpc_keyboard_table[0] |=4;
@@ -6351,7 +6619,7 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 if (pressrelease) {
                                         //puerto_65278 &=255-1;
                                         //puerto_61438 &=255-8;
-                                        joystick_set_up();
+                                        joystick_set_up(1);
                                         blink_kbd_a9 &= (255-64);
 					cpc_keyboard_table[0] &=(255-1);
                                         ql_keyboard_table[1] &= (255-4);
@@ -6359,12 +6627,98 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
                                 else {
                                         //puerto_65278 |=1;
                                         //puerto_61438 |=8;
-                                        joystick_release_up();
+                                        joystick_release_up(1);
                                         blink_kbd_a9 |= 64;
 					cpc_keyboard_table[0] |=1;
                                         ql_keyboard_table[1] |=4;
                                 }
                         break;
+
+
+                        //las 5 son botones de joystick que vienen desde ZENG (entrade de comando por ZRCP) exclusivamente. 
+                        //Se diferencian de las anteriores en que no vuelven a generar evento ZENG de nuevo
+                        case UTIL_KEY_JOY_FIRE:
+                                if (pressrelease) {
+                                        joystick_set_fire(0);
+
+					//Home en cpc es copy
+					cpc_keyboard_table[1] &=(255-2);
+                                }
+                                else {
+                                        joystick_release_fire(0);
+
+					//Home en cpc es copy
+					cpc_keyboard_table[1] |=2;
+                                }
+                        break;
+
+                        case UTIL_KEY_JOY_LEFT:
+                                if (pressrelease) {
+                                        joystick_set_left(0);
+                                        blink_kbd_a12 &= (255-64);
+					cpc_keyboard_table[1] &=(255-1);
+
+          // 1|   Ret   Left     Up    Esc  Right      \  Space   Down
+                                        ql_keyboard_table[1] &= (255-2);
+                                }
+                                else {
+                                        joystick_release_left(0);
+                                        blink_kbd_a12 |= 64;
+					                              cpc_keyboard_table[1] |=1;
+                                        ql_keyboard_table[1] |= 2;
+                                }
+                        break;
+                        case UTIL_KEY_JOY_RIGHT:
+                                if (pressrelease) {
+                                        joystick_set_right(0);
+                                        blink_kbd_a11 &= (255-64);
+					                              cpc_keyboard_table[0] &=(255-2);
+                                        ql_keyboard_table[1] &= (255-16);
+                                }
+                                else {
+                                        joystick_release_right(0);
+                                        blink_kbd_a11 |= 64;
+                                        cpc_keyboard_table[0] |=2;
+                                        ql_keyboard_table[1] |= 16;
+                                }
+                        break;
+
+                        case UTIL_KEY_JOY_DOWN:
+                                if (pressrelease) {
+                                        joystick_set_down(0);
+
+                                        blink_kbd_a10 &= (255-64);
+					cpc_keyboard_table[0] &=(255-4);
+                                        ql_keyboard_table[1] &= (255-128);
+
+                                }
+                                else {
+                                        joystick_release_down(0);
+
+                                        blink_kbd_a10 |= 64;
+					cpc_keyboard_table[0] |=4;
+                                        ql_keyboard_table[1] |= 128;
+                                }
+                        break;
+
+                        case UTIL_KEY_JOY_UP:
+                                if (pressrelease) {
+                                        joystick_set_up(0);
+                                        blink_kbd_a9 &= (255-64);
+					cpc_keyboard_table[0] &=(255-1);
+                                        ql_keyboard_table[1] &= (255-4);
+                                }
+                                else {
+                                        joystick_release_up(0);
+                                        blink_kbd_a9 |= 64;
+					cpc_keyboard_table[0] |=1;
+                                        ql_keyboard_table[1] |=4;
+                                }
+                        break;
+
+
+
+
 
                         case UTIL_KEY_TAB:
                                 if (pressrelease) {
@@ -6955,16 +7309,31 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
 //Si acaba en 
 //Si empieza por ' o "" es un caracter (1 solo caracter, no un string)
 //Valor de retorno unsigned de 32 bits
-unsigned int parse_string_to_number(char *texto)
+//Da tipo valor segun:
+/*
+enum token_parser_formato {
+	TPF_DECIMAL,
+	TPF_HEXADECIMAL,
+	TPF_BINARIO,
+	TPF_ASCII
+}; */
+
+unsigned int parse_string_to_number_get_type(char *texto,enum token_parser_formato *tipo_valor)
 {
 	int value;
+
+        //Asumimos decimal
+        *tipo_valor=TPF_DECIMAL;
 
 	int l=strlen(texto);
 	if (l==0) return 0;
 
 
 	//Si empieza por ' o ""
-	if (texto[0]=='\'' || texto[0]=='"') return texto[1];
+	if (texto[0]=='\'' || texto[0]=='"') {
+                *tipo_valor=TPF_ASCII;
+                return texto[1];
+        }
 
 	//sufijo. Buscar ultimo caracter antes de final de cadena o espacio. Asi podemos parsear cosas como "20H 32 34", y se interpretara solo el 20H
         int posicion_sufijo=0;
@@ -6982,6 +7351,8 @@ unsigned int parse_string_to_number(char *texto)
 		value=strtol(texto, NULL, 16);
 		//volvemos a dejar sufijo tal cual
 		texto[posicion_sufijo]=sufijo;
+
+                *tipo_valor=TPF_HEXADECIMAL;
 		return value;
 	}
 
@@ -6992,12 +7363,25 @@ unsigned int parse_string_to_number(char *texto)
 		value=strtol(texto, NULL, 2);
 		//volvemos a dejar sufijo tal cual
 		texto[posicion_sufijo]=sufijo;
+
+                *tipo_valor=TPF_BINARIO;
 		return value;
 	}
 
 	//decimal
         return atoi(texto);
 
+}
+
+
+//Retorna numero parseado. Si acaba en H, se supone que es hexadecimal
+//Si acaba en 
+//Si empieza por ' o "" es un caracter (1 solo caracter, no un string)
+//Valor de retorno unsigned de 32 bits
+unsigned int parse_string_to_number(char *texto)
+{
+        enum token_parser_formato tipo_valor;
+        return parse_string_to_number_get_type(texto,&tipo_valor);
 }
 
 /*int ascii_to_hexa(char c)
@@ -7679,6 +8063,693 @@ Spectrum Cassette Blocks
         return 0;
 }
 
+//cada cuantos estados escribimos un sample de audio
+//224 significa a final de cada scanline -> 312*50=15600 hz
+#define CONVERT_PZX_TSTATES_AUDIO_SAMPLE 224
+#define CONVERT_PZX_AMPLITUD_PULSE 50
+
+void convert_pzx_to_rwa_write_one_pulse(int valor_pulso,FILE *ptr_destino)
+{
+     	z80_byte escrito;
+
+        if (valor_pulso) escrito=128+CONVERT_PZX_AMPLITUD_PULSE;
+        else escrito=128-CONVERT_PZX_AMPLITUD_PULSE;
+
+	fwrite(&escrito,1,1,ptr_destino);   
+}
+
+void convert_pzx_to_rwa_write_pulses(int *p_t_estado_actual,int duracion_pulsos,int *p_valor_pulso_inicial,FILE *ptr_destino)
+{
+       
+
+
+        //Usar los valores iniciales pasandolos a variables
+        int t_estado_actual=*p_t_estado_actual;
+        int valor_pulso_inicial=*p_valor_pulso_inicial;
+       
+        t_estado_actual %=CONVERT_PZX_TSTATES_AUDIO_SAMPLE;
+
+        int final_final_estado=t_estado_actual+duracion_pulsos;
+
+
+       //printf ("convert_pzx_to_rwa_write_pulses: state %d length %d initial_pulse %d\n",t_estado_actual,duracion_pulsos,valor_pulso_inicial);
+
+
+/*
+Bucle while (
+mientras contador >=224
+meter siguiente byte sample audio
+contador -=224
+)
+*/
+
+  
+        while (t_estado_actual<final_final_estado) {
+                //meter siguiente byte sample audio              
+                convert_pzx_to_rwa_write_one_pulse(valor_pulso_inicial,ptr_destino);
+                
+                t_estado_actual +=CONVERT_PZX_TSTATES_AUDIO_SAMPLE;
+        }
+
+      
+
+
+       //Retornar los valores finales
+       *p_t_estado_actual=final_final_estado; //t_estado_actual;
+       *p_valor_pulso_inicial=valor_pulso_inicial;
+
+}
+
+//Nota: block_size entra como z80_long_int pero aqui tratamos con int con signo, para evitar que en 
+//el bucle while de abajo pueda irse a menor que 0 y nunca acabaria (esto pasaria en bloques corruptos)
+int convert_pzx_to_rwa_tag_pzxt(z80_byte *memoria,int block_size)
+{
+        debug_printf (VERBOSE_DEBUG,"PZX: Start PZXT block");
+/*
+PZXT - PZX header block
+-----------------------
+
+offset type     name   meaning
+0      u8       major  major version number (currently 1).
+1      u8       minor  minor version number (currently 0).
+2      u8[?]    info   tape info, see below.
+
+This block distinguishes the PZX files from other files and may provide
+additional info about the file as well. This block must be always present as
+the first block of any PZX file.
+
+Any implementation should check the version number before processing the
+rest of the PZX file or even the rest of this block itself. Any
+implementation should accept only files whose major version it implements
+and reject anything else. However an implementation may report a warning in
+case it encounters minor greater than it implements for given major, if the
+implementor finds it convenient to do so.
+
+Note that this block also allows for simple concatenation of PZX files. Any
+implementation should thus check the version number not only in case of the
+first block, but anytime it encounters this block anywhere in the file. This
+in fact suggests that an implementation might decide not to treat the first
+block specially in any way, except checking the file starts with this block
+type, which is usually done because of file type recognition anyway.
+
+The rest of the block data may provide additional info about the tape. Note
+that an implementation is not required to process any of this information in
+any way and may as well safely ignore it.
+
+The additional information consists of sequence of strings, each terminated
+either by character 0x00 or end of the block, whichever comes first.
+This means the last string in the sequence may or may not be terminated.
+
+The first string (if there is any) in the sequence is always the title of
+the tape. The following strings (if there are any) form key and value pairs,
+each value providing particular type of information according to the key.
+In case the last value is missing, it should be treated as empty string.
+The following keys are defined (for reference, the value in brackets is the
+corresponding type byte as specified by the TZX standard):
+
+Publisher  [0x01] - Software house/publisher
+Author     [0x02] - Author(s)
+Year       [0x03] - Year of publication
+Language   [0x04] - Language
+Type       [0x05] - Game/utility type
+Price      [0x06] - Original price
+Protection [0x07] - Protection scheme/loader
+Origin     [0x08] - Origin
+Comment    [0xFF] - Comment(s)
+
+Note that some keys (like Author or Comment) may be used more than once.
+
+Any encoding implementation must use any of the key names as they are listed
+above, including the case. For any type of information not covered above, it
+should use either the generic Comment field or invent new sensible key name
+following the style used above. This allows any decoding implementation to
+classify and/or localize any of the key names it understands, and use any
+others verbatim.
+
+Overall, same rules as for use in TZX files apply, for example it is not
+necessary to specify the Language field in case all texts are in English.
+
+*/
+
+
+/*
+PZXT - PZX header block
+-----------------------
+
+offset type     name   meaning
+0      u8       major  major version number (currently 1).
+1      u8       minor  minor version number (currently 0).
+2      u8[?]    info   tape info, see below.
+*/
+
+        z80_byte pzx_version_major=memoria[0];
+        z80_byte pzx_version_minor=memoria[1];
+
+        debug_printf (VERBOSE_DEBUG,"PZX: file version: %d.%d",pzx_version_major,pzx_version_minor);
+
+/*
+ Any
+implementation should accept only files whose major version it implements
+and reject anything else. However an implementation may report a warning in
+case it encounters minor greater than it implements for given major, if the
+implementor finds it convenient to do so.
+*/
+
+        if (pzx_version_major>PZX_CURRENT_MAJOR_VERSION) {
+                debug_printf (VERBOSE_ERR,"PZX: Can not handle this PZX version");
+                return 1;
+        }
+
+
+        block_size -=2;
+        memoria +=2;
+
+        //Los strings los vamos guardando en un array de char separado. Asumimos que ninguno ocupa mas de 1024. Si es asi, esto petara...
+
+        char text_string[1024];
+        int index_string=0;
+
+        while (block_size>0) {
+                char caracter=*memoria;
+
+                if (caracter==0) {
+                        text_string[index_string++]=0;
+                        //fin de cadena
+                        debug_printf (VERBOSE_DEBUG,"PZX: info: %s",text_string);
+                        index_string=0;
+                }
+
+                else {
+                        text_string[index_string++]=util_return_valid_ascii_char(caracter);
+                }
+
+                memoria++;
+                block_size--;
+
+        }
+
+        //Final puede haber acabado con byte 0 o no. Lo metemos por si acaso
+        if (index_string!=0) {
+                text_string[index_string++]=0;
+                debug_printf (VERBOSE_DEBUG,"PZX: info: %s",text_string);
+        }
+
+        return 0;
+
+}
+
+
+//Nota: block_size entra como z80_long_int pero aqui tratamos con int con signo, para evitar que en 
+//el bucle while de abajo pueda irse a menor que 0 y nunca acabaria (esto pasaria en bloques corruptos)
+void convert_pzx_to_rwa_tag_puls(z80_byte *memoria,int block_size,FILE *ptr_destino,int *p_t_estado_actual)
+{
+
+
+        debug_printf (VERBOSE_DEBUG,"PZX: Start PULS block");
+
+/*
+PULS - Pulse sequence
+---------------------
+
+offset type   name      meaning
+0      u16    count     bits 0-14 optional repeat count (see bit 15), always greater than zero
+                        bit 15 repeat count present: 0 not present 1 present
+2      u16    duration1 bits 0-14 low/high (see bit 15) pulse duration bits
+                        bit 15 duration encoding: 0 duration1 1 ((duration1<<16)+duration2)
+4      u16    duration2 optional low bits of pulse duration (see bit 15 of duration1) 
+6      ...    ...       ditto repeated until the end of the block
+
+This block is used to represent arbitrary sequence of pulses. The sequence
+consists of pulses of given duration, with each pulse optionally repeated
+given number of times. The duration may be up to 0x7FFFFFFF T cycles,
+however longer durations may be achieved by concatenating the pulses by use
+of zero pulses. The repeat count may be up to 0x7FFF times, however more
+repetitions may be achieved by simply storing the same pulse again together
+with another repeat count.
+
+The optional repeat count is stored first. When present, it is stored as
+16 bit value with bit 15 set. When not present, the repeat count is considered to be 1.
+Note that the stored repeat count must be always greater than zero, so when
+decoding, a value 0x8000 is not a zero repeat count, but prefix indicating the
+presence of extended duration, see below.
+
+The pulse duration itself is stored next. When it fits within 15 bits, it is
+stored as 16 bit value as it is, with bit 15 not set. Otherwise the 15 high
+bits are stored as 16 bit value with bit 15 set, followed by 16 bit value
+containing the low 16 bits. Note that in the latter case the repeat count
+must be present unless the duration fits within 16 bits, otherwise the
+decoding implementation would treat the high bits as a repeat count.
+
+The above can be summarized with the following pseudocode for decoding:
+
+    count = 1 ;
+    duration = fetch_u16() ;
+    if ( duration > 0x8000 ) {
+        count = duration & 0x7FFF ;
+        duration = fetch_u16() ;
+    }
+    if ( duration >= 0x8000 ) {
+        duration &= 0x7FFF ;
+        duration <<= 16 ;
+        duration |= fetch_u16() ;
+    }
+
+The pulse level is low at start of the block by default. However initial
+pulse of zero duration may be easily used to make it high. Similarly, pulse
+of zero duration may be used to achieve pulses lasting longer than
+0x7FFFFFFF T cycles. Note that if the repeat count is present in case of
+zero pulse for some reason, any decoding implementation must consistently
+behave as if there was one zero pulse if the repeat count is odd and as if
+there was no such pulse at all if it is even.
+
+For example, the standard pilot tone of Spectrum header block (leader < 128)
+may be represented by following sequence:
+
+0x8000+8063,2168,667,735
+
+The standard pilot tone of Spectrum data block (leader >= 128) would be:
+
+0x8000+3223,2168,667,735
+
+For the record, the standard ROM save routines create the pilot tone in such
+a way that the level of the first sync pulse is high and the level of the
+second sync pulse is low. The bit pulses then follow, each bit starting with
+high pulse. The creators of the PZX files should use this information to
+determine if they got the polarity of their files right. Note that although
+most loaders are not polarity sensitive and would work even if the polarity
+is inverted, there are some loaders which won't, so it is better to always
+stick to this scheme.
+
+*/
+
+
+        z80_int count;
+        int duration;
+
+        int valor_pulso_inicial=0;
+        int t_estado_actual=*p_t_estado_actual;
+
+
+
+        while (block_size>0) {
+
+                count = 1 ;
+
+                //duration = fetch_u16() ;
+                duration = (*memoria)|((memoria[1])<<8);
+                memoria +=2;
+                block_size -=2;
+
+                if ( duration > 0x8000 ) {
+                        count = duration & 0x7FFF ;
+                        //duration = fetch_u16() ;
+                        duration = (*memoria)|((memoria[1])<<8);
+                        memoria +=2;
+                        block_size -=2;
+                }
+                if ( duration >= 0x8000 ) {
+                        duration &= 0x7FFF ;
+                        duration <<= 16 ;
+                        //duration |= fetch_u16() ;
+                        duration |= (*memoria)|((memoria[1])<<8);
+                        memoria +=2;
+                        block_size -=2;
+                }
+
+                //printf ("count: %d duration: %d\n",count,duration);
+                debug_printf(VERBOSE_DEBUG,"PZX: PULS: count: %d duration: %d",count,duration);
+                while (count) {
+                        //printf ("count=%d\n",count);
+                        convert_pzx_to_rwa_write_pulses(&t_estado_actual,duration,&valor_pulso_inicial,ptr_destino);
+                        count--;
+                        //invertir pulso
+                        valor_pulso_inicial=!valor_pulso_inicial;
+
+                        //Truncar estados a multiple de scanline
+                        t_estado_actual %=CONVERT_PZX_TSTATES_AUDIO_SAMPLE;       
+
+                }
+        }
+
+        *p_t_estado_actual=t_estado_actual;
+        
+
+}
+
+void convert_pzx_to_rwa_tag_data(z80_byte *memoria,z80_long_int block_size GCC_UNUSED,FILE *ptr_destino,int *p_t_estado_actual)
+{
+        debug_printf (VERBOSE_DEBUG,"Start DATA block");
+/*
+DATA - Data block
+-----------------
+
+offset      type             name  meaning
+0           u32              count bits 0-30 number of bits in the data stream
+                                   bit 31 initial pulse level: 0 low 1 high
+4           u16              tail  duration of extra pulse after last bit of the block
+6           u8               p0    number of pulses encoding bit equal to 0.
+7           u8               p1    number of pulses encoding bit equal to 1.
+8           u16[p0]          s0    sequence of pulse durations encoding bit equal to 0.
+8+2*p0      u16[p1]          s1    sequence of pulse durations encoding bit equal to 1.
+8+2*(p0+p1) u8[ceil(bits/8)] data  data stream, see below.
+
+This block is used to represent binary data using specified sequences of
+pulses. The data bytes are processed bit by bit, most significant bits first.
+Each bit of the data is represented by one of the sequences, s0 if its value
+is 0 and s1 if its value is 1, respectively. Each sequence consists of
+pulses of specified durations, p0 pulses for sequence s0 and p1 pulses for
+sequence s1, respectively.
+
+The initial pulse level is specified by bit 31 of the count field. For data
+saved with standard ROM routines, it should be always set to high, as
+mentioned in PULS description above. Also note that pulse of zero duration
+may be used to invert the pulse level at start and/or the end of the
+sequence. It would be also possible to use it for pulses longer than 65535 T
+cycles in the middle of the sequence, if it was ever necessary.
+
+For example, the sequences for standard ZX Spectrum bit encoding are:
+(initial pulse level is high):
+
+bit 0: 855,855
+bit 1: 1710,1710
+
+The sequences for ZX81 encoding would be (initial pulse level is high):
+
+bit 0: 530, 520, 530, 520, 530, 520, 530, 4689
+bit 1: 530, 520, 530, 520, 530, 520, 530, 520, 530, 520, 530, 520, 530, 520, 530, 520, 530, 4689
+
+The sequence for direct recording at 44100kHz would be (assuming initial pulse level is low):
+
+bit 0: 79,0
+bit 1: 0,79
+
+The sequence for direct recording resampled to match the common denominator
+of standard pulse width would be (assuming initial pulse level is low):
+
+bit 0: 855,0
+bit 1: 0,855
+
+After the very last pulse of the last bit of the data stream is output, one
+last tail pulse of specified duration is output. Non zero duration is
+usually necessary to terminate the last bit of the block properly, for
+example for data block saved with standard ROM routine the duration of the
+tail pulse is 945 T cycles and only then goes the level low again. Of course
+the specified duration may be zero as well, in which case this pulse has no
+effect on the output. This is often the case when multiple data blocks are
+used to represent continuous stream of pulses.
+*/
+
+
+/*
+offset      type             name  meaning
+0           u32              count bits 0-30 number of bits in the data stream
+                                   bit 31 initial pulse level: 0 low 1 high
+4           u16              tail  duration of extra pulse after last bit of the block
+6           u8               p0    number of pulses encoding bit equal to 0.
+7           u8               p1    number of pulses encoding bit equal to 1.
+8           u16[p0]          s0    sequence of pulse durations encoding bit equal to 0.
+8+2*p0      u16[p1]          s1    sequence of pulse durations encoding bit equal to 1.
+8+2*(p0+p1) u8[ceil(bits/8)] data  data stream, see below.
+*/
+
+        int initial_pulse;
+
+        z80_long_int count;   
+
+        int t_estado_actual=*p_t_estado_actual;
+
+
+        count=memoria[0]+
+                (memoria[1]*256)+
+                (memoria[2]*65536)+
+                ((memoria[3]&127)*16777216);
+
+        initial_pulse=(memoria[3]&128)>>7;
+
+        memoria +=4;
+
+        z80_int tail=memoria[0]+
+                (memoria[1]*256);
+
+        memoria +=2;
+        
+        z80_byte num_pulses_zero=*memoria;
+        memoria++;
+
+        z80_byte num_pulses_one=*memoria;
+        memoria++;
+
+        //Secuencias que identifican a un cero y un uno
+        z80_int seq_pulses_zero[256];
+        z80_int seq_pulses_one[256];
+
+        //Metemos las secuencias de 0 y 1 en array
+        int i;
+        for (i=0;i<num_pulses_zero;i++) {
+               seq_pulses_zero[i]=memoria[0]+(memoria[1]*256);
+
+                memoria +=2;
+        }
+
+
+        for (i=0;i<num_pulses_one;i++) {
+               seq_pulses_one[i]=memoria[0]+(memoria[1]*256);
+
+                memoria +=2;
+        }
+        debug_printf (VERBOSE_DEBUG,"PZX: count: %d initial_pulse %d tail %d num_pulses_0 %d num_pulses_1 %d",
+               count,initial_pulse,tail,num_pulses_zero,num_pulses_one); 
+
+        /*printf ("Secuence 0: ");
+        for (i=0;i<num_pulses_zero;i++) {
+               printf ("%d ",seq_pulses_zero[i]);
+        }
+        printf ("\n");
+
+        printf ("Secuence 1: ");
+        for (i=0;i<num_pulses_one;i++) {
+               printf ("%d ",seq_pulses_one[i]);
+        }
+        printf ("\n");*/
+
+
+        //Procesar el total de bits
+        int bit_number=7;
+        z80_byte processing_byte;
+
+        z80_int *sequence_bit;
+        int longitud_sequence_bit;
+
+        z80_long_int total_bits_read;                   
+
+        for (total_bits_read=0;total_bits_read<count;total_bits_read+=8) {
+        //for (i=0;i<count;i+=8) {
+                processing_byte=*memoria;
+                for (bit_number=7;bit_number>=0;bit_number--) {
+
+                        if (processing_byte & 128) {
+                                //Writing bit to 1
+                                //printf ("Writing bit to 1\n");
+                                sequence_bit=&seq_pulses_one[0];
+                                longitud_sequence_bit=num_pulses_one;
+                        }
+                        else {
+                                //Writing bit to 0
+                                //printf ("Writing bit to 0\n");
+                                sequence_bit=&seq_pulses_zero[0];
+                                longitud_sequence_bit=num_pulses_zero;
+                        }
+
+                       
+                        int contador_seq=0; 
+                        while (longitud_sequence_bit) {
+                                z80_int duration=sequence_bit[contador_seq++];
+                                convert_pzx_to_rwa_write_pulses(&t_estado_actual,duration,&initial_pulse,ptr_destino); 
+                                longitud_sequence_bit--;
+
+                                //invertir pulso
+                                initial_pulse=!initial_pulse;  
+                        }
+
+                        processing_byte=processing_byte<<1;
+                       
+                }
+                memoria++;
+
+                //Truncar estados a multiple de scanline
+                t_estado_actual %=CONVERT_PZX_TSTATES_AUDIO_SAMPLE;       
+
+        }
+
+
+        //Generar tail. 
+        convert_pzx_to_rwa_write_pulses(&t_estado_actual,tail,&initial_pulse,ptr_destino); 
+
+        *p_t_estado_actual=t_estado_actual;        
+
+}
+
+
+void convert_pzx_to_rwa_tag_paus(z80_byte *memoria,z80_long_int block_size GCC_UNUSED,FILE *ptr_destino,int *p_t_estado_actual)
+{
+        debug_printf (VERBOSE_DEBUG,"PZX: Start PAUS block");
+/*
+offset type   name      meaning
+0      u32    duration  bits 0-30 duration of the pause
+                        bit 31 initial pulse level: 0 low 1 high
+
+This block may be used to produce pauses during which the pulse level is not
+particularly important. The pause consists of pulse of given duration and
+given level. However note that some emulators may choose to simulate random
+noise during this period, occasionally toggling the pulse level. In such case
+the level must not be toggled during the first 70000 T cycles and then more
+than once during each 70000 T cycles.
+
+For example, in case of ZX Spectrum program saved by standard SAVE command
+there is a low pulse of about one second (49-50 frames) between the header
+and data blocks. On the other hand, there is usually no pause between the
+blocks necessary at all, as long as the tail pulse of the preceding block was
+used properly.
+
+*/
+
+        int initial_pulse;
+
+        z80_long_int count;   
+
+        int t_estado_actual=*p_t_estado_actual;
+
+
+        count=memoria[0]+
+                (memoria[1]*256)+
+                (memoria[2]*65536)+
+                ((memoria[3]&127)*16777216);
+
+        initial_pulse=(memoria[3]&128)>>7;
+
+        memoria +=4;
+
+        debug_printf(VERBOSE_DEBUG,"PZX: PAUS: count: %d",count);
+        convert_pzx_to_rwa_write_pulses(&t_estado_actual,count,&initial_pulse,ptr_destino);
+
+        
+        *p_t_estado_actual=t_estado_actual;        
+
+}
+
+
+
+//Convierte archivo pzx a rwa en destino indicado
+int convert_pzx_to_rwa(char *origen, char *destino)
+{
+ 
+
+        //Leemos archivo en memoria
+        z80_byte *pzx_file_mem;
+        long int bytes_to_load=get_file_size(origen); 
+
+        pzx_file_mem=malloc(bytes_to_load);
+        if (pzx_file_mem==NULL) cpu_panic("Can not allocate memory for loading PZX file");
+
+        FILE *ptr_origen;
+        ptr_origen=fopen(origen,"rb");
+        if (ptr_origen==NULL) {
+                debug_printf (VERBOSE_ERR,"PZX: Error reading source file");
+                return 1;
+        }
+
+        //int leidos=fread(pzx_file_mem,1,bytes_to_load,ptr_origen);
+        fread(pzx_file_mem,1,bytes_to_load,ptr_origen);
+
+        fclose(ptr_origen);
+
+        FILE *ptr_destino;
+        ptr_destino=fopen(destino,"wb");
+        if (ptr_destino==NULL) {
+                debug_printf (VERBOSE_ERR,"PZX: Error creating target file: %s",destino);
+                return 1;
+        }
+
+        int estado_actual=0;
+
+        //Ir leyendo hasta llegar al final del archivo
+        //z80_long_int puntero_lectura=0;
+        long int puntero_lectura=0;
+
+        while (puntero_lectura<bytes_to_load) {
+                /*
+                Leer datos identificador de bloque
+                offset type     name   meaning
+                0      u32      tag    unique identifier for the block type.
+                4      u32      size   size of the block in bytes, excluding the tag and size fields themselves.
+                8      u8[size] data   arbitrary amount of block data.
+                */
+
+                char tag_name[5];
+                tag_name[0]=pzx_file_mem[puntero_lectura++];
+                tag_name[1]=pzx_file_mem[puntero_lectura++];
+                tag_name[2]=pzx_file_mem[puntero_lectura++];
+                tag_name[3]=pzx_file_mem[puntero_lectura++];
+                tag_name[4]=0;
+
+                z80_long_int block_size;
+                
+             
+
+                block_size=pzx_file_mem[puntero_lectura]+
+                          (pzx_file_mem[puntero_lectura+1]*256)+
+                          (pzx_file_mem[puntero_lectura+2]*65536)+
+                          (pzx_file_mem[puntero_lectura+3]*16777216);   
+                puntero_lectura +=4;   
+                
+                                 
+
+                //printf ("Block tag name: [%s] size: [%u]\n",tag_name,block_size);
+
+
+                //Tratar cada tag
+                if (!strcmp(tag_name,"PZXT")) {
+                      int ret=convert_pzx_to_rwa_tag_pzxt(&pzx_file_mem[puntero_lectura],block_size);
+                      if (ret!=0) {
+                              //La version es superior a la que gestionamos. Salir
+                              return 1;
+                      }
+                }
+
+                else if (!strcmp(tag_name,"PULS")) {
+                      convert_pzx_to_rwa_tag_puls(&pzx_file_mem[puntero_lectura],block_size,ptr_destino,&estado_actual);
+                }
+
+                else if (!strcmp(tag_name,"DATA")) {
+                      convert_pzx_to_rwa_tag_data(&pzx_file_mem[puntero_lectura],block_size,ptr_destino,&estado_actual);
+                }                
+
+                else if (!strcmp(tag_name,"PAUS")) {
+                      convert_pzx_to_rwa_tag_paus(&pzx_file_mem[puntero_lectura],block_size,ptr_destino,&estado_actual);
+                }   
+
+                else {
+                        debug_printf (VERBOSE_DEBUG,"PZX: Unknown block type: %02XH %02XH %02XH %02XH. Skipping it",
+                        tag_name[0],tag_name[1],tag_name[2],tag_name[3]);
+                }             
+
+
+                //Y saltar al siguiente bloque
+                puntero_lectura +=block_size;
+
+                //Truncar estados a multiple de scanline
+                estado_actual %=CONVERT_PZX_TSTATES_AUDIO_SAMPLE;                
+        }
+
+
+
+        fclose(ptr_destino);
+        free(pzx_file_mem);
+
+        return 0;
+}
+
+
 int convert_any_to_wav(char *origen, char *destino)
 {
         //Primero pasar a rwa y luego a wav
@@ -7691,6 +8762,7 @@ int convert_any_to_wav(char *origen, char *destino)
 	else if (!util_compare_file_extension(origen,"smp")) result_first_convert=convert_smp_to_rwa_tmpdir(origen,rwa_temp_file);
 	else if (!util_compare_file_extension(origen,"o")) result_first_convert=convert_o_to_rwa_tmpdir(origen,rwa_temp_file);
 	else if (!util_compare_file_extension(origen,"p")) result_first_convert=convert_p_to_rwa_tmpdir(origen,rwa_temp_file);
+        else if (!util_compare_file_extension(origen,"pzx")) result_first_convert=convert_pzx_to_rwa_tmpdir(origen,rwa_temp_file);
 	else return 1;
 
          if (result_first_convert) {
@@ -7712,51 +8784,70 @@ int convert_any_to_wav(char *origen, char *destino)
 }
 
 
-/*
-int convert_tap_to_wav(char *origen, char *destino)
+int convert_hdf_to_raw(char *origen, char *destino)
 {
-	//Primero pasar a rwa y luego a wav
-	char rwa_temp_file[PATH_MAX];
 
-	 if (convert_tap_to_rwa_tmpdir(origen,rwa_temp_file)) {
-                        return 1;
-                }
+	int leidos;
 
-                if (!si_existe_archivo(rwa_temp_file)) {
-                        //debug_printf(VERBOSE_ERR,"Error converting input file. Target file not found");
-                        return 1;
-                }
+	unsigned char buffer_lectura[1024];
 
-	if (convert_rwa_to_wav(rwa_temp_file,destino)) {
-		return 1;
-	}
+        FILE *ptr_inputfile;
+        ptr_inputfile=fopen(origen,"rb");
 
+        if (ptr_inputfile==NULL) {
+                debug_printf (VERBOSE_ERR,"Error opening %s",origen);
+                return 1;
+        }
 
-	return 0;
-}
+	FILE *ptr_outputfile;
+	ptr_outputfile=fopen(destino,"wb");
 
-int convert_tzx_to_wav(char *origen, char *destino)
-{
-        //Primero pasar a rwa y luego a wav
-        char rwa_temp_file[PATH_MAX];
-
-         if (convert_tzx_to_rwa_tmpdir(origen,rwa_temp_file)) {
-                        return 1;
-                }
-
-                if (!si_existe_archivo(rwa_temp_file)) {
-                        //debug_printf(VERBOSE_ERR,"Error converting input file. Target file not found");
-                        return 1;
-                }
-
-        if (convert_rwa_to_wav(rwa_temp_file,destino)) {
+        if (ptr_outputfile==NULL) {
+                debug_printf (VERBOSE_ERR,"Error opening %s",destino);
                 return 1;
         }
 
 
+	// Leer offset a datos raw del byte de cabecera:
+	//0x09 DOFS WORD Image data offset This is the absolute offset in the HDF file where the actual hard-disk data dump starts.
+	//In HDF version 1.1 this is 0x216.
+
+	//Leemos 10 bytes de la cabecera
+        fread(buffer_lectura,1,10,ptr_inputfile);
+
+	int offset_raw=buffer_lectura[9]+256*buffer_lectura[10];
+
+	debug_printf (VERBOSE_DEBUG,"Offset to raw data: %d",offset_raw);
+
+
+	//Ya hemos leido 10 bytes del principio
+	int saltar_bytes=offset_raw-10;
+
+	//Saltar esos bytes
+	fread(buffer_lectura,1,saltar_bytes,ptr_inputfile);
+
+	//Y vamos leyendo bloques de 1024
+	int escritos=0;
+
+	do {
+	        leidos=fread(buffer_lectura,1,1024,ptr_inputfile);
+		if (leidos>0) {
+			fwrite(buffer_lectura,1,leidos,ptr_outputfile);
+			escritos +=leidos;
+			debug_printf (VERBOSE_DEBUG,"Writing data %dKB ",escritos/1024);
+			//put_progress_bar();
+			//printf ("\r");
+		}
+	} while (leidos>0);
+
+	fclose (ptr_inputfile);
+
+        fclose(ptr_outputfile);
+
+
         return 0;
 }
-*/
+
 
 //Crea carpeta temporal y asigna nombre para archivo temporal rwa
 void convert_to_rwa_common_tmp(char *origen, char *destino)
@@ -7777,6 +8868,13 @@ int convert_tap_to_rwa_tmpdir(char *origen, char *destino)
 	return convert_tap_to_rwa(origen,destino);
 }
 
+//Convierte archivo pzx a rwa en carpeta temporal, generando nombre de archivo destino
+int convert_pzx_to_rwa_tmpdir(char *origen, char *destino)
+{
+	convert_to_rwa_common_tmp(origen,destino);
+
+	return convert_pzx_to_rwa(origen,destino);
+}
 
 //Convierte archivo tzx a rwa en carpeta temporal, generando nombre de archivo destino
 int convert_tzx_to_rwa_tmpdir(char *origen, char *destino)
@@ -7912,7 +9010,7 @@ void parse_customfile_options(void)
                                 siguiente_parametro_argumento();
                                 int valor=atoi(argv[puntero_parametro]);
                                 if (valor<100 || valor>999) {
-                                        debug_printf (VERBOSE_ERR,"Invalid vsync lenght value");
+                                        debug_printf (VERBOSE_ERR,"Invalid vsync length value");
                                         return;
                                 }
                                 minimo_duracion_vsync=valor;
@@ -7936,17 +9034,33 @@ void parse_customfile_options(void)
 
 		else if (!strcmp(argv[puntero_parametro],"--disableborder")) {
 			debug_printf(VERBOSE_INFO,"End Screen");
-			scr_end_pantalla();
+	//Guardar funcion de texto overlay activo, para desactivarlo temporalmente. No queremos que se salte a realloc_layers simultaneamente,
+	//mientras se hace putpixel desde otro sitio -> provocaria escribir pixel en layer que se esta reasignando
+  void (*previous_function)(void);
+  int menu_antes;
+
+	screen_end_pantalla_save_overlay(&previous_function,&menu_antes);
+
+			
 			disable_border();
 			screen_init_pantalla_and_others();
+                        screen_restart_pantalla_restore_overlay(previous_function,menu_antes);
 			debug_printf(VERBOSE_INFO,"Creating Screen");
 		}
 
                 else if (!strcmp(argv[puntero_parametro],"--enableborder")) {
                         debug_printf(VERBOSE_INFO,"End Screen");
-                        scr_end_pantalla();
+
+	//Guardar funcion de texto overlay activo, para desactivarlo temporalmente. No queremos que se salte a realloc_layers simultaneamente,
+	//mientras se hace putpixel desde otro sitio -> provocaria escribir pixel en layer que se esta reasignando
+  void (*previous_function)(void);
+  int menu_antes;
+
+	screen_end_pantalla_save_overlay(&previous_function,&menu_antes);                                                
+                        
                         enable_border();
 			screen_init_pantalla_and_others();
+                        screen_restart_pantalla_restore_overlay(previous_function,menu_antes);
                         debug_printf(VERBOSE_INFO,"Creating Screen");
                 }
 
@@ -8655,6 +9769,27 @@ int get_file_type_from_stat(struct stat *f)
 
 int get_file_type(int d_type, char *nombre)
 {
+/*
+       lowing macro constants for the value returned in d_type:
+
+       DT_BLK      This is a block device.
+
+       DT_CHR      This is a character device.
+
+       DT_DIR      This is a directory.
+
+       DT_FIFO     This is a named pipe (FIFO).
+
+       DT_LNK      This is a symbolic link.
+
+       DT_REG      This is a regular file.
+
+       DT_SOCK     This is a UNIX domain socket.
+
+       DT_UNKNOWN  The file type is unknown.
+
+*/
+
 
 	debug_printf (VERBOSE_DEBUG,"Name: %s type: %d constants: DT_DIR: %d DT_REG: %d DT_LNK: %d",
 			nombre,d_type,DT_DIR,DT_REG,DT_LNK);
@@ -9912,7 +11047,39 @@ unsigned int machine_get_memory_zone_attrib(int zone, int *readwrite)
     break;     
 
 
+        case MEMORY_ZONE_NUM_DAAD_CONDACTS:
+                if (MACHINE_IS_SPECTRUM) {
+                        if (util_daad_detect()) size=65536;
+                }
+
+                if (MACHINE_IS_CPC) {
+                        if (util_daad_detect()) size=65536;
+                }                
+
+        break;
+
+        case MEMORY_ZONE_NUM_PAWS_CONDACTS:
+                if (MACHINE_IS_SPECTRUM) {
+                        if (util_paws_detect()) size=65536;
+                }
+
+
+        break;     
+
+        case MEMORY_ZONE_DEBUG:
+                if (memory_zone_current_size) {
+                        size=memory_zone_current_size;
+                }
+        break;           
 	
+
+    //ifrom
+    case MEMORY_ZONE_IFROM:
+	if (ifrom_enabled.v) {
+          *readwrite=1;      
+	  size=IFROM_SIZE;
+	}
+    break;        
 
   }
 
@@ -10164,6 +11331,60 @@ z80_byte *machine_get_memory_zone_pointer(int zone, int address)
         p=&start[address];              
       }
     break;        
+
+        case MEMORY_ZONE_NUM_DAAD_CONDACTS:
+                if (MACHINE_IS_SPECTRUM) {
+                        if (util_daad_detect()) {
+                                //La direccion está en la zona de memoria ram (zona 0)
+                                //No tiene sentido evaluar entre 0-16383. En ese caso sera igual que 16384-32767
+                                if (address<16384) address +=16384;
+                                z80_byte *start=machine_get_memory_zone_pointer(0,address-16384); 
+                                //Nota: la direccion dentro de la zona de memoria sera la misma que la direccion real en memoria mapeada
+                                //restamos 16384 pues la zona 0 de ram empieza a contar desde ahi
+                                p=start;
+                        }
+                }
+
+                if (MACHINE_IS_CPC) {
+                        if (util_daad_detect()) {
+                                //La direccion está en la zona de memoria ram (zona 0)
+                                z80_byte *start=machine_get_memory_zone_pointer(0,address); 
+                                p=start;
+                        }
+                }                
+
+        break;
+	    
+
+        case MEMORY_ZONE_NUM_PAWS_CONDACTS:
+                if (MACHINE_IS_SPECTRUM) {
+                        if (util_paws_detect()) {
+                                //La direccion está en la zona de memoria ram (zona 0)
+                                //No tiene sentido evaluar entre 0-16383. En ese caso sera igual que 16384-32767
+                                if (address<16384) address +=16384;
+                                z80_byte *start=machine_get_memory_zone_pointer(0,address-16384); 
+                                //Nota: la direccion dentro de la zona de memoria sera la misma que la direccion real en memoria mapeada
+                                //restamos 16384 pues la zona 0 de ram empieza a contar desde ahi
+                                p=start;
+                        }
+                }
+
+          
+
+        break;
+
+        case MEMORY_ZONE_DEBUG:
+                if (memory_zone_current_size) {
+                        p=&memory_zone_debug_ptr[address];
+                }
+        break;    
+
+    //ifrom
+    case MEMORY_ZONE_IFROM:
+        if (ifrom_enabled.v) {
+	p=&ifrom_memory_pointer[address];
+      }
+    break;            
 
 
   }
@@ -10461,7 +11682,44 @@ void machine_get_memory_zone_name(int zone, char *name)
       if (MACHINE_IS_CHLOE_280SE) {
         strcpy(name,"Chloe Dock");             
       }
-    break;             
+    break;    
+
+
+        case MEMORY_ZONE_NUM_DAAD_CONDACTS:
+                if (MACHINE_IS_SPECTRUM) {
+                        strcpy(name,"Daad Condacts");
+                }
+
+                if (MACHINE_IS_CPC) {
+                        strcpy(name,"Daad Condacts");
+                }                
+
+        break;    
+
+
+        case MEMORY_ZONE_NUM_PAWS_CONDACTS:
+                //if (MACHINE_IS_SPECTRUM) {
+                        strcpy(name,"Paws Condacts");
+                //}
+      
+
+        break;    
+
+
+        case MEMORY_ZONE_DEBUG:
+                if (memory_zone_current_size) {
+                        strcpy(name,"Debug");
+                }
+        break;
+
+    //ifrom
+    case MEMORY_ZONE_IFROM:
+        if (ifrom_enabled.v) {
+		           //123456789012345
+		strcpy(name,"iFrom rom");
+	}
+    break;        
+
 
   }
 
@@ -10818,6 +12076,27 @@ int util_add_string_newline(char *destination,char *text_to_add)
 
 }
 
+
+//Agrega al texto "original" la cadena "string_to_add", comprobando que no se exceda el limite de longitud de original
+//limite hay que pasarlo como el total del buffer (incluyendo el 0 final)
+//Retorna 1 si no cabe
+int util_concat_string(char *original,char *string_to_add,int limite)
+{
+        int longitud_original=strlen(original);
+
+        int longitud_to_add=strlen(string_to_add);
+
+        int longitud_final=longitud_original+longitud_to_add+1; //el +1 del byte 0 final
+
+        if (longitud_final>limite) return 1;
+
+        char *offset_add;
+        offset_add=&original[longitud_original];
+        strcpy(offset_add,string_to_add);
+
+        return 0;
+}
+
 //De una cadena de bytes, lo muestra como hexadecimal, sin espacios. Retorna cadena acabada en 0
 //Completa con espacios hasta longitud
 void util_binary_to_hex(z80_byte *origen, char *destino, int longitud_max, int longitud)
@@ -10866,6 +12145,55 @@ void util_binary_to_ascii(z80_byte *origen, char *destino, int longitud_max, int
         *destino=0;
 }
 
+//Imprime numero binario de 32 bits acabado con prefijo "%"
+//longitud_max maximo de la longitud de la cadena incluyendo "%"
+//No imprimir ceros al inicio
+void util_ascii_to_binary(int valor_origen,char *destino,int longitud_max)
+{
+
+        //Si es cero tal cual
+        if (valor_origen==0 && longitud_max>=2) {
+                strcpy(destino,"0%");
+                return;
+        }
+
+        //Usamos sin signo por si acaso
+        unsigned int valor=valor_origen;
+        const unsigned int mascara=(unsigned int)2147483648;
+
+        longitud_max--; //hemos de considerar prefijo final
+
+        int nbit;
+        int primer_uno=0;
+
+        for (nbit=0;nbit<32 && longitud_max>0;nbit++) {
+                //printf ("nbit %d valor %u\n",nbit,valor);
+                if (valor & mascara) {
+                        //printf ("primer uno en nbit %d valor %d\n",nbit,valor);
+                        *destino='1';
+                        primer_uno=1;
+                }
+                
+                else {
+                        if (primer_uno) *destino='0';
+                }
+
+                if (primer_uno) {
+                        destino++;
+                        longitud_max--;
+                }
+
+                valor=valor<<1;
+        }
+
+
+
+        *destino='%';
+        destino++;
+
+        *destino=0;
+
+}
 
 
 
@@ -11641,6 +12969,309 @@ int util_extract_tzx(char *filename,char *tempdirectory,char *tapfile)
 }
 
 
+
+//Rutina para extraer PZX pero tambien para convertir a TAP
+//Si tapfile !=NULL, lo convierte a tap, en vez de expandir
+int util_extract_pzx(char *filename,char *tempdirectory,char *tapfile)
+{
+
+
+	//tapefile
+	if (util_compare_file_extension(filename,"pzx")!=0) {
+		debug_printf(VERBOSE_ERR,"Tape expander not supported for this tape type");
+		return 1;
+	}
+
+	//Leemos cinta en memoria
+	int total_mem=get_file_size(filename);
+
+	z80_byte *taperead;
+
+
+
+        FILE *ptr_tapebrowser;
+        ptr_tapebrowser=fopen(filename,"rb");
+
+        if (!ptr_tapebrowser) {
+		debug_printf(VERBOSE_ERR,"Unable to open tape");
+		return 1;
+	}
+
+	taperead=malloc(total_mem);
+	if (taperead==NULL) cpu_panic("Error allocating memory for tape browser/convert");
+
+	z80_byte *puntero_lectura;
+	puntero_lectura=taperead;
+
+        //Abrir fichero tapfile si conviene convertir
+        FILE *ptr_tapfile;
+        if (tapfile!=NULL) {
+                ptr_tapfile=fopen(tapfile,"wb");
+
+                if (!ptr_tapfile) {
+                                debug_printf (VERBOSE_ERR,"Can not open %s",tapfile);
+                                return 1;
+                }
+        }
+
+
+        int leidos=fread(taperead,1,total_mem,ptr_tapebrowser);
+
+	if (leidos==0) {
+                debug_printf(VERBOSE_ERR,"Error reading tape");
+		free(taperead);
+                return 1;
+        }
+
+
+        fclose(ptr_tapebrowser);
+
+	char buffer_texto[32*4]; //4 lineas mas que suficiente
+
+	int longitud_bloque;
+
+
+
+	int filenumber=0;
+
+	int previo_longitud_segun_cabecera=-1; //Almacena longitud de bloque justo anterior
+	z80_byte previo_flag=255; //Almacena flag de bloque justo anterior
+	z80_byte previo_tipo_bloque=255; //Almacena previo tipo bloque anterior (0, program, 3 bytes etc)
+
+	//puntero_lectura +=10; //Saltar cabecera (version pzx etc)
+
+	int salir=0;
+
+		z80_byte *copia_puntero;
+        
+
+	while(total_mem>0 && !salir) {
+
+		//z80_byte pzx_id=*puntero_lectura;
+
+		//puntero_lectura++;
+
+                char tag_name[5];
+                tag_name[0]=puntero_lectura[0];
+                tag_name[1]=puntero_lectura[1];
+                tag_name[2]=puntero_lectura[2];
+                tag_name[3]=puntero_lectura[3];
+                tag_name[4]=0;
+
+                puntero_lectura +=4;
+
+
+                z80_long_int block_size;
+
+
+
+                block_size=puntero_lectura[0]+
+                          (puntero_lectura[1]*256)+
+                          (puntero_lectura[2]*65536)+
+                          (puntero_lectura[3]*16777216);
+                puntero_lectura +=4;
+                
+                total_mem -=8; 
+
+
+                //Tratar cada tag
+                
+
+                
+
+                 if (!strcmp(tag_name,"DATA")) {
+                      //convert_pzx_to_rwa_tag_data(&pzx_file_mem[puntero_lectura],block_size,ptr_destino,&estado_actual);
+
+z80_byte *memoria;
+				memoria=puntero_lectura;
+
+  				int initial_pulse;
+
+        z80_long_int count;   
+
+        //int t_estado_actual=*p_t_estado_actual;
+
+
+        count=memoria[0]+
+                (memoria[1]*256)+
+                (memoria[2]*65536)+
+                ((memoria[3]&127)*16777216); 
+
+        initial_pulse=(memoria[3]&128)>>7;
+
+        memoria +=4;
+
+        //z80_int tail=memoria[0]+(memoria[1]*256);
+
+        memoria +=2;
+        
+        z80_byte num_pulses_zero=*memoria;
+        memoria++;
+
+        z80_byte num_pulses_one=*memoria;
+        memoria++;
+
+        //Secuencias que identifican a un cero y un uno
+        z80_int seq_pulses_zero[256];
+        z80_int seq_pulses_one[256];
+
+        //Metemos las secuencias de 0 y 1 en array
+        int i;
+        for (i=0;i<num_pulses_zero;i++) {
+               seq_pulses_zero[i]=memoria[0]+(memoria[1]*256);
+
+                memoria +=2;
+        }
+
+
+        for (i=0;i<num_pulses_one;i++) {
+               seq_pulses_one[i]=memoria[0]+(memoria[1]*256);
+
+                memoria +=2;
+        }
+
+					   
+
+    
+        //Procesar el total de bits
+        //int bit_number=7;
+        //z80_byte processing_byte;
+
+        //z80_int *sequence_bit;
+        //int longitud_sequence_bit;
+
+        //z80_long_int total_bits_read; 
+ 
+	     
+
+                z80_byte *puntero_lectura_copia=memoria;
+
+              
+              
+                        longitud_bloque=util_tape_tap_get_info(puntero_lectura,buffer_texto);
+                
+
+
+                copia_puntero=puntero_lectura_copia-2;
+                longitud_bloque=count/8;
+
+		
+
+		char buffer_temp_file[PATH_MAX];
+		int longitud_final;
+
+                longitud_final=longitud_bloque-2;
+
+                //else longitud_final=longitud_bloque-2-2; //Saltar los dos de cabecera, el de flag y el crc
+
+		z80_byte tipo_bloque=255;
+
+		//Si bloque de flag 0 y longitud 17 o longitud 34 (sped)
+		z80_byte flag=copia_puntero[2];
+
+		//printf ("flag %d previo_flag %d previolong %d longitud_final %d\n",flag,previo_flag,previo_longitud_segun_cabecera,longitud_final);
+
+		int longitud_segun_cabecera=-1;
+
+                if (longitud_final>=0) {
+
+                        if (flag==0 && (longitud_final==17 || longitud_final==34) ) {
+                                if (tapfile==NULL) {
+                                        util_tape_get_info_tapeblock(&copia_puntero[3],flag,longitud_final+2,buffer_texto);
+                                        sprintf (buffer_temp_file,"%s/%02d-header-%s",tempdirectory,filenumber,buffer_texto);
+                                        //printf ("%s/%02d-header-%s\n",tempdirectory,filenumber,buffer_texto);
+                                }
+
+                                tipo_bloque=copia_puntero[3]; //0, program, 3 bytes etc
+
+                                //printf ("%s : tipo %d\n",buffer_temp_file,tipo_bloque);
+
+                                //Longitud segun cabecera
+                                longitud_segun_cabecera=value_8_to_16(copia_puntero[15],copia_puntero[14]);
+
+                        }
+                        else {
+                                char extension_agregar[10];
+                                extension_agregar[0]=0; //Por defecto
+
+                                //Si bloque de flag 255, ver si corresponde al bloque anterior de flag 0
+                                if (flag==255 && previo_flag==0 && previo_longitud_segun_cabecera==longitud_final) {
+                                        //Corresponde. Agregar extensiones bas o scr segun el caso
+                                        if (previo_tipo_bloque==0) {
+                                                //Basic
+                                                strcpy(extension_agregar,".bas");
+                                        }
+
+                                        if (previo_tipo_bloque==3 && longitud_final==6912) {
+                                                //Screen
+                                                strcpy(extension_agregar,".scr");
+                                        }
+                                }
+
+                                if (tapfile==NULL) sprintf (buffer_temp_file,"%s/%02d-data-%d%s",tempdirectory,filenumber,longitud_final,extension_agregar);
+                        }
+
+
+                        //Si expandir
+                        if (tapfile==NULL) {
+                                //Generar bloque con datos, saltando los dos de cabecera y el flag
+                                util_save_file(copia_puntero+3,longitud_final,buffer_temp_file);
+                        }
+
+                        //Convertir a tap
+                        else {
+                                //Generar bloque con datos
+                                //Meter longitud, flag
+                                z80_byte buffer_tap[3];
+                                z80_int longitud_cabecera_tap=longitud_final+2;
+                                buffer_tap[0]=value_16_to_8l(longitud_cabecera_tap);
+                                buffer_tap[1]=value_16_to_8h(longitud_cabecera_tap);
+                                buffer_tap[2]=flag;
+                                fwrite(buffer_tap,1,3,ptr_tapfile);
+
+
+                                //Meter datos
+                                fwrite(copia_puntero+3,1,longitud_final,ptr_tapfile);
+
+                                //Agregar CRC
+                                z80_byte byte_crc=*(copia_puntero+3+longitud_final);
+
+                                buffer_tap[0]=byte_crc;
+                                fwrite(buffer_tap,1,1,ptr_tapfile);
+
+                        }
+
+                        filenumber++;
+
+                        previo_flag=flag;
+                        previo_longitud_segun_cabecera=longitud_segun_cabecera;
+                        previo_tipo_bloque=tipo_bloque;
+
+                }
+
+	   }
+
+
+
+             
+
+
+
+		//Y saltar al siguiente bloque
+		puntero_lectura +=block_size;
+		
+		total_mem -=block_size;
+
+	}
+
+
+	free(taperead);
+
+        if (tapfile!=NULL) fclose(ptr_tapfile);
+
+	return 0;
+
+}
 
 
 //Realmente lo que hacemos es copiar el .p en .baszx81 con un offset , saltando datos iniciales para situarnos en el programa basic
@@ -12685,6 +14316,49 @@ void util_clear_final_spaces(char *orig,char *destination)
 }
 
 
+z80_byte daad_peek(z80_int dir)
+{
+
+        if (MACHINE_IS_CPC) {
+                z80_byte *start=cpc_ram_mem_table[0];
+                z80_byte *p=&start[dir];
+                return *p;
+        }
+
+
+        //Spectrum
+        else {
+                return peek_byte_no_time(dir);
+        }
+}
+
+
+z80_int daad_peek_word(z80_int dir)
+{
+
+        z80_byte low,high;
+        low=daad_peek(dir);
+        dir++;
+        high=daad_peek(dir);
+
+        return value_8_to_16(high,low);
+}
+
+void daad_poke(z80_int dir,z80_byte value)
+{
+
+        if (MACHINE_IS_CPC) {
+                z80_byte *start=cpc_ram_mem_table[0];
+                z80_byte *p=&start[dir];
+                *p=value;
+        }
+
+        //Spectrum
+        else {
+                poke_byte_no_time(dir,value);
+        }
+}
+
 //Usado en unpaws, ungac etc para agregar letra de hotkey automaticamente
 #define TOTAL_UNPAWSGAC_HOTKEYS 26
 int util_unpawsgac_hotkeys[TOTAL_UNPAWSGAC_HOTKEYS]; //De la A a la Z
@@ -12732,21 +14406,22 @@ char *quillversions_strings[]={
         "Quill.C"
 };
 
-int util_unpaws_detect_version(z80_int *p_mainattr)
+
+void util_unpaws_get_maintop_mainattr(z80_int *final_maintop,z80_int *final_mainattr,int *final_quillversion)
 {
         int quillversion=0;
 
-        z80_int MainTop=peek_word_no_time(65533);
+        z80_int MainTop=daad_peek_word(65533);
         z80_int MainAttr=MainTop+311;
 
         if   (MainTop<=(65535-321) 
    && (MainTop>=(16384-311))
-   && (peek_byte_no_time(MainAttr) == 16)
-   && (peek_byte_no_time(MainAttr+2) == 17)
-   && (peek_byte_no_time(MainAttr+4) == 18)
-   && (peek_byte_no_time(MainAttr+6) == 19)
-   && (peek_byte_no_time(MainAttr+8) == 20)
-   && (peek_byte_no_time(MainAttr+10) == 21) 
+   && (daad_peek(MainAttr) == 16)
+   && (daad_peek(MainAttr+2) == 17)
+   && (daad_peek(MainAttr+4) == 18)
+   && (daad_peek(MainAttr+6) == 19)
+   && (daad_peek(MainAttr+8) == 20)
+   && (daad_peek(MainAttr+10) == 21) 
         ) {
                 //debug_printf (VERBOSE_DEBUG,"PAW signature found");
         }
@@ -12754,12 +14429,12 @@ int util_unpaws_detect_version(z80_int *p_mainattr)
   else {
        MainTop=26931;
       MainAttr=MainTop+977;
-      if  (  (peek_byte_no_time(MainAttr) == 16)
-        && (peek_byte_no_time(MainAttr+2) == 17)
-        && (peek_byte_no_time(MainAttr+4) == 18)
-        && (peek_byte_no_time(MainAttr+6) == 19)
-        && (peek_byte_no_time(MainAttr+8) == 20)
-        && (peek_byte_no_time(MainAttr+10) == 21)
+      if  (  (daad_peek(MainAttr) == 16)
+        && (daad_peek(MainAttr+2) == 17)
+        && (daad_peek(MainAttr+4) == 18)
+        && (daad_peek(MainAttr+6) == 19)
+        && (daad_peek(MainAttr+8) == 20)
+        && (daad_peek(MainAttr+10) == 21)
       ) {
           //debug_printf (VERBOSE_DEBUG,"Quill.A signature found");
           quillversion=1;
@@ -12768,12 +14443,12 @@ int util_unpaws_detect_version(z80_int *p_mainattr)
       else {
               MainTop=27356;
            MainAttr=MainTop+169;
-           if (    (peek_byte_no_time(MainAttr) == 16)
-             && (peek_byte_no_time(MainAttr+2) == 17)
-             && (peek_byte_no_time(MainAttr+4) == 18)
-             && (peek_byte_no_time(MainAttr+6) == 19)
-             && (peek_byte_no_time(MainAttr+8) == 20)
-             && (peek_byte_no_time(MainAttr+10) == 21)
+           if (    (daad_peek(MainAttr) == 16)
+             && (daad_peek(MainAttr+2) == 17)
+             && (daad_peek(MainAttr+4) == 18)
+             && (daad_peek(MainAttr+6) == 19)
+             && (daad_peek(MainAttr+8) == 20)
+             && (daad_peek(MainAttr+10) == 21)
            ) {
                //debug_printf (VERBOSE_DEBUG,"Quill.C signature found");
                quillversion=3;
@@ -12785,6 +14460,217 @@ int util_unpaws_detect_version(z80_int *p_mainattr)
      
       }
   }
+
+  *final_maintop=MainTop;
+  *final_mainattr=MainAttr;
+  *final_quillversion=quillversion;
+
+  //printf ("quill version: %d\n",quillversion);
+
+}
+
+z80_int util_unpaws_get_maintop(void)
+{
+        z80_int final_maintop;
+        z80_int final_mainattr;
+        int quillversion;
+
+        util_unpaws_get_maintop_mainattr(&final_maintop,&final_mainattr,&quillversion);
+
+        return final_maintop;
+}
+
+z80_int util_unpaws_get_mainattr(void)
+{
+        z80_int final_maintop;
+        z80_int final_mainattr;
+        int quillversion;
+
+        util_unpaws_get_maintop_mainattr(&final_maintop,&final_mainattr,&quillversion);
+
+        return final_mainattr;
+}
+
+int util_unpaws_get_version(void)
+{
+        z80_int final_maintop;
+        z80_int final_mainattr;
+        int quillversion;
+
+        util_unpaws_get_maintop_mainattr(&final_maintop,&final_mainattr,&quillversion);
+
+        return quillversion;
+}
+
+
+char *util_unpaws_const_parser_paws="Paws";
+char *util_unpaws_const_parser_quill="Quill";
+char *util_unpaws_const_parser_daad="Daad";
+
+char *util_unpaws_get_parser_name(void)
+{
+        if (util_unpaws_get_version()==0) return util_unpaws_const_parser_paws;
+        else return util_unpaws_const_parser_quill;
+}
+
+int util_paws_quill_is_quill(void)
+{
+         if (util_unpaws_get_version()==0) return 0; //paws             
+
+        return 1; //quill      
+}
+
+int util_undaad_unpaws_is_quill(void)
+{
+        if (util_daad_detect()) return 0; //daad
+
+        return util_paws_quill_is_quill();
+
+}
+
+char *util_undaad_unpaws_get_parser_name(void)
+{
+        if (util_daad_detect()) return util_unpaws_const_parser_daad;
+	else return util_unpaws_get_parser_name();
+}
+
+//Variables que se inicializan desde util_unpaws_init_parameters
+
+z80_byte util_unpaws_NumMsg;
+z80_int util_unpaws_OffMsg;
+z80_int util_unpaws_OffSys;
+z80_byte util_unpaws_NumSys;
+z80_byte util_unpaws_NumLoc;
+z80_int util_unpaws_OffLoc;
+z80_int util_unpaws_OffObj;
+z80_byte util_unpaws_NumObj;
+z80_byte util_unpaws_NumPro;
+z80_int util_unpaws_OffPro;
+z80_int util_unpaws_OffAbreviations;
+z80_byte util_unpaws_NumFonts;
+z80_int util_unpaws_OffFont;
+z80_int util_unpaws_OffGraph;
+z80_int util_unpaws_OffGraphAttr;
+z80_byte util_unpaws_compressed;
+z80_int util_unpaws_tOffs;
+z80_byte util_unpaws_Patched;
+z80_int util_unpaws_OffResp;
+z80_byte util_unpaws_GraphCount;
+z80_int util_unpaws_OffVoc;
+z80_int util_unpaws_vocptr;
+
+void util_unpaws_init_parameters(void)
+{
+
+        z80_int maintop;
+        z80_int mainattr;
+        int quillversion;
+
+        util_unpaws_get_maintop_mainattr(&maintop,&mainattr,&quillversion);
+
+
+
+
+
+
+
+//(* Global data *)
+ if (quillversion==0) {
+   util_unpaws_NumMsg=daad_peek(maintop+326);
+   util_unpaws_OffMsg=daad_peek_word(65503);
+   util_unpaws_OffSys=daad_peek_word(65505);
+   util_unpaws_NumSys=daad_peek(maintop+327);
+   util_unpaws_NumLoc=daad_peek(maintop+325);
+   util_unpaws_OffLoc=daad_peek_word(65501);
+   util_unpaws_OffObj = daad_peek_word(65499);
+   util_unpaws_NumObj = daad_peek(maintop+324);
+   util_unpaws_NumPro = daad_peek(maintop+328) ;
+   util_unpaws_OffPro = daad_peek_word(65497) ;
+   util_unpaws_OffAbreviations = daad_peek_word(maintop+332) ;
+   util_unpaws_NumFonts = daad_peek(maintop+329);
+   util_unpaws_OffFont = daad_peek_word(maintop+330);
+   util_unpaws_OffGraph = daad_peek_word(65521);
+   util_unpaws_OffGraphAttr=daad_peek_word(65523);
+   util_unpaws_compressed=daad_peek(util_unpaws_OffAbreviations); //=0;
+
+     util_unpaws_vocptr = daad_peek_word(65509);
+     util_unpaws_OffVoc = daad_peek_word(65509);
+
+}
+ else
+ {
+   util_unpaws_tOffs=mainattr+13;
+   util_unpaws_NumMsg=daad_peek(util_unpaws_tOffs+3);
+   if (quillversion==1) 
+   {
+    util_unpaws_OffSys=maintop+168;
+    util_unpaws_NumSys=32;
+    util_unpaws_OffMsg=daad_peek_word(mainattr+25);
+    util_unpaws_OffLoc=daad_peek_word(mainattr+23);
+    util_unpaws_vocptr = daad_peek_word(mainattr+29);
+    }
+   else
+   {
+    util_unpaws_OffSys=daad_peek_word(util_unpaws_tOffs+15);
+    util_unpaws_NumSys=daad_peek(util_unpaws_tOffs+4);
+    util_unpaws_OffMsg=daad_peek_word(mainattr+26);
+    util_unpaws_OffLoc=daad_peek_word(mainattr+24);
+    util_unpaws_vocptr = daad_peek_word(mainattr+32);
+   }
+   util_unpaws_OffVoc = util_unpaws_vocptr;
+
+   util_unpaws_NumLoc=daad_peek(util_unpaws_tOffs+2);
+   if (quillversion==1) util_unpaws_OffObj = daad_peek_word(util_unpaws_tOffs+8);
+   else util_unpaws_OffObj = daad_peek_word(util_unpaws_tOffs+9);
+
+   util_unpaws_NumObj = daad_peek(util_unpaws_tOffs+1);
+
+   if (quillversion==1) util_unpaws_OffPro = daad_peek_word(util_unpaws_tOffs+6);
+   else util_unpaws_OffPro = daad_peek_word(util_unpaws_tOffs+7);
+
+   if (quillversion==1) util_unpaws_OffResp = daad_peek_word(util_unpaws_tOffs+4);
+   else util_unpaws_OffResp = daad_peek_word(util_unpaws_tOffs+5);
+
+   if (quillversion==1) util_unpaws_OffAbreviations = util_unpaws_tOffs+24;
+   else util_unpaws_OffAbreviations = util_unpaws_tOffs+29;
+
+   util_unpaws_compressed=(quillversion==3) && (daad_peek(util_unpaws_OffAbreviations)<128) && (daad_peek(util_unpaws_OffAbreviations+1)==128);
+
+   util_unpaws_Patched= (daad_peek_word(24791)==daad_peek_word(23606)) || (daad_peek_word(24802)==daad_peek_word(23606));
+   
+   if(!util_unpaws_Patched) {
+                         if ((daad_peek_word(23606)<16384)) util_unpaws_NumFonts=0;
+                         else util_unpaws_NumFonts=1;
+   }
+
+   else if ( (daad_peek_word(24791)<16384) && (daad_peek_word(24802)<16384) )  util_unpaws_NumFonts=0;
+   else if ( (daad_peek_word(24791)<16384) || (daad_peek_word(24802)<16384) ) util_unpaws_NumFonts=1;
+   else util_unpaws_NumFonts=2;
+
+
+   if  ((daad_peek_word(64182)<=64182) && (daad_peek_word(64188) == 64181))
+   {
+      util_unpaws_OffGraph = daad_peek_word(64184);
+      util_unpaws_OffGraphAttr=daad_peek_word(64186);
+      util_unpaws_GraphCount=daad_peek(64190);
+   }
+   else 
+    util_unpaws_OffGraph=0;
+} 
+
+
+}
+
+int util_unpaws_detect_version(z80_int *p_mainattr)
+{
+
+        int quillversion;
+        z80_int MainTop;
+        z80_int MainAttr;        
+
+        util_unpaws_get_maintop_mainattr(&MainTop,&MainAttr,&quillversion);
+
+    
 
   if (quillversion>=0) debug_printf (VERBOSE_DEBUG,"%s signature found",quillversions_strings[quillversion]);
 
@@ -12899,6 +14785,7 @@ UnPAWS takes snapshot files (.SNA, .SP, .Z80) of  Spectrum  games written  with 
   end;
         */
 
+//Valores validos van de 0 hasta 6 inclusive
 #define  MAXTVOC 6
 /*
 FUNCTION Type_Voc(C:Integer):String;
@@ -12916,11 +14803,11 @@ END;
 
   //Precargo palabras (solo 1 sinonimo de cada, la mas corta) antes en un array
   //tipo, indice
-  char lista_palabras[MAXTVOC][256][6];
+  char lista_palabras[MAXTVOC+1][256][PAWS_LONGITUD_PALABRAS+1];
 
   //Inicializarlas vacias
   int i,j;
-  for (i=0;i<MAXTVOC;i++) {
+  for (i=0;i<=MAXTVOC;i++) {
         for (j=0;j<256;j++) lista_palabras[i][j][0]=0;
   }
 
@@ -12955,13 +14842,13 @@ END;
 
 
   while (vocptr < limite_voc && peek_byte_no_time(vocptr)!=0) {
-          char palabra[6];
+          char palabra[PAWS_LONGITUD_PALABRAS+1];
           z80_byte indice_palabra;
           z80_byte tipo_palabra;
 
           if (quillversion==0) {
 
-                for (j=0;j<5;j++) palabra[j]=peek_byte_no_time(vocptr+j)^255;
+                for (j=0;j<PAWS_LONGITUD_PALABRAS;j++) palabra[j]=peek_byte_no_time(vocptr+j)^255;
 
                 indice_palabra=peek_byte_no_time(vocptr+j);
                 palabra[j]=0;
@@ -12970,7 +14857,7 @@ END;
           }
 
           else {
-                for (j=0;j<4;j++) palabra[j]=peek_byte_no_time(vocptr+j)^255;
+                for (j=0;j<QUILL_LONGITUD_PALABRAS;j++) palabra[j]=peek_byte_no_time(vocptr+j)^255;
 
                 indice_palabra=peek_byte_no_time(vocptr+j);
                 palabra[j]=0;
@@ -12985,6 +14872,7 @@ END;
           else {
                   strcpy(buf_tipo_palabra,"RESERVED");
                   reservado=1;
+                  //printf ("tipo palabra: %d\n",tipo_palabra);
           }
 
           if (quillversion==0) debug_printf (VERBOSE_DEBUG,"unPAWs dump. Vocabulary word: %s Index: %d Type: %s",palabra,indice_palabra,buf_tipo_palabra);
@@ -12992,7 +14880,7 @@ END;
 
           if (!reservado) {
                   //Meter en array. Quitar antes espacios del final
-                  char palabra_sin_espacios[6];
+                  char palabra_sin_espacios[PAWS_LONGITUD_PALABRAS+1];
                   util_clear_final_spaces(palabra,palabra_sin_espacios);
 
                   int insertar=1;
@@ -13006,6 +14894,9 @@ END;
                   }
 
                   if (insertar) {
+                        //if (strlen(palabra_sin_espacios)>5) printf ("ERROR");
+                        //if (tipo_palabra>=MAXTVOC) printf ("tipo palabra: %d\n",tipo_palabra);
+
                         strcpy(lista_palabras[tipo_palabra][indice_palabra],palabra_sin_espacios);
                         debug_printf (VERBOSE_DEBUG,"Adding word %s to array list",palabra_sin_espacios);
                         total_palabras++;
@@ -13037,20 +14928,39 @@ END;
 
   //Y ahora agregamos la lista total del array
   if (quillversion==0) debug_printf (VERBOSE_DEBUG,"Adding words to OSD Adventure text keyboard");
-  for (i=0;i<MAXTVOC;i++) {
-          debug_printf (VERBOSE_DEBUG,"Adding words type %s",unpaws_tvocs[i]);
+  for (i=0;i<=MAXTVOC;i++) {
+        debug_printf (VERBOSE_DEBUG,"Adding words type %s",unpaws_tvocs[i]);
         for (j=0;j<256;j++) {
-                  if (lista_palabras[i][j][0]!=0) {
-                          debug_printf (VERBOSE_DEBUG,"Adding word %s to OSD Adventure text keyboard",lista_palabras[i][j]);
+                //printf ("i %d j %d\n",i,j);
+                if (lista_palabras[i][j][0]!=0) {
+                        debug_printf (VERBOSE_DEBUG,"Adding word %s to OSD Adventure text keyboard",lista_palabras[i][j]);
                         util_unpawsgac_add_word_kb(lista_palabras[i][j]);   
                 }
         }
   }
+  //printf ("despues cargar palabras\n");
 
   *p_quillversion=quillversion;
+
+  //printf ("justo antes del return\n");
   return total_palabras;
+/*
+Debug: unPAWs dump. Vocabulary word: IT    Index: 2 Type: Pronoun
+tipo palabra: 6
+Debug: Adding word IT to array list
+*/
 
+}
 
+int util_paws_detect(void) 
+{
+
+  if (!MACHINE_IS_SPECTRUM) return 0;
+
+  z80_int mainattr;
+  int quillversion=util_unpaws_detect_version(&mainattr);
+  if (quillversion<0) return 0;
+  else return 1;
 }
 
 z80_int readtokenised(z80_int puntero)
@@ -13356,9 +15266,18 @@ int util_unpawsetc_dump_words(char *mensaje)
 
         util_init_unpawsgac_hotkeys();
 
+        //Ver si es de daad
+        if (util_daad_detect()) {
+                int palabras=util_daad_dump_vocabulary(0,NULL,0);
+                sprintf(mensaje,"OK. DAAD signature found. %d words added",palabras);
+                return 0;
+        }
+
         int version;
 
-	int palabras=util_paws_dump_vocabulary(&version);        
+	int palabras=util_paws_dump_vocabulary(&version);      
+
+        //printf ("Despues extraer palabras\n");  
 
 	//Es Paws?
 	if (version>=0) {
@@ -13376,7 +15295,7 @@ int util_unpawsetc_dump_words(char *mensaje)
 
 		else {
 			//Ni paws ni gac
-			sprintf(mensaje,"It does not seem to be a Quill/PAW/GAC game");
+			sprintf(mensaje,"It does not seem to be a Quill/PAW/Daad/GAC game");
 		}
 	}
 
@@ -13427,3 +15346,1514 @@ int get_cpu_frequency(void)
         return cpu_hz;
 }
 
+
+
+
+z80_int util_daad_get_start_pointers(void)
+{
+        if (MACHINE_IS_CPC) return 0x2880;
+
+        else return 0x8400;
+}
+
+//Detecta si juego cargado en memoria está hecho con daad
+//Condicion primera es que maquina actual sea spectrum
+int util_daad_detect(void)
+{
+
+
+        if (MACHINE_IS_SPECTRUM || MACHINE_IS_CPC) {
+                /*
+                1) En la dirección 0x8400 ha de haber un 1 o un 2. Si son juegos DAAD hechos hoy en día habrá un 2, si son antiguos habrá un 1. 
+                2) En la siguiente direccion debe conterner un 0x10 o un 0x11 (marca que es juego de spectrum en ingles la primera, juego de Spectrum en español la segunda)
+                Para Amstrad, 0x31/0x30 en el 0x2882 en lugar de 0x11/0x10
+                3) En la siguiente direccion lo normal es encontrar un 95 decimal. 
+ 
+                */
+
+                z80_int dir=util_daad_get_start_pointers();
+
+                z80_byte first_byte=daad_peek(dir);
+                z80_byte second_byte=daad_peek(dir+1);
+                z80_byte third_byte=daad_peek(dir+2);
+
+                if (first_byte==1 || first_byte==2) {
+                       if (second_byte==0x10 || second_byte==0x11 || second_byte==0x30 || second_byte==0x31) {
+                               if (third_byte==95) {
+                                       return 1;
+                                }
+                        }
+                }
+
+                return 0;
+
+        }
+
+        return 0;
+}
+
+
+z80_int util_daad_get_start_vocabulary(void)
+{
+        z80_int dir;
+
+
+        dir=value_8_to_16(daad_peek(util_daad_get_start_pointers()+0x17),daad_peek(util_daad_get_start_pointers()+0x16));
+       
+
+
+        return dir;
+}
+
+z80_int util_paws_get_start_vocabulary(void)
+{
+        z80_int dir;
+
+        
+        util_unpaws_init_parameters();
+        dir=util_unpaws_OffVoc;
+        
+
+        return dir;
+}
+
+//Volcar vocabulario para el extractor de palabras (teclado text adventure) o como un string con saltos de linea
+//tipo=0: para text adventure. 1:para string 
+int util_daad_dump_vocabulary(int tipo,char *texto,int max_string)
+{
+
+        debug_printf (VERBOSE_DEBUG,"Dumping Daad vocabulary");
+
+        util_clear_text_adventure_kdb();
+
+        z80_int puntero=util_daad_get_start_vocabulary();
+
+        //Leer entradas de 7 bytes
+        /*
+        5 para 5 letras de la palabra (puede incluir espacios de padding al final si es más corta), con xor 255
+        1 byte para el número de palabra 
+        1 byte para el tipo de palabra 
+        */
+
+       //Rellenamos con espacio para que se vea centrado
+       char *word_types[]={"verb       ", "adverb     ", "noun       ", "adjective  ", "preposition","conjugation", "pronoun    "};
+       //char *word_types[]={"verb", "adverb", "noun", "adjective", "preposition","conjugation", "pronoun"};
+
+
+
+       int palabras=0;
+
+       char buffer_palabra[6];
+
+       if (tipo) texto[0]=0;
+
+       int salir=0;
+
+       do {
+               //Copiar palabra a buffer
+               int i;
+               z80_byte caracter;
+               z80_byte tipo_palabra;
+               z80_byte num_palabra;
+
+                if (daad_peek(puntero)==0) salir=1;
+
+                else {
+
+               for (i=0;i<5;i++) {
+                       caracter=daad_peek(puntero+i) ^255;
+                       //Si hay espacio, fin
+                       if (caracter==32) break;
+
+                       caracter=chardetect_convert_daad_accents(caracter);
+
+                       //Pasar a mayusculas por si acaso
+                       caracter=letra_mayuscula(caracter);
+
+                       if (caracter<32 || caracter>127) {
+                               //printf ("%d\n",caracter);
+                               //21=á
+                               caracter='?';
+                       }
+                       buffer_palabra[i]=caracter;
+               }
+               buffer_palabra[i]=0;
+
+               num_palabra=daad_peek(puntero+5);
+
+               tipo_palabra=daad_peek(puntero+6);
+
+               //if (buffer_palabra[0]<32 || buffer_palabra[0]>127) salir=1;
+               //else  {
+                       debug_printf (VERBOSE_DEBUG,"Adding word: %s",buffer_palabra);
+
+                       if (tipo==0) {
+                           util_unpawsgac_add_word_kb(buffer_palabra);
+                       }
+                       else {
+		        char buffer_linea[32];
+		        sprintf(buffer_linea,"%03d %s %s\n",num_palabra,(tipo_palabra<=6 ? word_types[tipo_palabra] : "unknown"),
+                        buffer_palabra);
+
+		        //Y concatenar a final
+		        salir=util_concat_string(texto,buffer_linea,max_string);
+                       }
+                       palabras++;
+               //}
+
+               puntero+=7;
+                }
+
+       } while (!salir);
+
+       return palabras;
+}
+
+
+//Volcar vocabulario para el extractor de palabras (teclado text adventure) o como un string con saltos de linea
+//tipo=0: para text adventure. 1:para string 
+int util_paws_dump_vocabulary_tostring(int tipo,char *texto,int max_string)
+{
+
+        debug_printf (VERBOSE_DEBUG,"Dumping Daad vocabulary");
+
+        util_clear_text_adventure_kdb();
+
+        z80_int puntero=util_paws_get_start_vocabulary();
+
+        //Leer entradas de 7 bytes
+        /*
+        5 para 5 letras de la palabra (puede incluir espacios de padding al final si es más corta), con xor 255
+        1 byte para el número de palabra 
+        1 byte para el tipo de palabra 
+
+        Quill es de 5 bytes, 4 para caracteres de palabra y 1 numero
+        */
+
+       //Rellenamos con espacio para que se vea centrado
+       char *word_types[]={"verb       ", "adverb     ", "noun       ", "adjective  ", "preposition","conjugation", "pronoun    "};
+       //char *word_types[]={"verb", "adverb", "noun", "adjective", "preposition","conjugation", "pronoun"};
+
+
+
+        z80_int maintop;
+        z80_int mainattr;
+
+        int quillversion;
+
+        util_unpaws_get_maintop_mainattr(&maintop,&mainattr,&quillversion);
+
+        int longitud_total_palabra;
+        int longitud_palabra;
+
+        int isquill;
+
+        if (quillversion==0) {
+                //paws
+                longitud_total_palabra=7;
+                longitud_palabra=5;
+                isquill=0;
+        }
+
+        else {
+                //quill
+                longitud_total_palabra=5;
+                longitud_palabra=4;
+                isquill=1;
+        }
+
+
+       int palabras=0;
+
+       char buffer_palabra[6];
+
+       if (tipo) texto[0]=0;
+
+       int salir=0;
+
+       do {
+               //Copiar palabra a buffer
+               int i;
+               z80_byte caracter;
+               z80_byte tipo_palabra;
+               z80_byte num_palabra;
+
+                if (daad_peek(puntero)==0) salir=1;
+
+                else {
+
+               for (i=0;i<longitud_palabra;i++) {
+                       caracter=daad_peek(puntero+i) ^255;
+                       //Si hay espacio, fin
+                       if (caracter==32) break;
+
+                       caracter=chardetect_convert_daad_accents(caracter);
+
+                       //Pasar a mayusculas por si acaso
+                       caracter=letra_mayuscula(caracter);
+
+                       if (caracter<32 || caracter>127) {
+                               //printf ("%d\n",caracter);
+                               //21=á
+                               caracter='?';
+                       }
+                       buffer_palabra[i]=caracter;
+               }
+               buffer_palabra[i]=0;
+
+               num_palabra=daad_peek(puntero+longitud_palabra);
+
+               if (!isquill) tipo_palabra=daad_peek(puntero+6);
+               else tipo_palabra=0;
+
+               //if (buffer_palabra[0]<32 || buffer_palabra[0]>127) salir=1;
+               //else  {
+                       debug_printf (VERBOSE_DEBUG,"Adding word: %s",buffer_palabra);
+
+                       if (tipo==0) {
+                           util_unpawsgac_add_word_kb(buffer_palabra);
+                       }
+                       else {
+		        char buffer_linea[32];
+                        if (!isquill) sprintf(buffer_linea,"%03d %s %s\n",num_palabra,(tipo_palabra<=6 ? word_types[tipo_palabra] : "unknown"), buffer_palabra);
+                        else sprintf(buffer_linea,"%03d %s\n",num_palabra, buffer_palabra);
+
+		        //Y concatenar a final
+		        salir=util_concat_string(texto,buffer_linea,max_string);
+                       }
+                       palabras++;
+               //}
+
+               puntero+=longitud_total_palabra;
+                }
+
+       } while (!salir);
+
+       return palabras;
+}
+
+
+//Dice si aventura es spanish. Si no, english
+int util_daad_is_spanish(void)
+{
+        return (daad_peek(util_daad_get_start_pointers()+1) & 1);
+}
+
+z80_int util_daad_get_start_flags(void)
+{
+
+        if (util_daad_detect()) {
+
+                if (MACHINE_IS_CPC) return 0x23c9;
+
+                else  {
+                        if (util_daad_is_spanish()) return 0x7f1c;
+                        else return 0x7e55;
+                }
+
+        }
+
+        else {
+                //Paws
+                z80_int dir=0x85c0;
+
+                //Creo que todas las de english cambia esto:
+                if (reg_ix==0x85b0) dir=0x85b0;
+
+                //con quill
+                if (util_paws_quill_is_quill() ) dir=0x5b00;
+                //if (reg_ix==0x5b00) dir=0x5b00;
+
+                return dir;
+        }
+
+        
+}
+
+
+z80_int util_daad_get_start_objects(void)
+{
+
+        //Quill empieza en una posicion caprichosa
+        if (util_undaad_unpaws_is_quill () ) {
+                return 0x5b00+37;
+        }
+
+        else return util_daad_get_start_flags()+256;
+        
+}
+
+z80_byte util_daad_get_flag_value(z80_byte index)
+{
+        //7f1c
+
+        return daad_peek(util_daad_get_start_flags()+index);
+}
+
+z80_byte util_daad_get_object_value(z80_byte index)
+{
+
+        return daad_peek(util_daad_get_start_objects()+index);
+}
+
+
+void util_daad_put_flag_value(z80_byte index,z80_byte value)
+{
+        //7f1c
+
+        daad_poke(util_daad_get_start_flags()+index,value);
+}
+
+void util_daad_put_object_value(z80_byte index,z80_byte value)
+{
+
+        daad_poke(util_daad_get_start_objects()+index,value);
+}
+
+void util_daad_locate_word(z80_byte numero_palabra_buscar,z80_byte tipo_palabra_buscar,char *texto_destino)
+{
+        z80_int puntero=util_daad_get_start_vocabulary();
+
+        //Leer entradas de 7 bytes
+        /*
+        5 para 5 letras de la palabra (puede incluir espacios de padding al final si es más corta), con xor 255
+        1 byte para el número de palabra 
+        1 byte para el tipo de palabra. Si 255, cualquiera. Si no, de 0 hasta: ("verb", "adverb", "noun", "adjective", "preposition","conjugation", "pronoun");
+        */
+
+       int palabras=0;
+
+       char buffer_palabra[6];
+
+       int salir=0;
+
+        //Por defecto asumimos no encontrado
+        strcpy(texto_destino,"?");
+
+       do {
+               //Copiar palabra a buffer
+               int i;
+               z80_byte caracter;
+
+                if (daad_peek(puntero)==0) salir=1;
+                else {
+
+               for (i=0;i<5;i++) {
+                       caracter=daad_peek(puntero+i) ^255;
+                       //Si hay espacio, fin
+                       //if (caracter==32) break;
+
+
+                       caracter=chardetect_convert_daad_accents(caracter);
+
+                       //Pasar a mayusculas por si acaso
+                       caracter=letra_mayuscula(caracter);
+
+
+
+                       if (caracter<32 || caracter>127) caracter='?';
+                       buffer_palabra[i]=caracter;
+               }
+               buffer_palabra[i]=0;
+
+               //if (buffer_palabra[0]<32 || buffer_palabra[0]>127) {
+                       //No encontrado
+                //       return;
+               //}
+               //else  {
+                       z80_byte numero_palabra=daad_peek(puntero+5);
+                       z80_byte tipo_palabra=daad_peek(puntero+6);
+                       //debug_printf (VERBOSE_DEBUG,"Adding word: %s",buffer_palabra);
+                       //util_unpawsgac_add_word_kb(buffer_palabra);
+                       //palabras++;
+                       if (numero_palabra==numero_palabra_buscar && (tipo_palabra==tipo_palabra_buscar || tipo_palabra==255)) {
+                               strcpy(texto_destino,buffer_palabra);
+                               return;
+                       }
+               //}
+
+               puntero+=7;
+               palabras++;
+
+               //Agregar un limite por si acaso
+               if (palabras==65535) salir=1;
+                }
+
+       } while (!salir);
+     
+} 
+
+void util_paws_locate_word(z80_byte numero_palabra_buscar,z80_byte tipo_palabra_buscar,char *texto_destino)
+{
+        z80_int puntero=util_paws_get_start_vocabulary();
+
+        //Leer entradas de 7 bytes
+        /*
+        5 para 5 letras de la palabra (puede incluir espacios de padding al final si es más corta), con xor 255
+        1 byte para el número de palabra 
+        1 byte para el tipo de palabra. Si 255, cualquiera. Si no, de 0 hasta: ("verb", "adverb", "noun", "adjective", "preposition","conjugation", "pronoun");
+
+        En quill, entradas de 5 bytes
+        4 letras para palabra
+        1 byte para numero de palabra
+        */
+
+        z80_int maintop;
+        z80_int mainattr;
+
+        int quillversion;
+
+        util_unpaws_get_maintop_mainattr(&maintop,&mainattr,&quillversion);
+
+        int longitud_total_palabra;
+        int longitud_palabra;
+
+        if (quillversion==0) {
+                longitud_total_palabra=7;
+                longitud_palabra=5;
+        }
+        
+        else {
+                longitud_total_palabra=5;
+                longitud_palabra=4;
+        }
+
+       int palabras=0;
+
+       char buffer_palabra[6];
+
+       int salir=0;
+
+        //Por defecto asumimos no encontrado
+        strcpy(texto_destino,"?");
+
+       do {
+               //Copiar palabra a buffer
+               int i;
+               z80_byte caracter;
+
+                if (daad_peek(puntero)==0) salir=1;
+                else {
+
+               for (i=0;i<longitud_palabra;i++) {
+                       caracter=daad_peek(puntero+i) ^255;
+                       //Si hay espacio, fin
+                       //if (caracter==32) break;
+
+
+                       caracter=chardetect_convert_daad_accents(caracter);
+
+                       //Pasar a mayusculas por si acaso
+                       caracter=letra_mayuscula(caracter);
+
+
+
+                       if (caracter<32 || caracter>127) caracter='?';
+                       buffer_palabra[i]=caracter;
+               }
+               buffer_palabra[i]=0;
+
+               //if (buffer_palabra[0]<32 || buffer_palabra[0]>127) {
+                       //No encontrado
+                //       return;
+               //}
+               //else  {
+                       z80_byte numero_palabra=daad_peek(puntero+longitud_palabra);
+                       z80_byte tipo_palabra;
+
+                       if (quillversion==0) tipo_palabra=daad_peek(puntero+6);
+                       else tipo_palabra=0;
+                       //debug_printf (VERBOSE_DEBUG,"Adding word: %s",buffer_palabra);
+                       //util_unpawsgac_add_word_kb(buffer_palabra);
+                       //palabras++;
+                       if (numero_palabra==numero_palabra_buscar && (tipo_palabra==tipo_palabra_buscar || tipo_palabra==255)) {
+                               strcpy(texto_destino,buffer_palabra);
+                               return;
+                       }
+               //}
+
+               puntero+=longitud_total_palabra;
+               palabras++;
+
+               //Agregar un limite por si acaso
+               if (palabras==65535) salir=1;
+                }
+
+       } while (!salir);
+     
+}
+
+void util_daad_paws_locate_word(z80_byte numero_palabra_buscar,z80_byte tipo_palabra_buscar,char *texto_destino)
+{
+        if (util_daad_detect() ) util_daad_locate_word(numero_palabra_buscar,tipo_palabra_buscar,texto_destino);
+        else util_paws_locate_word(numero_palabra_buscar,tipo_palabra_buscar,texto_destino);
+}
+
+//Listado de objetos daad
+/*
+En dirección 0x8400+26 está el puntero?
+En esa direccion hay una tabla lookup, 2 bytes por objeto, que son a su vez un puntero a la direccion donde empieza el texto de cada objeto
+el texto en sí, con XOR FF
+texto acaba con 0x0A (o 0xF5 antes de hacerle el XOR FF para devolverlo)
+caracteres con acentos etc códigos por debajo del 32
+*/
+
+
+//Comun para daad y paws
+z80_int util_daad_get_start_objects_names(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+12;
+        dir=value_8_to_16(daad_peek(puntero+1),daad_peek(puntero));        
+        }
+        else {
+                util_unpaws_init_parameters();
+                dir=util_unpaws_OffObj;
+                //printf ("Obj messages: %XH\n",dir);
+        }
+
+        return dir;
+}
+
+//Comun para daad y paws
+z80_int util_daad_get_start_locat_messages(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+14;
+        dir=value_8_to_16(daad_peek(puntero+1),daad_peek(puntero));
+        }
+        else {
+                //Paws
+                util_unpaws_init_parameters();
+                dir=util_unpaws_OffLoc;
+        }
+
+
+        return dir;
+}
+
+
+//Comun para daad y paws
+z80_int util_daad_get_start_user_messages(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+16;
+        dir=value_8_to_16(daad_peek(puntero+1),daad_peek(puntero));
+        }
+        else {
+                util_unpaws_init_parameters();
+                dir=util_unpaws_OffMsg;
+                //printf ("user messages: %XH\n",dir);
+        }
+
+
+        return dir;
+}
+
+//Comun para daad y paws
+z80_int util_daad_get_start_sys_messages(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+18;
+        dir=value_8_to_16(daad_peek(puntero+1),daad_peek(puntero));        
+        }
+        else {
+                //Paws
+                util_unpaws_init_parameters();
+                dir=util_unpaws_OffSys;
+                //printf ("sys messages: %XH\n",dir);
+        }
+
+        return dir;
+}
+
+
+//Comun para daad y paws
+z80_int util_daad_get_start_compressed_messages(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+8;
+        dir=value_8_to_16(daad_peek(puntero+1),daad_peek(puntero));        
+        }
+        else {
+                //paws
+                util_unpaws_init_parameters();
+                dir=util_unpaws_OffAbreviations;
+                //printf ("compressed: %XH\n",dir);
+        }
+
+        return dir;
+}
+
+//Comun para daad y paws
+z80_int util_daad_get_num_objects_description(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+3;
+        dir=daad_peek(puntero);        
+        }
+        else {
+                //paws
+                util_unpaws_init_parameters();
+                dir=util_unpaws_NumObj;
+        }
+
+        return dir;
+}
+
+//Comun para daad y paws
+z80_int util_daad_get_num_locat_messages(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+4;
+        dir=daad_peek(puntero);        
+        }
+        else {
+                //Paws
+                util_unpaws_init_parameters();
+                dir=util_unpaws_NumLoc;
+        }
+
+        return dir;
+}
+
+//Comun para daad y paws
+z80_int util_daad_get_num_user_messages(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+                puntero=util_daad_get_start_pointers()+5;
+                dir=daad_peek(puntero);
+        }
+
+        else {
+                //paws
+                util_unpaws_init_parameters();
+                dir=util_unpaws_NumMsg;
+        }
+
+
+        return dir;
+}
+
+//Comun para daad y paws
+z80_int util_daad_get_num_sys_messages(void)
+{
+
+        z80_int puntero;
+
+        z80_int dir;
+
+        if (util_daad_detect()) {
+        puntero=util_daad_get_start_pointers()+6;
+        dir=daad_peek(puntero);        
+        }
+        else {
+                //paws
+                util_unpaws_init_parameters();
+                dir=util_unpaws_NumSys;
+        }
+
+        return dir;
+}
+
+z80_int util_daad_get_pc_parser(void)
+{
+        if (MACHINE_IS_CPC) return DAAD_PARSER_BREAKPOINT_PC_CPC;
+        else return DAAD_PARSER_BREAKPOINT_PC_SPECTRUM;
+}
+
+int util_paws_is_opcodes_parser(z80_int dir)
+{
+                        /*
+                LD A,(BC)
+                CP FF
+
+                0a fe ff
+                 */
+
+                 if (
+                        daad_peek(dir)==0x0a &&
+                        daad_peek(dir+1)==0xfe &&
+                        daad_peek(dir+2)==0xff 
+                ) {    
+                        return 1;
+                }
+                else return 0;   
+}
+
+z80_int util_paws_get_pc_parser(void)
+{
+
+        z80_int maintop;
+        z80_int mainattr;
+        int quillversion;
+
+        util_unpaws_get_maintop_mainattr(&maintop,&mainattr,&quillversion);
+
+        z80_int dir=0x76a6; //por defecto
+
+        
+
+                z80_int dir2=0x7671;
+                if (util_paws_is_opcodes_parser(dir2)) dir=dir2;
+
+
+                z80_int dir3=0x76aa;
+                if (util_paws_is_opcodes_parser(dir3)) dir=dir3;
+
+                //quill
+                z80_int dir4=0x63fc;
+                if (util_paws_is_opcodes_parser(dir4)) dir=dir4;
+
+                //quill (bugsy)
+                z80_int dir5=0x6448;
+                if (util_paws_is_opcodes_parser(dir5)) dir=dir5;          
+
+                //quill (evil realm)
+                z80_int dir6=0x644d;
+                if (util_paws_is_opcodes_parser(dir6)) dir=dir6;                                         
+    
+
+        return dir;
+}
+
+int util_paws_is_in_parser(void)
+{
+        if (reg_pc==util_paws_get_pc_parser() ) return 1;
+        
+        else return 0;
+}
+
+int util_daad_is_in_parser(void)
+{
+        if (reg_pc==util_daad_get_pc_parser() ) return 1;
+        
+        else return 0;
+}
+
+//Retorna un mensaje de daad N, de la tabla indicada (tabla de punteros de 16 bits)
+//Mensajes con xor 255 y finaliza mensaje con F5 (o 10 despues de hacerle el xor)
+void util_daad_get_message_table_lookup(z80_byte index,z80_int table_dir,char *texto,int limite_mensajes)
+{
+
+        if (index>limite_mensajes-1) {
+                strcpy(texto,"Message out of range");
+                return;
+        }
+
+        int es_daad=util_daad_detect();
+
+        z80_byte caracter_fin;
+        z80_byte limite_caracter_comprimido;
+
+        if (es_daad) {
+                caracter_fin=10;
+                limite_caracter_comprimido=127;
+        }
+        else {
+                caracter_fin=31;
+                limite_caracter_comprimido=164;
+        }
+
+        z80_int offset_pointer=table_dir+index*2;
+
+        z80_int dir=value_8_to_16(daad_peek(offset_pointer+1),daad_peek(offset_pointer));
+
+        //leer hasta byte valor 10, o maximo 255 longitud
+        int destino=0;
+
+        z80_byte caracter=0;
+
+        while (destino<255 && caracter!=caracter_fin) {
+                caracter=daad_peek(dir++) ^255;
+                if (caracter!=caracter_fin) {
+
+                        caracter=chardetect_convert_daad_accents(caracter);
+
+                        if (caracter<32 || caracter>127) {
+                                if (caracter>limite_caracter_comprimido) {
+                                        //Meter token
+                                        char buffer_temp[256];
+                                        //printf ("token %d\n",caracter & 127);
+                                        if (es_daad) util_daad_get_compressed_message(caracter & 127,buffer_temp);
+                                        else util_daad_get_compressed_message(caracter-164,buffer_temp);
+                                        unsigned int i;
+                                        for (i=0;i<strlen(buffer_temp) && destino<255;i++) {
+                                                texto[destino++]=buffer_temp[i];
+                                        }
+                                }
+                                else {
+                                        caracter='?';
+                                        texto[destino++]=caracter;
+                                }
+                        }
+
+                        else texto[destino++]=caracter;
+                }
+
+                //printf ("destino %d caracter %d\n",destino,caracter);
+        }
+
+        texto[destino]=0;
+}
+
+
+
+void util_daad_get_object_description(z80_byte index,char *texto)
+{
+
+        z80_int table_dir=util_daad_get_start_objects_names();
+        util_daad_get_message_table_lookup(index,table_dir,texto,util_daad_get_num_objects_description() );
+
+}
+
+
+void util_daad_get_user_message(z80_byte index,char *texto)
+{
+
+        z80_int table_dir;
+
+        table_dir=util_daad_get_start_user_messages();
+
+        util_daad_get_message_table_lookup(index,table_dir,texto,util_daad_get_num_user_messages() );
+}
+
+
+void util_daad_get_sys_message(z80_byte index,char *texto)
+{
+
+        z80_int table_dir=util_daad_get_start_sys_messages();
+        
+        util_daad_get_message_table_lookup(index,table_dir,texto,util_daad_get_num_sys_messages());
+}
+
+
+void util_daad_get_locat_message(z80_byte index,char *texto)
+{
+
+        z80_int table_dir=util_daad_get_start_locat_messages();
+        util_daad_get_message_table_lookup(index,table_dir,texto,util_daad_get_num_locat_messages() );
+}
+
+
+
+//Retorna un mensaje token de daad, que finaliza con bit 7 alzado
+void util_daad_get_token_message(z80_byte index,z80_int table_dir,char *texto)
+{
+
+        //Ir contando tokens hasta llegar al que interesa
+        int i;
+        z80_byte caracter;
+        for (i=0;i<index;) {
+                caracter=daad_peek(table_dir++);
+                if (caracter>127) i++;
+        }
+
+        int salir=0;
+        int destino=0;
+
+        do {
+                caracter=daad_peek(table_dir++);
+
+                       caracter=chardetect_convert_daad_accents(caracter);
+
+
+                if (caracter>127) {
+                        caracter -=128;
+                        caracter=chardetect_convert_daad_accents(caracter);
+                        salir=1;
+                }
+                texto[destino++]=caracter;
+
+                //printf ("destino %d caracter %d\n",destino,caracter);
+        } while (!salir && destino<255);
+
+        texto[destino]=0;
+}
+
+
+void util_daad_get_compressed_message(z80_byte index,char *texto)
+{
+
+//fseek ($file, $pos_tokens + 1);  // It seems actual token table starts one byte after the one the header points to (daad)
+        z80_int table_dir=util_daad_get_start_compressed_messages();
+        if (util_daad_detect()) table_dir++;
+        util_daad_get_token_message(index,table_dir,texto);
+}
+
+
+int util_daad_condact_uses_message(void)
+{
+        //Retorna 1 si BC apunta a un condacto que usa mensaje como parametro:
+	//MES y MESSAGE a la tabla MTX (mensajes de usuario). SYSMES a STX (mensajes del sistema) y DESC a LTX (localidades)
+	/*
+  {1,"MES    "}, //  77 $4D
+
+  {1,"MESSAGE"}, //  38 $26
+
+
+  {1,"SYSMESS"}, //  54 $36
+
+
+  {1,"DESC   "}, //  19 $13
+
+
+  {1,"NOUN2  "}, //  69 $45
+
+
+  {1,"ADJECT1"}, //  16 $10
+    {1,"ADJECT2"}, //  70 $46
+  {1,"ADVERB "}, //  17 $11
+    {1,"PREP   "}, //  68 $44
+
+
+	*/
+
+	z80_int direccion_desensamblar=value_8_to_16(reg_b,reg_c);
+
+	z80_byte opcode_daad=daad_peek(direccion_desensamblar) & 127;
+	
+
+	if (opcode_daad==77 || opcode_daad==38 || opcode_daad==54 || opcode_daad==19 || opcode_daad==69|| opcode_daad==16 || opcode_daad==70 || opcode_daad==17 || opcode_daad==68) {
+                return 1;
+	} 
+
+	else return 0;
+}
+
+int util_daad_get_limit_flags(void)
+{
+        int limite_max=255;        
+        		//quill tiene 33 flags y 210 objetos
+		//Tabla Para quill de 33 flags y 210 objetos (33 oficiales, realmente 37)
+		if (util_undaad_unpaws_is_quill() ) {
+				limite_max=36;			
+		}	
+
+        return limite_max;
+}
+
+int util_daad_get_limit_objects(void)
+{
+        int limite_max=255;        
+        		//quill tiene 33 flags y 210 objetos
+		//Tabla Para quill de 33 flags y 210 objetos
+		if (util_undaad_unpaws_is_quill() ) {
+			//objetos
+			limite_max=209;
+		}	
+
+        return limite_max;
+}
+
+//Retorna mensaje relacionado con condacto
+void util_daad_get_condact_message(char *buffer)
+{
+	//MES y MESSAGE a la tabla MTX (mensajes de usuario). SYSMES a STX (mensajes del sistema) y DESC a LTX (localidades)
+	/*
+  {1,"MES    "}, //  77 $4D
+
+  {1,"MESSAGE"}, //  38 $26
+
+
+  {1,"SYSMESS"}, //  54 $36
+
+
+  {1,"DESC   "}, //  19 $13
+
+    {1,"NOUN2  "}, //  69 $45
+
+
+  {1,"ADJECT1"}, //  16 $10
+    {1,"ADJECT2"}, //  70 $46
+  {1,"ADVERB "}, //  17 $11
+    {1,"PREP   "}, //  68 $44
+
+	*/
+
+	z80_int direccion_desensamblar=value_8_to_16(reg_b,reg_c);
+
+	z80_byte opcode_daad=daad_peek(direccion_desensamblar);
+	z80_byte param_message=daad_peek(direccion_desensamblar+1);
+
+	int redireccion=0;
+	if (opcode_daad>127) {
+		redireccion=1;
+		opcode_daad -=128;
+		param_message=util_daad_get_flag_value(param_message);
+	}
+
+	buffer[0]=0;
+
+	if (opcode_daad==77 || opcode_daad==38) {
+		util_daad_get_user_message(param_message,buffer);
+	} 
+
+	if (opcode_daad==54) {
+		util_daad_get_sys_message(param_message,buffer);
+	} 	
+
+	if (opcode_daad==19) {
+		util_daad_get_locat_message(param_message,buffer);
+	} 		
+
+	//{1,"NOUN2  "}, //  69 $45
+	if (opcode_daad==69) {
+		util_daad_paws_locate_word(param_message,2,buffer);
+	} 		
+
+  //{1,"ADJECT1"}, //  16 $10
+  //{1,"ADJECT2"}, //  70 $46
+  	if (opcode_daad==16 || opcode_daad==70) {
+		util_daad_paws_locate_word(param_message,3,buffer);
+	} 	
+
+
+
+  	//{1,"ADVERB "}, //  17 $11
+    if (opcode_daad==17) {
+		util_daad_paws_locate_word(param_message,1,buffer);
+	} 
+
+    //{1,"PREP   "}, //  68 $44	
+	if (opcode_daad==68) {
+		util_daad_paws_locate_word(param_message,4,buffer);
+	} 	
+
+
+	menu_generic_message("Message",buffer);
+
+
+}
+
+//Retorna 0 si no encontrado
+int util_find_window_geometry(char *nombre,int *x,int *y,int *ancho,int *alto)
+{
+        int i;
+
+        for (i=0;i<total_config_window_geometry;i++) {
+                if (!strcasecmp(nombre,saved_config_window_geometry_array[i].nombre)) {
+                        *x=saved_config_window_geometry_array[i].x;
+                        *y=saved_config_window_geometry_array[i].y;
+                        *ancho=saved_config_window_geometry_array[i].ancho;
+                        *alto=saved_config_window_geometry_array[i].alto;
+                        debug_printf (VERBOSE_DEBUG,"Returning window geometry %s from index %d, %d,%d %dX%d",
+                        nombre,i,*y,*y,*ancho,*alto);
+                        return 1;
+                }
+        }
+
+        //Si no se encuentra, meter geometria por defecto
+        *x=menu_origin_x();
+        *y=0;
+        *ancho=ZXVISION_MAX_ANCHO_VENTANA;
+        *alto=ZXVISION_MAX_ALTO_VENTANA;
+        debug_printf (VERBOSE_DEBUG,"Returning default window geometry for %s",nombre);
+        return 0;
+}
+
+//Retorna 0 si error. Lo agrega si no existe. Si existe, lo modifica
+int util_add_window_geometry(char *nombre,int x,int y,int ancho,int alto)
+{
+
+        int destino=total_config_window_geometry;
+        int sustituir=0;
+
+        int i;
+
+        //Buscar si se encuentra, sustituir
+        for (i=0;i<total_config_window_geometry;i++) {
+                if (!strcasecmp(nombre,saved_config_window_geometry_array[i].nombre)) {
+                        destino=i;
+                        sustituir=1;
+                        break;
+                }
+        }        
+
+        if (!sustituir) {
+                if (total_config_window_geometry==MAX_CONFIG_WINDOW_GEOMETRY) {
+                        debug_printf (VERBOSE_ERR,"Maximum window geometry config reached (%d)",MAX_CONFIG_WINDOW_GEOMETRY);
+                        return 0;
+                }
+        }
+
+        debug_printf (VERBOSE_DEBUG,"Storing window geometry at %d index array, name %s, %d,%d %dX%d",
+                destino,nombre,x,y,ancho,alto);
+
+        strcpy(saved_config_window_geometry_array[destino].nombre,nombre);
+        saved_config_window_geometry_array[destino].x=x;
+        saved_config_window_geometry_array[destino].y=y;
+        saved_config_window_geometry_array[destino].ancho=ancho;
+        saved_config_window_geometry_array[destino].alto=alto;
+
+        if (!sustituir) total_config_window_geometry++;
+
+        return 1;
+
+}
+
+//Misma funcion que la anterior pero indicando solo nombre y puntero a ventana
+void util_add_window_geometry_compact(char *nombre,zxvision_window *ventana)
+{
+        util_add_window_geometry(nombre,ventana->x,ventana->y,ventana->visible_width,ventana->visible_height);        
+}
+
+void util_clear_all_windows_geometry(void)
+{
+        total_config_window_geometry=0;        
+}
+
+//Agregar una letra en el string en la posicion indicada
+void util_str_add_char(char *texto,int posicion,char letra)
+{
+
+
+        if (posicion<0) return; //error
+
+        //Primero hacer hueco, desplazar todo a la derecha
+        int longitud=strlen(texto);
+
+
+
+        //Si se intenta meter mas alla de la posicion del 0 final
+        if (posicion>longitud) {
+                //printf ("intentando escribir mas alla del 0 final\n");
+                posicion=longitud;
+        }        
+
+        int i;
+
+
+        //Meter un 0 despues del 0 ultimo
+        texto[longitud+1]=0;
+
+        for (i=longitud;i>posicion;i--) {
+                texto[i]=texto[i-1];
+        }
+
+        texto[posicion]=letra;
+}
+
+//Quitar una letra en el string en la posicion indicada
+void util_str_del_char(char *texto,int posicion)
+{
+
+         if (posicion<0) return; //error
+
+        //desplazar todo a la izquierda
+        int longitud=strlen(texto);
+
+        if (longitud==0) return; //cadena vacia
+
+
+        //Si se intenta borrar mas alla de la longitud
+        if (posicion>=longitud) {
+                //printf ("intentando borrar mas alla del final\n");
+                posicion=longitud-1;
+        }        
+
+        int i;
+
+
+        for (i=posicion;i<longitud;i++) {
+                texto[i]=texto[i+1];
+        }
+
+}
+
+
+char util_printable_char(char c)
+{
+        if (c<32 || c>126) return '?';
+        else return c;
+}
+
+//funcion para leer una linea desde origen, hasta codigo 10 NL
+//se puede limitar max en destino
+//retorna puntero a byte despues de salto linea
+char *util_read_line(char *origen,char *destino,int size_orig,int max_size_dest,int *leidos)
+{
+	max_size_dest --;
+	*leidos=0;
+	for (;*origen && size_orig>0 && max_size_dest>0;origen++,size_orig--,(*leidos)--) {
+		//ignorar cr
+		if ( *origen=='\r' ) continue;
+		if ( *origen=='\n' ) {
+			origen++;
+			break; 
+		}
+		*destino=*origen;
+		destino++;
+		max_size_dest--;
+		
+	}
+	*destino=0;
+	return origen;
+}
+
+//Retorna el codigo http o <0 si otros errores
+int util_download_file(char *hostname,char *url,char *archivo,int use_ssl)
+{
+  int http_code;
+	char *mem;
+	char *orig_mem;
+	char *mem_after_headers;
+	int total_leidos;
+	int retorno;
+        char redirect_url[NETWORK_MAX_URL];
+        retorno=zsock_http(hostname,url,&http_code,&mem,&total_leidos,&mem_after_headers,1,"",use_ssl,redirect_url);
+
+        
+        if (http_code==302 && redirect_url[0]!=0) {
+                debug_printf (VERBOSE_DEBUG,"util_download_file: detected redirect to %s",redirect_url);
+                //TODO: solo gestiono 1 redirect
+
+                //obtener protocolo
+                use_ssl=util_url_is_https(redirect_url);
+
+                //obtener host
+                char nuevo_host[NETWORK_MAX_URL];
+                util_get_host_url(redirect_url,nuevo_host);
+
+                //obtener nueva url (sin host)
+                char nueva_url[NETWORK_MAX_URL];
+                util_get_url_no_host(redirect_url,nueva_url);
+
+                //liberar memoria anterior
+                if (mem!=NULL) free(mem);
+
+                debug_printf (VERBOSE_DEBUG,"util_download_file: querying again host %s (SSL=%d) url %s",nuevo_host,use_ssl,nueva_url);
+
+                //El redirect sucede con las url a archive.org
+
+                retorno=zsock_http(nuevo_host,nueva_url,&http_code,&mem,&total_leidos,&mem_after_headers,1,"",use_ssl,redirect_url);
+
+	}
+
+                                
+	orig_mem=mem;
+	
+	if (mem_after_headers!=NULL && http_code==200) {
+		//temp limite
+		//mem_after_headers[10000]=0;
+		//menu_generic_message("Games",mem_after_headers);
+		//char texto_final[30000];
+		
+		//int indice_destino=0;
+		
+		int dif_header=mem_after_headers-mem;
+		total_leidos -=dif_header;
+		mem=mem_after_headers;
+		//grabar a disco
+		//todo usar funcion de utils comun, existe?
+		
+		FILE *ptr_destino;
+                ptr_destino=fopen(archivo,"wb");
+
+                if (ptr_destino==NULL) {
+                        debug_printf (VERBOSE_ERR,"Error writing game file");
+                        return -1;
+                }
+
+
+
+  	        fwrite(mem_after_headers,1,total_leidos,ptr_destino);
+
+
+                fclose(ptr_destino);
+                free(orig_mem);
+        }
+
+        //Fin resultado http correcto
+        else {	
+                if (retorno<0) {	
+                        //debug_printf(VERBOSE_ERR,"Error downloading game list. Return code: %d",http_code);
+                        //printf ("Error: %d %s\n",retorno,z_sock_get_error(retorno));
+                        return retorno;
+                }
+                else {
+                        debug_printf(VERBOSE_ERR,"Error downloading game list. Return code: %d",http_code);
+                }
+        }	        
+
+        return http_code;
+}
+
+void util_normalize_name(char *texto)
+{
+	while (*texto) {
+		char c=*texto;
+		if (c=='(' || c==')') {
+			*texto='_';
+		}
+		texto++;
+	}
+}
+
+void util_normalize_query_http(char *orig,char *dest)
+{
+
+	while (*orig) {
+		char c=*orig;
+                if (c<=32 || c>=127 || c=='/') {
+                        sprintf (dest,"%%%02x",c);
+                        dest+=3;
+                }
+
+                else {
+                        *dest=c;
+			dest++;
+		}
+                
+		
+		orig++;
+	}
+	
+	*dest=0;
+
+
+}
+
+
+
+int util_extract_scl(char *sclname, char *dest_dir)
+{
+        //Archivo orig
+        char name[PATH_MAX];
+        //char dir[PATH_MAX];
+        util_get_file_no_directory(sclname,name);
+        //util_get_dir(sclname,dir);
+
+        char destname[PATH_MAX];
+        sprintf(destname,"%s/%s.trd",dest_dir,name);
+        debug_printf (VERBOSE_INFO,"Calling scl2trd_main %s %s",sclname,destname);
+        scl2trd_main(sclname,destname);
+        return 0;
+}
+
+
+
+
+int on_extract_entry(const char *filename, void *arg) {
+    static int i = 0;
+    int n = *(int *)arg;
+    debug_printf (VERBOSE_INFO,"Internal zip decompressor: Extracted: %s (%d of %d)", filename, ++i, n);
+
+    return 0;
+}
+
+int util_extract_zip(char *zipname, char *dest_dir)
+{
+        int arg = 2;
+        zip_extract(zipname, dest_dir, on_extract_entry, &arg);
+
+        return 0;
+}
+
+int util_url_is_https(char *url)
+{
+
+        char *encontrado;
+
+        encontrado=strstr(url,"https://");
+        if (encontrado==url) return 1;
+        else return 0;
+}
+
+void util_get_host_url(char *url, char *host)
+{
+        //buscar primero si hay ://
+
+        char *encontrado;
+        //char *inicio_host;
+
+        encontrado=strstr(url,"://");
+        if (encontrado!=NULL) {
+                encontrado +=3; //saltar 3 caracteres ://
+        }
+        else encontrado=url;
+
+        //Copiar hasta la primera / o final de string
+        int i=0;
+        
+        for (i=0;(*encontrado)!=0 && (*encontrado)!='/';i++,host++,encontrado++) {
+                *host=*encontrado;
+        }
+
+        *host=0;
+
+}
+
+void util_get_url_no_host(char *url, char *url_no_host)
+{
+        //buscar primero si hay ://
+
+        char *encontrado;
+        //char *inicio_host;
+
+        encontrado=strstr(url,"://");
+        if (encontrado!=NULL) {
+                encontrado +=3; //saltar 3 caracteres ://
+        }
+        else encontrado=url;
+
+        //Buscar hasta la primera / o final de string 
+        for (;(*encontrado)!=0 && (*encontrado)!='/';encontrado++);
+
+        //copiar desde ahi hasta final de string
+        for (;(*encontrado)!=0;encontrado++,url_no_host++) {
+                *url_no_host=*encontrado;
+        }
+
+        *url_no_host=0;
+
+}
+
+
+//Retorna ? si caracter esta fuera de rango. Si no , retorna caracter
+char util_return_valid_ascii_char(char c)
+{
+        if (c>=32 && c<=126) return c;
+        else return '?';
+}

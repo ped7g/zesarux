@@ -90,5 +90,7 @@ extern void chardetect_debug_char_table_routines_poke(z80_int dir);
 
 extern int chardetect_automatic_nested_id_poke_byte;
 
+extern z80_byte chardetect_convert_daad_accents(z80_byte c);
+
 
 #endif

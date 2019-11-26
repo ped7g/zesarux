@@ -36,6 +36,7 @@ void invalid_opcode_ed(char *s)
 	        //printf ("Invalid opcode %s. Final PC: %04XH\n",s,reg_pc);
         }
 
+        //Y acaba ejecutando un NOP tal cual
 
 }
 
@@ -662,6 +663,36 @@ void instruccion_ed_69 ()
 void instruccion_ed_70 ()
 {
 //coded70:                        ;IM 0
+/*
+Codificación de modos IM:
+
+According to Goran Devic Z80 reverse engineering schema, and the conclusions from Simon Owen, Gerton Lunter, Miguel Angel Rodriguez Jodar:
+
+Now, bits 4:3 are renamed as db[1] and db[0] in this schematic. They can be 00, which officially means IM 0. 10 officially means IM 1 and 11 officially means IM 2.
+
+The Z80 has two registers named im1 and im2. Whichever of them is set indicates which interrupt mode is active (IM1 or IM 2). If none of them is set, then it's IM 0. You can see that it is so with the above combinarions:
+
+Combination 0x makes the im1 register to store a 0, as the output from the AND gate will be 0. The same goes for combination 11 because of the inverter before one of the inputs to the AND. In fact, the only combination that makes a 1 to be stored is 10 (which is the official way to encode IM 1)
+
+Combination 11 makes the second register (im2) to store a 1 because of the AND gate. Any other combination will make this register to store a 0. Again, this is consistent with the official way to encode IM 2.
+
+Therefore, combination 00 and 01 won't set any of both registers, and this will be interpreted as IM 0.
+
+The interrupt mode after a reset, as you can see, is IM 0.
+
+
+Mirando los bits 4 y 3 de opcode
+
+00: IM0
+01: IM0
+10: IM1
+11: IM2
+
+en este caso: 70 = 0100 0110
+                      - -
+                      0 0 = IM0
+
+*/
 	im_mode=0;
 }
 
@@ -736,18 +767,20 @@ void instruccion_ed_76 ()
 void instruccion_ed_77 ()
 {
 //RETI
-	iff1.v=iff2.v;
+	//iff1.v=iff2.v; Reti no hace esto
 	reg_pc=pop_valor();
 }
 
 void instruccion_ed_78 ()
 {
 //coded70:                        ;IM 0
+/*
+en este caso: 78 = 0100 1110
+                      - -
+                      0 1 = IM0
+*/
         im_mode=0;
 }
-
-
-
 
 void instruccion_ed_79 ()
 {
@@ -837,8 +870,12 @@ void instruccion_ed_85 ()
 
 void instruccion_ed_86 ()
 {
-
 //coded86:                        ;IM 1
+/*
+en este caso: 86 = 0101 0110
+                      - -
+                      1 0 = IM1
+*/
 	im_mode=1;
 }
 
@@ -929,7 +966,12 @@ void instruccion_ed_93 ()
 
 void instruccion_ed_94 ()
 {
-//coded94:                        ;IM 2
+//IM 2
+/*
+en este caso: 94 = 0101 1110
+                      - -
+                      1 1 = IM2
+*/
 	im_mode=2;
 }
 
@@ -1017,9 +1059,13 @@ void instruccion_ed_101 ()
 
 void instruccion_ed_102 ()
 {
-//           ;IM 0/1
+//IM 0
+/*
+en este caso: 102 = 0110 0110
+                       - -
+                       0 0 = IM0
+*/
         im_mode=0;
-
 }
 
 void instruccion_ed_103 ()
@@ -1132,12 +1178,14 @@ void instruccion_ed_109 ()
 
 void instruccion_ed_110 ()
 {
-//           ;IM 0/1
+//IM 0
+/*
+en este caso: 110 = 0110 1110
+                       - -
+                       0 1 = IM0
+*/
         im_mode=0;
-
 }
-
-
 
 void instruccion_ed_111 ()
 {
@@ -1205,8 +1253,9 @@ void instruccion_ed_113 ()
         set_memptr(BC+1);
 #endif
 
-	//Esto es diferente en NMOS y en CMOS
-	if (MACHINE_IS_Z88 || MACHINE_IS_TSCONF) {
+	//Esto es diferente entre NMOS y CMOS
+        if (z80_cpu_current_type==Z80_TYPE_CMOS) {
+	//if (MACHINE_IS_Z88 || MACHINE_IS_TSCONF) {
 		//CMOS
 		out_port(BC, 255);
 	}
@@ -1262,11 +1311,14 @@ void instruccion_ed_117 ()
 
 void instruccion_ed_118 ()
 {
-//           ;IM 0/1
-        im_mode=0;
-
+//IM 1
+/*
+en este caso: 118 = 0111 0110
+                       - -
+                       1 0 = IM1
+*/
+        im_mode=1;
 }
-
 
 void instruccion_ed_119 ()
 {
@@ -1342,11 +1394,13 @@ void instruccion_ed_125 ()
 
 void instruccion_ed_126 ()
 {
-
-//coded126:                        ;IM 2
+//IM 2
+/*
+en este caso: 126 = 0111 1110
+                       - -
+                       1 1 = IM2
+*/
         im_mode=2;
-
-
 }
 
 void instruccion_ed_127 ()
@@ -1411,7 +1465,7 @@ void instruccion_ed_138 ()
                 z80_int value=0;
                 value |= (lee_byte_pc()<<8);
                 value |= lee_byte_pc();
-                push_valor( value );
+                push_valor( value , PUSH_VALUE_TYPE_PUSH);
         }
 
         else invalid_opcode_ed("237 138");

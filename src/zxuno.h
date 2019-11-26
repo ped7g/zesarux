@@ -41,7 +41,7 @@ extern void hard_reset_cpu_zxuno(void);
 //extern void mem_set_normal_pages_zxuno(void);
 
 extern z80_byte *zxuno_sram_mem_table_new[];
-extern z80_byte *zxuno_memory_paged_new[];
+extern z80_byte *zxuno_memory_paged_brandnew[];
 extern void zxuno_set_memory_pages(void);
 extern void zxuno_init_memory_tables(void);
 
@@ -93,7 +93,7 @@ extern void zxuno_p2a_write_page_port(z80_int puerto, z80_byte value);
 extern z80_bit zxuno_flash_persistent_writes;
 extern void zxuno_flush_flash_to_disk(void);
 extern void zxuno_set_timing_48k(void);
-extern int zxuno_flash_operating_counter;
+//extern int zxuno_flash_operating_counter;
 
 extern int zxuno_flash_must_flush_to_disk;
 
@@ -140,5 +140,26 @@ extern z80_bit zxuno_flash_write_protection;
 extern z80_byte zxuno_get_radaspalbank_offset(void);
 
 extern void zxuno_set_emulador_settings(void);
+
+extern int is_zxuno_chloe_mmu(void);
+
+extern int zxuno_is_chloe_mmu(void);
+
+
+#define ZXUNO_UART_DATA_REG 0xc6
+#define ZXUNO_UART_STAT_REG 0xc7
+
+extern void zxuno_uartbridge_enable(void);
+extern void zxuno_uartbridge_disable(void);
+extern z80_byte zxuno_uartbridge_readdata(void);
+extern void zxuno_uartbridge_writedata(z80_byte value);
+extern z80_byte zxuno_uartbridge_readstatus(void);
+
+#define ZXUNO_UART_BYTE_RECEIVED_BIT 0x80
+#define ZXUNO_UART_BYTE_TRANSMITTING_BIT 0x40
+
+extern z80_byte zxuno_get_devcontrol_di7ffd(void);
+extern z80_byte zxuno_get_devcontrol_di1ffd(void);
+
 
 #endif

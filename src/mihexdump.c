@@ -13,7 +13,7 @@ int main (int argc,char *argv[]) {
 	while (!feof(ptr_file)) {
 		unsigned char byte_leido;
 	        int leidos=fread(&byte_leido,1,1,ptr_file);
-		printf ("%02X ",byte_leido);
+		if (leidos>0) printf ("%02X",byte_leido);
 	}
 
         fclose(ptr_file);

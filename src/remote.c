@@ -28,11 +28,13 @@
 #include "cpu.h"
 #include "debug.h"
 #include "utils.h"
+#include "network.h"
 #include "remote.h"
 #include "compileoptions.h"
 #include "ql.h"
 #include "disassemble.h"
 #include "menu.h"
+#include "menu_items.h"
 #include "audio.h"
 #include "timer.h"
 #include "screen.h"
@@ -47,10 +49,15 @@
 #include "operaciones.h"
 #include "snap.h"
 #include "kartusho.h"
+#include "ifrom.h"
 #include "zxevo.h"
 #include "settings.h"
 #include "esxdos_handler.h"
 #include "assemble.h"
+#include "expression_parser.h"
+#include "joystick.h"
+#include "snap_zsf.h"
+#include "autoselectoptions.h"
 
 
 
@@ -70,10 +77,14 @@ z80_bit remote_calling_end_emulator={0};
 
 #ifdef MINGW
 	#include <winsock2.h>
+
+	//para usar socklen_t
+	#include <ws2tcpip.h>
 #else
 	#include <sys/socket.h>
 	#include <netdb.h>
 	#include <unistd.h>
+	#include <arpa/inet.h>
 #endif
 
 #include <stdarg.h>
@@ -100,11 +111,12 @@ int *remote_parsed_source_code_indexes_pointer=NULL;
 int remote_parsed_source_code_indexes_total;
 
 
-//Si se envia CR despues de cada sentencia de escritura
-int enviar_cr=0;
+
 
 
 int remote_find_label_source_code(char *label_to_find);
+void remote_cpu_enter_step(int misocket);
+void remote_cpu_exit_step(int misocket);
 
 
 //Usados en el prompt de ensamblado
@@ -112,52 +124,7 @@ z80_bit remote_protocol_assembling={0};
 unsigned int direccion_assembling;
 
 
-//Crea un socket TCP per la connexio en xarxa
-int crear_socket_TCP(void)
-{
-	#ifdef MINGW
-	WSADATA wsadata;
-	if (WSAStartup(MAKEWORD(1,1), &wsadata) == SOCKET_ERROR) {
-		debug_printf(VERBOSE_ERR,"Error creating socket.");
-		return -1;
-	}
-	#endif
 
-
-        return socket(PF_INET,SOCK_STREAM,0);
-}
-
-
-int omplir_adr_internet
-(struct sockaddr_in *adr,char *host,unsigned short n_port)
-{
-        struct hostent *h;
-
-        adr->sin_family=AF_INET;
-        if (host!=NULL) {
-                if ((h=gethostbyname(host))==NULL) return -1;
-                adr->sin_addr=*(struct in_addr *)h->h_addr;
-
-                //printf ("\nncdd_util: %s : %d = %lX\n",host,(int)n_port,(unsigned long)adr->sin_addr.s_addr);
-
-        }
-        else {
-                adr->sin_addr.s_addr=htonl(INADDR_ANY);
-  }
-        adr->sin_port=htons(n_port);
-        return 0;
-}
-
-//Assignar l'adre<E7>a al socket
-//Host ha de valer NULL si es tracta del servidor
-int assignar_adr_internet
-(int sock,char *host,unsigned short n_port)
-{
-        struct sockaddr_in adr;
-
-        if (omplir_adr_internet(&adr,host,n_port)<0) return -1;
-        return bind(sock,(struct sockaddr *)&adr,sizeof(adr));
-}
 
 pthread_t thread_remote_protocol;
 
@@ -165,80 +132,7 @@ pthread_t thread_remote_protocol;
 z80_bit thread_remote_inicializado={0};
 
 
-int escribir_socket(int socket, char *buffer)
-{
-
-char cr=13;
-
-int efectivo_enviar_cr=0;
-
-if (enviar_cr) {
-	//Si ultimo caracter es 10, agregar un 13
-	int longitud=strlen(buffer);
-	if (longitud) {
-		if (buffer[longitud-1]==10) efectivo_enviar_cr=1;
-	}
-}
-
-#ifdef MINGW
-
-int smsg=send(socket,buffer,strlen(buffer),0);
-	 if(smsg==SOCKET_ERROR){
-			 debug_printf(VERBOSE_ERR,"Error writing to socket");
-			 return -1;
-	 }
-	 if (efectivo_enviar_cr) send(socket,&cr,1,0);
-	 return smsg;
-
-#else
-
-	int escrito=write(socket,buffer,strlen(buffer));
-
-	if (efectivo_enviar_cr) write(socket,&cr,1);
-
-	return escrito;
-
-#endif
-
-}
-
-//int leidos = read(sock_conectat, buffer_lectura_socket, 1023);
-int leer_socket(int s, char *buffer, int longitud)
-{
-#ifdef MINGW
-
-int leidos=recv(s,buffer,longitud,0);
- if(leidos==SOCKET_ERROR){
-	 	debug_printf(VERBOSE_ERR,"Error reading from socket");
-		return -1;
- }
- return leidos;
-
-#else
-	//int leidos=read(s, buffer, longitud);
-	int leidos=recv(s,buffer,longitud,0);
-	//printf ("leidos en leer_socket: %d\n",leidos);
-	return leidos;
-
-#endif
-}
-
-
-void escribir_socket_format (int misocket, const char * format , ...)
-{
-
-    char buffer_final[4096];
-
-    va_list args;
-    va_start (args, format);
-    vsprintf (buffer_final,format, args);
-    va_end (args);
-
-    escribir_socket(misocket,buffer_final);
-}
-
-
-
+ 
 #define EASTER_EGG_TOTAL_SPRITES 13
 
 //Sprite GScape
@@ -708,10 +602,69 @@ struct s_items_ayuda items_ayuda[]={
   {"about",NULL,NULL,"Shows about message"},
   {"assemble","|a","[address] [instruction]","Assemble at address. If no instruction specified, "
                                         "opens assemble prompt"},	
+  {"ayplayer","|ayp","command parameter","Runs a command on the AY Player. command can be:\n"
+	"get-author          Prints the author\n"
+	"get-elapsed-track   Prints elapsed track time in 1/50 of seconds\n"
+	"get-misc            Prints misc information\n"
+	"get-total-tracks    Prints total tracks\n"
+	"get-track-length    Prints track length in 1/50 of seconds\n"
+	"get-track-name      Prints track name\n"
+	"get-track-number    Prints current track number\n"
+
+	"load                Loads the .ay file indicated by parameter\n"
+	"next                Go to next track\n"
+	"prev                Go to previous track\n"
+	"stop                Stops playing\n"
+
+},
+
 	{"clear-membreakpoints",NULL,NULL,"Clear all memory breakpoints"},
+
+	{"cpu-code-coverage",NULL,"action [parameter]","Sets cpu code coverage parameters. Action and parameters are the following:\n"
+	"clear            Clear address list\n"
+	"enabled yes|no   Enable or disable the cpu code coverage\n"
+	"get              Get all run addresses\n"
+	},
+
+
+	{"cpu-history",NULL,"action [parameter] [parameter]","Runs cpu history actions. Action and parameters are the following:\n"
+	"clear                 Clear the cpu history\n"
+	"enabled yes|no        Enable or disable the cpu history\n"
+	"get index             Get registers at position, being 0 the most recent item\n"
+	"get-max-size          Return maximum allowed elements in history\n"	
+	"get-pc start items    Return PC register from position start, being 0 the most recent item, total items. Goes backwards\n"
+	"get-size              Return total elements in history\n"
+	"is-enabled            Tells if the cpu history is enabled or not\n"
+	"is-started            Tells if the cpu history is started or not\n"
+	"started yes|no        Start recording cpu history. Requires it to be enabled first\n"
+	"set-max-size number   Sets maximum allowed elements in history\n"
+	},
+
+
   {"cpu-panic",NULL,"text","Triggers the cpu panic function with the desired text. Note: It sets cpu-step-mode before doing it, so it ensures the emulation is paused"},
   {"cpu-step","|cs",NULL,"Run single opcode cpu step. Note: if 'real video' and 'shows electron on debug' settings are enabled, display will be updated immediately"},
   {"cpu-step-over","|cso",NULL,"Runs until returning from the current opcode. In case if current opcode is RET or JP (with or without flag conditions) it will run a cpu-step instead of cpu-step-over"},
+	{"cpu-transaction-log",NULL,"parameter value","Sets cpu transaction log parameters. Parameters and values are the following:\n"
+	"logfile         name:   File to store the log\n"
+	"enabled         yes|no: Enable or disable the cpu transaction log. Requires logfile to enable it\n"
+
+	"autorotate      yes|no: Enables automatic rotation of the log file\n"
+	"rotatefiles     number: Number of files to keep in rotation (1-999)\n"
+	"rotatesize      number: Size in MB to rotate log file (0-9999). 0 means no rotate\n"
+	"rotatelines     number: Size in lines to rotate log file (0-2147483647). 0 means no rotate\n"
+
+	"truncate        yes|no: Truncate the log file. Requires value set to yes\n"
+	"truncaterotated yes|no: Truncate the rotated log files. Requires value set to yes\n"
+
+	"ignrephalt      yes|no: Ignore repeated opcode HALT. Disabled by default\n"
+	
+	"datetime        yes|no: Enable datetime logging\n"
+	"tstates         yes|no: Enable tstates logging\n"
+	"address         yes|no: Enable address logging. Enabled by default\n"
+	"opcode          yes|no: Enable opcode logging. Enabled by default\n"
+	"registers       yes|no: Enable registers logging\n"
+	},
+
   {"disable-breakpoint","|db","index","Disable specific breakpoint"},
   {"disable-breakpoints",NULL,NULL,"Disable all breakpoints"},
   {"disassemble","|d","[address] [lines]","Disassemble at address. If no address specified, "
@@ -722,10 +675,17 @@ struct s_items_ayuda items_ayuda[]={
   {"enable-breakpoints",NULL,NULL,"Enable breakpoints"},
   {"enter-cpu-step",NULL,NULL,"Enter cpu step to step mode"},
 	{"esxdoshandler-get-open-files","|esxgof",NULL,"Gets a list of open files and directories on the esxdos handler"},
-  {"evaluate","|e","expression","Evaluate expression, can be more than one register separated by spaces. It's the same as using watches on the debug menu"},
-  {"evaluate-condition","|ec","condition","Evaluate condition. It's the same as using evaluate condition on the breakpoints debug menu"},
+  {"evaluate","|e","expression","Evaluate expression. It's the same parser as using breakpoints on the debug menu"},
+  //{"evaluate-condition","|ec","condition","Evaluate condition. It's the same as using evaluate condition on the breakpoints debug menu"},
   {"exit-cpu-step","|ecs",NULL,"Exit cpu step to step mode"},
   {"exit-emulator",NULL,NULL,"Ends emulator"},
+
+	{"extended-stack",NULL,"action [parameter]","Sets extended stack parameters, which allows you to see what kind of values are in the stack. Action and parameters are the following:\n"
+	"enabled yes|no     Enable or disable the extended stack\n"
+	"get     n [index]  Get n values. The index default value is the SP register\n"
+	},
+
+
 {"find-label",NULL,"label","Finds label on source code"},
   {"generate-nmi",NULL,NULL,"Generates a NMI"},
 	{"get-audio-buffer-info",NULL,NULL,"Get audio buffer information"},
@@ -751,9 +711,11 @@ struct s_items_ayuda items_ayuda[]={
 	{"get-os",NULL,NULL,"Shows emulator operating system"},
   {"get-paging-state",NULL,NULL,"Shows paging state on Spectrum 128k machines: if using screen 5/7 and if paging enabled"},
   {"get-registers","|gr",NULL,"Get CPU registers"},
+	{"get-snapshot",NULL,NULL,"Gets a zsf snapshot on console. Contents are shown as hexadecimal characters"}, 
 	{"get-stack-backtrace",NULL,"[items]","Get last 16-bit values from the stack. If no items parameter, it shows 5 by default"},
 	{"get-tstates",NULL,NULL,"Get the t-states counter"},
 	{"get-tstates-partial",NULL,NULL,"Get the t-states partial counter. Shows text OVERFLOW if value overflows"},
+	{"get-ui-io-ports",NULL,NULL,"Gets user interacton io ports values for 8 rows of keyboard and joystick. Format of the values received is the same as command set-ui-io-ports"},
 	  {"get-version",NULL,NULL,"Shows emulator version"},
 
 	{"get-video-driver",NULL,NULL,"Shows current video driver"},
@@ -765,8 +727,8 @@ struct s_items_ayuda items_ayuda[]={
 #endif
   {"hard-reset-cpu",NULL,NULL,"Hard resets the machine"},
   {"help","|?","[command]","Shows help screen or command help"},
-	{"hexdump","|h","pointer lenght","Dumps memory at address, showing hex and ascii."},
-	{"hexdump-internal",NULL,"pointer lenght [offset]","Dumps internal memory (hexadecimal and ascii) for a given memory pointer. "
+	{"hexdump","|h","pointer length","Dumps memory at address, showing hex and ascii."},
+	{"hexdump-internal",NULL,"pointer length [offset]","Dumps internal memory (hexadecimal and ascii) for a given memory pointer. "
 							"Pointer can be:\n"
 							"diviface_memory: where divide/divmmc firmware and ram is located\n"
 							"emulator_memory: usually includes RAM+ROM emulated machine\n"
@@ -775,14 +737,18 @@ struct s_items_ayuda items_ayuda[]={
 							"superupgrade_ram: where the superupgrade RAM is located\n"
 							"\n"
 							"Use with care, pointer address is a memory address on the emulator program (not the emulated memory)"},
+	{"ifrom-press-button",NULL,NULL,"Press button on the iFrom interface"},
 	{"kartusho-press-button",NULL,NULL,"Press button on the Kartusho interface"},
+	{"load-binary",NULL,"file addr len","Load binary file \"file\" at address \"addr\" with length \"len\". Set ln to 0 to load the entire file in memory"},
 	{"load-source-code","|lsc","file","Load source file to be used on disassemble opcode functions"},
 	{"ls",NULL,NULL,"Minimal command list"},
 	{"noop",NULL,NULL,"This command does nothing"},
+	{"print-footer",NULL,"message","Prints message on footer"},
+	{"put-snapshot",NULL,NULL,"Puts a zsf snapshot from console. Contents must be hexadecimal characters without spaces"}, 
   {"quit","|exit|logout",NULL,"Closes connection"},
 	{"read-memory",NULL,"[address] [length]","Dumps memory at address. "
 																				"It not specify address, dumps all memory for current memory zone: 64 KB for mapped memory on Z80, 16 kb for Spectrum 48KB ROM, etc. "
-																				"If specify address but not lenght, only 1 byte is read"
+																				"If specify address but not length, only 1 byte is read"
 	},
   {"reset-cpu",NULL,NULL,"Resets CPU"},
 	{"reset-tstates-partial",NULL,NULL,"Resets the t-states partial counter"},
@@ -794,10 +760,15 @@ struct s_items_ayuda items_ayuda[]={
 	"The parameters can be written in different order, for example:\nrun verbose\nor\nrun 100\nor\nrun verbose 100\n"
    "Notice this command does not run the usual cpu loop, instead it is controlled from ZRCP. If you close the connection, the run loop will die\n"
 	 },
-	{"save-binary-internal",NULL,"pointer lenght file [offset]","Dumps internal memory to file for a given memory pointer. "
+	{"save-binary-internal",NULL,"pointer length file [offset]","Dumps internal memory to file for a given memory pointer. "
 				"Pointer can be any of the hexdump-internal command\n"
 				"Use with care, pointer address is a memory address on the emulator program (not the emulated memory)"},
+
+
+
 	{"send-keys-ascii",NULL,"time asciichar1 [asciichar2] [asciichar3] ... ","Simulates sending some ascii keys on parameters asciichar, separated by spaces. Every key is separated in time by a non-press time. Time is in miliseconds, a normal value for Basic writing is 100 miliseconds"},
+	{"send-keys-event",NULL,"key event [nomenu]","Simulates sending key press/release. See file utils.h, enum util_teclas for values. Event must be 0 for release, or different to 0 for press\n"
+	                        "nomenu is an optional parameter, if set to non 0, tells the key is not sent when menu is open; by default is 0: send the key even if the menu is open"},
 
 	{"send-keys-string",NULL,"time string","Simulates sending some keys on parameter string. Every key is separated in time by a non-press time. Time is in miliseconds, a normal value for Basic writing is 100 miliseconds"},
 	{"set-breakpoint","|sb","index [condition]","Sets a breakpoint at desired index entry with condition. If no condition set, breakpoint will be handled as disabled\n"
@@ -814,6 +785,43 @@ struct s_items_ayuda items_ayuda[]={
 				"Bit 4: Repeat last command only by pressing enter.\n"
 				"Bit 5: Step over interrupt when running cpu-step, cpu-step-over and run verbose. It's the same setting as Step Over Interrupt on menu\n"
 		},
+
+	{"set-ui-io-ports",NULL,"9-hex-values","Sets user interacton io ports values for 8 rows of keyboard and joystick. Bytes must be in hexadecimal and not separated\n"
+	"The order of sending the 8 rows of keyboard is:\n"
+	"\n"
+	"              Bit   4    3    2    1    0     \n"
+	"0xFEFE port. Keys:  V    C    X    Z    Sh    \n"
+	"0xFDFE port. Keys:  G    F    D    S    A     \n"
+	"0xFBFE port. Keys:  T    R    E    W    Q     \n"
+	"0xF7FE port. Keys:  5    4    3    2    1     \n"
+	"0xEFFE port. Keys:  6    7    8    9    0     \n"
+	"0xDFFE port. Keys:  Y    U    I    O    P     \n"
+	"0xBFFE port. Keys:  H    J    K    L    Enter \n"
+	"0x7FFE port. Keys:  B    N    M    Simb Space \n"
+	"\n"
+	"And the last one (the 9th) is the joystick value:\n"
+	"                    Fire Up   Down Left Right\n"
+	"\n"
+	"Keyboard bits have a 0 for a pressed key, and a 1 for an unpressed key\n"
+	"Joystick bits have a 1 for a pressed direction, and a 0 for an unpressed direction\n"
+	"\n"
+	"So for example, sending the command:\n"
+	"set-ui-io-ports efffffffffffffff00\n"
+	"Will press key V (as EFH is 11101111 in binary)\n"
+	"Or another example:\n"
+	"set-ui-io-ports ffffffffffffffff01\n"
+	"Will press joystick right direction\n"
+	"\n"
+	"Actually you only have to set/reset 5 lower bits of every keyboard rows, so:\n"
+	"set-ui-io-ports ffffffffffffffff00\n"
+	"has the same effect as:\n"
+	"set-ui-io-ports 1f1f1f1f1f1f1f1f00\n"
+	"\n"
+	"Joystick value has always the same effect no matter which kind of joystick you selected, so for example, sending a 01 value will allways mean press right direction\n"
+
+	},
+
+
 	{"set-machine","|sm","machine_name","Set machine"},
 	{"set-membreakpoint",NULL,"address type [items]","Sets a memory breakpoint starting at desired address entry for type. If items parameter is not set, the default is 1. type can be:\n"
 		"0: Disabled\n"
@@ -833,6 +841,8 @@ struct s_items_ayuda items_ayuda[]={
   {"speech-empty-fifo",NULL,NULL,"Empty speech fifo"},
   {"speech-send",NULL,"message","Sends message to speech"},
 
+
+
   {"tbblue-get-clipwindow",NULL,"ula|layer2|sprite|tilemap","Get clip window parameters. You need to tell which clip window. Only allowed on machine TBBlue"},
   {"tbblue-set-clipwindow",NULL,"ula|layer2|sprite|tilemap x1 x2 y1 y2","Set clip window parameters. You need to tell which clip window. Only allowed on machine TBBlue"},
 
@@ -844,21 +854,21 @@ struct s_items_ayuda items_ayuda[]={
 
  {"tbblue-get-sprite",NULL,"index [items]","Get sprites at index, if not specified items parameters, returns only one. Returned values are in hexadecimal format. Only allowed on machine TBBlue"},
 
- {"tbblue-set-palette",NULL,"ula|layer2|sprite first|second index value","Sets palette values starting at desired starting index. You need to tell which palette. Values must be separed by one space each one"},
- {"tbblue-set-pattern",NULL,"index value","Sets pattern values starting at desired pattern index. Values must be separed by one space each one, you can only define one pattern maximum (so 256 values maximum)"},
+ {"tbblue-set-palette",NULL,"ula|layer2|sprite first|second index value","Sets palette values starting at desired starting index. You need to tell which palette. Values must be separated by one space each one"},
+ {"tbblue-set-pattern",NULL,"index value","Sets pattern values starting at desired pattern index. Values must be separated by one space each one, you can only define one pattern maximum (so 256 values maximum)"},
 
 {"tbblue-set-register",NULL,"index value","Set TBBlue register with value at index"},
 
- {"tbblue-set-sprite",NULL,"index value","Sets sprite values starting at desired sprite index. Values must be separed by one space each one, you can only define one sprite maximum (so 4 values maximum)"},
-
+ {"tbblue-set-sprite",NULL,"index value","Sets sprite values starting at desired sprite index. Values must be separated by one space each one, you can only define one sprite maximum (so 4 values maximum)"},
 
  {"tsconf-get-af-port",NULL,"index","Get TSConf XXAF port value"},
 
  {"tsconf-set-af-port",NULL,"index value","Set TSConf XXAF port value"},
 
 	{"view-basic",NULL,NULL,"Gets Basic program listing"},
-	{"write-memory","|wm","address value","Writes a sequence of bytes starting at desired address on memory. Bytes must be separed by one space each one"},
-	{"write-memory-raw",NULL,"address values","Writes a sequence of bytes starting at desired address on memory. Bytes must be in hexadecimal and not separed"},
+	{"write-memory","|wm","address value","Writes a sequence of bytes starting at desired address on memory. Bytes must be separated by one space each one"},
+	{"write-memory-raw",NULL,"address values","Writes a sequence of bytes starting at desired address on memory. Bytes must be in hexadecimal and not separated"},
+	{"write-port",NULL,"port value","Writes value at port"},
 
  {"zxevo-get-nvram",NULL,"index","Get ZX-Evo NVRAM value at index"},
 
@@ -930,9 +940,24 @@ void remote_get_breakpoints(int misocket,int inicio,int items)
       escribir_socket_format(misocket,"Enabled %d: ",i+1);
     }
 
-    if (debug_breakpoints_conditions_array[i][0]) {
-      escribir_socket_format(misocket,debug_breakpoints_conditions_array[i]);
-    }
+
+
+
+			if (debug_breakpoints_conditions_array_tokens[i][0].tipo!=TPT_FIN) {
+
+				//nuevo parser de breakpoints
+				char buffer_temp[MAX_BREAKPOINT_CONDITION_LENGTH];
+				exp_par_tokens_to_exp(debug_breakpoints_conditions_array_tokens[i],buffer_temp,MAX_PARSER_TOKENS_NUM);
+				escribir_socket_format(misocket,buffer_temp);
+			}
+
+
+
+
+
+
+
+
     else {
       escribir_socket_format(misocket,"None");
     }
@@ -1059,7 +1084,8 @@ void remote_disable_breakpoint(int misocket,char *parametros)
   }
 
 
-  debug_breakpoints_conditions_enabled[indice-1]=0;
+  //debug_breakpoints_conditions_enabled[indice-1]=0;
+  debug_breakpoints_conditions_disable(indice-1);
 }
 
 
@@ -1080,7 +1106,8 @@ void remote_enable_breakpoint(int misocket,char *parametros)
   }
 
 
-  debug_breakpoints_conditions_enabled[indice-1]=1;
+  //debug_breakpoints_conditions_enabled[indice-1]=1;
+  debug_breakpoints_conditions_enable(indice-1);
 }
 
 void remote_set_breakpoint(int misocket,char *parametros)
@@ -1123,7 +1150,8 @@ void remote_set_breakpoint(int misocket,char *parametros)
     return;
   }
 
-  debug_set_breakpoint(indice-1,&parametros[i]);
+  int result=debug_set_breakpoint(indice-1,&parametros[i]);
+  if (result) escribir_socket(misocket,"Error. Error setting breakpoint");
 }
 
 
@@ -1168,6 +1196,429 @@ void remote_set_breakpointaction(int misocket,char *parametros)
   }
 
   debug_set_breakpoint_action(indice-1,&parametros[i]);
+}
+
+int remote_eval_yes_no(char *text)
+{
+	if (!strcasecmp(text,"yes")) return 1;
+	else return 0;
+}
+
+void remote_cpu_transaction_log(int misocket,char *parameter,char *value)
+{
+	if (!strcasecmp(parameter,"logfile")) {
+		strcpy(transaction_log_filename,value);
+	}
+
+	//Comun para activar el logfile y tambien para truncar. Ambos requieren detener el core para hacer esto
+	else if (!strcasecmp(parameter,"enabled") ||
+					!strcasecmp(parameter,"truncate") ||
+					!strcasecmp(parameter,"truncaterotated")
+	) {
+
+		//Si no esta definido logfile, no se permite activar (ni desactivar)
+		//podria dejar permitido desactivar pero es absurdo, si no hay logfile no estara activado
+		if (transaction_log_filename[0]==0) {
+			escribir_socket(misocket,"Error. logfile not set");
+			return;
+		}
+
+
+		//Pausar la emulacion para evitar que ese core transaction log este en ejecucion. Si eso pasa,
+		//puede provocar segfault al desactivarlo, pues intenta llamar a debug_nested_core_call_previous y este mismo core ya ha desaparecido
+		int antes_menu_event_remote_protocol_enterstep=menu_event_remote_protocol_enterstep.v;
+			remote_cpu_enter_step(misocket);
+			if (menu_event_remote_protocol_enterstep.v==0) return;
+
+			
+		if (!strcasecmp(parameter,"enabled")) {
+			if (remote_eval_yes_no(value)) {
+				set_cpu_core_transaction_log();
+			}
+
+			else {
+				reset_cpu_core_transaction_log();
+			}
+		}
+
+		if (!strcasecmp(parameter,"truncate")) {
+			if (remote_eval_yes_no(value)) {
+				transaction_log_truncate();
+			}
+		}		
+
+		if (!strcasecmp(parameter,"truncaterotated")) {
+			if (remote_eval_yes_no(value)) {
+				transaction_log_truncate_rotated();
+			}
+		}			
+
+		//Salir del cpu step si no estaba en ese modo
+		if (!antes_menu_event_remote_protocol_enterstep) remote_cpu_exit_step(misocket);
+
+	}
+
+	else if (!strcasecmp(parameter,"autorotate")) {
+		cpu_transaction_log_rotate_enabled.v=remote_eval_yes_no(value);
+	}	
+
+	else if (!strcasecmp(parameter,"rotatefiles")) {
+		if (transaction_log_set_rotate_number(parse_string_to_number(value))) {
+			escribir_socket(misocket,"Error. Invalid value");
+			return;
+		}
+	}	
+
+	else if (!strcasecmp(parameter,"rotatesize")) {
+		if (transaction_log_set_rotate_size(parse_string_to_number(value))) {
+			escribir_socket(misocket,"Error. Invalid value");
+			return;
+		}		
+	}		
+
+	else if (!strcasecmp(parameter,"rotatelines")) {
+		if (transaction_log_set_rotate_lines(parse_string_to_number(value))) {
+			escribir_socket(misocket,"Error. Invalid value");
+			return;
+		}		
+	}		
+
+	else if (!strcasecmp(parameter,"ignrephalt")) {
+		cpu_trans_log_ignore_repeated_halt.v=remote_eval_yes_no(value);
+	}
+
+	else if (!strcasecmp(parameter,"datetime")) {
+		cpu_transaction_log_store_datetime.v=remote_eval_yes_no(value);
+	}
+
+	else if (!strcasecmp(parameter,"tstates")) {
+		cpu_transaction_log_store_tstates.v=remote_eval_yes_no(value);
+	}	
+
+	else if (!strcasecmp(parameter,"address")) {
+		cpu_transaction_log_store_address.v=remote_eval_yes_no(value);
+	}		
+
+	else if (!strcasecmp(parameter,"opcode")) {
+		cpu_transaction_log_store_opcode.v=remote_eval_yes_no(value);
+	}			
+
+	else if (!strcasecmp(parameter,"registers")) {
+		cpu_transaction_log_store_registers.v=remote_eval_yes_no(value);
+	}	
+
+	else {
+		escribir_socket(misocket,"Error. Unknown parameter");
+	}
+
+
+}
+
+
+
+void remote_cpu_code_coverage(int misocket,char *parameter,char *value)
+{
+	/*if (!strcasecmp(parameter,"logfile????")) {
+		strcpy(transaction_log_filename,value);
+	}*/
+
+	//printf ("%p\n",value);
+
+	//Comun para activar el logfile y tambien para truncar. Ambos requieren detener el core para hacer esto
+	if (!strcasecmp(parameter,"enabled") ) {
+
+		
+
+
+		//Pausar la emulacion para evitar que ese core transaction log este en ejecucion. Si eso pasa,
+		//puede provocar segfault al desactivarlo, pues intenta llamar a debug_nested_core_call_previous y este mismo core ya ha desaparecido
+		int antes_menu_event_remote_protocol_enterstep=menu_event_remote_protocol_enterstep.v;
+			remote_cpu_enter_step(misocket);
+			if (menu_event_remote_protocol_enterstep.v==0) return;
+
+
+			
+		if (!strcasecmp(parameter,"enabled")) {
+			if (remote_eval_yes_no(value)) {
+				if (cpu_code_coverage_enabled.v) escribir_socket(misocket,"Error. Already enabled");
+				else set_cpu_core_code_coverage();
+			}
+
+			else {
+				if (cpu_code_coverage_enabled.v==0) escribir_socket(misocket,"Error. Already disabled");
+				reset_cpu_core_code_coverage();
+			}
+		}
+
+
+		//Salir del cpu step si no estaba en ese modo
+		if (!antes_menu_event_remote_protocol_enterstep) remote_cpu_exit_step(misocket);
+
+
+
+	}
+
+	else if (!strcasecmp(parameter,"get")) {
+		if (cpu_code_coverage_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled");
+		else {
+			int i;
+			for (i=0;i<65536;i++) {
+		  	if (cpu_code_coverage_array[i]) {
+			    escribir_socket_format(misocket,"%04X ",i);
+			  }
+			}
+			//escribir_socket(misocket,"\n");
+		}
+	}	
+
+	else if (!strcasecmp(parameter,"clear")) {
+	cpu_code_coverage_clear();
+	}
+
+
+
+	else {
+		escribir_socket(misocket,"Error. Unknown parameter");
+	}
+
+
+}
+
+
+
+void remote_extended_stack(int misocket,char *parameter,char *value,char *second_value)
+{
+
+	//printf ("%p (%s)\n",second_value,second_value);
+
+
+	//If comun para acciones que requieren detener el core momentaneamente
+	if (!strcasecmp(parameter,"enabled") ) {
+
+
+		//Pausar la emulacion para evitar que ese core transaction log este en ejecucion. Si eso pasa,
+		//puede provocar segfault al desactivarlo, pues intenta llamar a debug_nested_core_call_previous y este mismo core ya ha desaparecido
+		int antes_menu_event_remote_protocol_enterstep=menu_event_remote_protocol_enterstep.v;
+		remote_cpu_enter_step(misocket);
+		if (menu_event_remote_protocol_enterstep.v==0) return;
+
+
+			
+		if (!strcasecmp(parameter,"enabled")) {
+			if (remote_eval_yes_no(value)) {
+				if (extended_stack_enabled.v) escribir_socket(misocket,"Error. Already enabled");
+				else set_extended_stack();
+			}
+
+			else {
+				if (extended_stack_enabled.v==0) escribir_socket(misocket,"Error. Already disabled");
+				reset_extended_stack();
+			}
+		}
+
+
+		//Salir del cpu step si no estaba en ese modo
+		if (!antes_menu_event_remote_protocol_enterstep) remote_cpu_exit_step(misocket);
+
+
+ 
+	}
+
+	else if (!strcasecmp(parameter,"get")) {
+		if (extended_stack_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled");
+		else {
+			int items=parse_string_to_number(value);
+
+			z80_int registro_inicial_stack=reg_sp;
+
+			//Ver si hay un segundo parametro
+			if (second_value[0]!=0) registro_inicial_stack=parse_string_to_number(second_value);
+
+			z80_int indice_l;
+			z80_int indice_h;
+			int i;
+
+			for (i=0;i<items;i++) {
+					z80_int valor_resultante;
+					z80_byte tipo;
+
+					//Para asegurarnos que los indices siempre estan en rango 0...65535 (el tamanyo del array)
+					indice_l=registro_inicial_stack+i*2;
+					indice_h=indice_l+1;
+
+
+					//realmente el extended stack guarda valor y tipo para cada byte, aqui solo mostramos word
+					valor_resultante=extended_stack_array_items[indice_l].valor+256*extended_stack_array_items[indice_h].valor;
+
+					//Los dos bytes deberian tener el mismo tipo
+					tipo=extended_stack_array_items[indice_l].tipo;
+					escribir_socket_format(misocket,"%04XH %s\n",valor_resultante,extended_stack_get_string_type(tipo));
+			}
+
+		}
+	}	
+
+
+
+
+	else {
+		escribir_socket(misocket,"Error. Unknown parameter");
+	}
+
+
+}
+
+
+void remote_cpu_history(int misocket,char *parameter,char *value,char *value2)
+{
+
+	//printf ("(%s) (%s)\n",value,value2);
+
+	//Comun para activar el core y para iniciarlo y otros. Ambos requieren detener el core para hacer esto
+	if (!strcasecmp(parameter,"enabled") ||
+	    !strcasecmp(parameter,"started") ||
+		!strcasecmp(parameter,"set-max-size") ||
+		!strcasecmp(parameter,"clear") 
+	
+	) {
+
+
+		//Pausar la emulacion para evitar que ese core transaction log este en ejecucion. Si eso pasa,
+		//puede provocar segfault al desactivarlo, pues intenta llamar a debug_nested_core_call_previous y este mismo core ya ha desaparecido
+		int antes_menu_event_remote_protocol_enterstep=menu_event_remote_protocol_enterstep.v;
+			remote_cpu_enter_step(misocket);
+			if (menu_event_remote_protocol_enterstep.v==0) return;
+
+
+			
+		if (!strcasecmp(parameter,"enabled")) {
+			if (remote_eval_yes_no(value)) {
+				if (cpu_history_enabled.v) escribir_socket(misocket,"Error. Already enabled");
+				else set_cpu_core_history();
+			}
+
+			else {
+				if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. Already disabled");
+				reset_cpu_core_history();
+			}
+		}
+
+		if (!strcasecmp(parameter,"started")) {
+			if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
+			else {
+				if (remote_eval_yes_no(value)) cpu_history_started.v=1;
+				else cpu_history_started.v=0;
+			}
+		}		
+
+		if (!strcasecmp(parameter,"set-max-size")) {
+			if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
+			else {
+				int total=parse_string_to_number(value);
+
+				if (cpu_history_set_max_size(total)!=0) {
+					escribir_socket(misocket,"ERROR: Value out of range");
+				}
+			}
+		}	
+
+		if (!strcasecmp(parameter,"clear")) {
+			if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
+			else {
+				cpu_history_init_buffer();
+			}
+		}	
+
+
+		//Salir del cpu step si no estaba en ese modo
+		if (!antes_menu_event_remote_protocol_enterstep) remote_cpu_exit_step(misocket);
+
+
+
+	}
+
+	else if (!strcasecmp(parameter,"get")) {
+		if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
+		else {
+			int indice=parse_string_to_number(value);
+			int total_elementos=cpu_history_get_total_elements();
+
+			//Al solicitarlo, el 0 es el item mas reciente. el 1 es el anterior a este
+			//en cpu_history_get_registers_element se pide como: 0 es el mas antiguo
+			//Ejemplo: 10 elementos totales. Se pide por el 3.
+			//indice_final=10-3-1=7
+			//Ejemplo: 10 elementos totales. Se pide por el 9 (que sera el mas antiguo)
+			//indice_final=10-9-1=0
+			int indice_final=total_elementos-indice-1;
+
+
+			char string_destino[1024];
+			cpu_history_get_registers_element(indice_final,string_destino);
+			escribir_socket(misocket,string_destino);
+		}
+	}	
+
+
+	else if (!strcasecmp(parameter,"get-size")) {
+		if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
+		else {
+			escribir_socket_format(misocket,"%d",cpu_history_get_total_elements() );
+		}
+	}	
+
+
+	else if (!strcasecmp(parameter,"get-max-size")) {
+		if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
+		else {
+			escribir_socket_format(misocket,"%d",cpu_history_get_max_size() );
+		}
+	}	
+
+	else if (!strcasecmp(parameter,"get-pc")) {
+		if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
+		else {
+		int total_elementos=cpu_history_get_total_elements();
+			int indice=parse_string_to_number(value);
+						//Al solicitarlo, el 0 es el item mas reciente. el 1 es el anterior a este
+			indice=total_elementos-indice-1;
+			
+			
+			int total=parse_string_to_number(value2);
+			//int total=final-indice+1;
+			if (total<0) {
+				escribir_socket(misocket,"Error. Can't be negative");
+			}
+			else {
+				//Validar que no se pidan mas de los que hay
+				if (total>total_elementos) {
+					//escribir_socket(misocket,"Error. End goes beyond total elements");
+					total=total_elementos;
+				}
+				
+					while (total) {
+						char string_destino[1024]; 
+						cpu_history_get_pc_register_element(indice--,string_destino);
+						escribir_socket_format(misocket,"%s ",string_destino);
+						total--;
+					}
+				
+			}
+		}
+	}	
+
+	else if (!strcasecmp(parameter,"is-enabled")) {
+		escribir_socket_format(misocket,"%d",cpu_history_enabled.v);
+	}	
+
+	else if (!strcasecmp(parameter,"is-started")) {
+		escribir_socket_format(misocket,"%d",cpu_history_started.v);
+	}	
+
+	else {
+		escribir_socket(misocket,"Error. Unknown parameter");
+	}
+
+
 }
 
 
@@ -1363,7 +1814,8 @@ void remote_send_esc_close_menu(void)
 
 void remote_footer_cpu_step(void)
 {
-	menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_CPUSTEP,1,"STEP",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
+
+	menu_footer_activity("STEP");
 	//Dado que se ha quitado multitask y esta todo parado, refrescar pantalla para mostrar el footer
 	scr_refresca_pantalla_solo_driver();
 
@@ -1371,7 +1823,8 @@ void remote_footer_cpu_step(void)
 
 void remote_footer_cpu_step_clear(void)
 {
-	menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_CPUSTEP,1,"     ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
+
+	menu_delete_footer_activity();
 	//no hace falta forzar refresco pantalla dado que se sale de este estado, menu esta cerrado y por tanto se ejecutara el core tal cual
 
 }
@@ -1382,6 +1835,9 @@ int menu_multitarea_antes_cpu_step=0;
 //Este modo deja la emulacion pausada
 void remote_cpu_enter_step(int misocket)
 {
+	//Si ya estaba este modo, salir sin mas
+	if (menu_event_remote_protocol_enterstep.v) return;
+
   //De momento solo simular pulsacion de tecla de menu, eso hace saltar el step
 
   //TODO: Pendiente de eliminar esta variable. Tiene sentido???
@@ -1732,11 +2188,27 @@ void remote_cpu_run(int misocket,int verbose,int limite,int datosvuelve,int upda
 
 void remote_evaluate(int misocket,char *texto)
 {
-  char buffer_retorno[1024];
+  
+  //char salida[MAX_BREAKPOINT_CONDITION_LENGTH];
 
 
-  debug_watches_loop(texto,buffer_retorno);
-  escribir_socket(misocket,buffer_retorno);
+	char buffer_salida[256]; //mas que suficiente
+	char string_detoken[MAX_BREAKPOINT_CONDITION_LENGTH];
+
+
+	int result=exp_par_evaluate_expression(texto,buffer_salida,string_detoken);
+	if (result==0) {
+		escribir_socket(misocket,buffer_salida);		
+	}
+
+	else if (result==1) {
+		escribir_socket(misocket,buffer_salida);
+	}
+
+	else {
+		escribir_socket_format(misocket,"%s parsed string: %s",buffer_salida,string_detoken);
+	}
+
 }
 
 
@@ -2760,6 +3232,70 @@ int remote_is_char_10_or_13(char c)
 	return 0;
 }
 
+void remote_ayplayer(int misocket,char *command,char *command_parm)
+{
+
+	//Comandos que requieren que este en ejecucion el player
+	if (
+		!strcasecmp(command,"prev") ||
+		!strcasecmp(command,"stop") ||
+		!strcasecmp(command,"next") ||
+		!strcasecmp(command,"get-track-name") ||
+		!strcasecmp(command,"get-author") ||
+		!strcasecmp(command,"get-misc") ||
+		!strcasecmp(command,"get-track-number") ||
+		!strcasecmp(command,"get-total-tracks") ||
+		!strcasecmp(command,"get-elapsed-track") ||
+		!strcasecmp(command,"get-track-length")
+		) {
+		if (!menu_audio_new_ayplayer_si_mostrar()) {
+			escribir_socket_format(misocket,"ERROR. Player not running\n");
+			return;
+		}
+
+		if (!strcasecmp(command,"prev")) ay_player_previous_track();
+		if (!strcasecmp(command,"stop")) ay_player_stop_player();
+		if (!strcasecmp(command,"next")) ay_player_next_track();
+		if (!strcasecmp(command,"get-track-name")) {
+			escribir_socket(misocket,ay_player_file_song_name);
+		}
+
+		if (!strcasecmp(command,"get-author")) {
+			escribir_socket(misocket,ay_player_file_author);
+		}
+
+		if (!strcasecmp(command,"get-misc")) {
+			escribir_socket(misocket,ay_player_file_misc);
+		}
+
+		if (!strcasecmp(command,"get-track-number")) {
+			escribir_socket_format(misocket,"%d",ay_player_pista_actual);
+		}
+
+		if (!strcasecmp(command,"get-total-tracks")) {
+			escribir_socket_format(misocket,"%d",ay_player_total_songs());
+		}
+
+
+		if (!strcasecmp(command,"get-elapsed-track")) {
+			escribir_socket_format(misocket,"%d",ay_song_length_counter);
+		}
+
+		if (!strcasecmp(command,"get-track-length")) {
+			escribir_socket_format(misocket,"%d",ay_song_length);
+		}
+
+
+
+	}
+
+	if (!strcasecmp(command,"load")) {
+		ay_player_load_and_play(command_parm);
+	}
+
+}
+	
+
 void remote_load_source_code(int misocket,char *archivo)
 {
 
@@ -3142,7 +3678,7 @@ z80_int tbblue_palette_sprite_second[256];
 
 int remote_assemble(int misocket,char *texto,unsigned int direccion)
 {
-	z80_byte destino_ensamblado[256];
+	z80_byte destino_ensamblado[MAX_DESTINO_ENSAMBLADO];
 
 
 				int longitud_destino=assemble_opcode(direccion,texto,destino_ensamblado);
@@ -3222,9 +3758,17 @@ char *parametros;
 void interpreta_comando(char *comando,int misocket)
 {
 
-char buffer_retorno[2048];
+	char buffer_retorno[2048];
 
-	debug_printf (VERBOSE_DEBUG,"Remote command: lenght: %d [%s]",strlen(comando),comando);
+	int longitud_comando=strlen(comando);
+
+	if (longitud_comando<DEBUG_MAX_MESSAGE_LENGTH) {
+		debug_printf (VERBOSE_DEBUG,"Remote command: length: %d [%s]",longitud_comando,comando);
+	}
+
+	else {
+		debug_printf (VERBOSE_DEBUG,"Remote command: length: %d",longitud_comando);
+	}
 
 	//Si enter y setting de repetir comando anterior solo pulsando enter
 	if (  (comando[0]==0  || comando[0]=='\n' || comando[0]=='\r')
@@ -3232,7 +3776,7 @@ char buffer_retorno[2048];
 		(remote_debug_settings&16)
 		) {
 		strcpy(comando,buffer_lectura_socket_anterior);
-		debug_printf (VERBOSE_DEBUG,"Repeating last command: lenght: %d [%s]",strlen(comando),comando);
+		debug_printf (VERBOSE_DEBUG,"Repeating last command: length: %d [%s]",strlen(comando),comando);
 		escribir_socket_format(misocket,"Repeating: %s\n",comando);
 	}
 
@@ -3251,7 +3795,7 @@ char buffer_retorno[2048];
 	i=0;
 	while (comando[i]) {
 		char c=comando[i];
-		if (c!=10 && c!=13 && c!=10) comando_ignorar=0;
+		if (c!=10 && c!=13) comando_ignorar=0;
 		i++;
 	}
 
@@ -3295,8 +3839,14 @@ char buffer_retorno[2048];
 
 	parametros[pindex]=0;
 
-	debug_printf (VERBOSE_DEBUG,"Remote command without parameters: lenght: %d [%s]",strlen(comando_sin_parametros),comando_sin_parametros);
-	debug_printf (VERBOSE_DEBUG,"Remote command parameters: lenght: %d [%s]",strlen(parametros),parametros);
+	debug_printf (VERBOSE_DEBUG,"Remote command without parameters: length: %d [%s]",strlen(comando_sin_parametros),comando_sin_parametros);
+
+	if (strlen(parametros)<DEBUG_MAX_MESSAGE_LENGTH) {
+		debug_printf (VERBOSE_DEBUG,"Remote command parameters: length: %d [%s]",strlen(parametros),parametros);
+	}
+	else {
+		debug_printf (VERBOSE_DEBUG,"Remote command parameters: length: %d",strlen(parametros));
+	}
 
 
 	//Si en modo assembling. Juntamos comando y parametros
@@ -3382,10 +3932,72 @@ char buffer_retorno[2048];
 		escribir_socket (misocket,"NO CARRIER");
 	}
 
+  else if (!strcmp(comando_sin_parametros,"ayplayer") || !strcmp(comando_sin_parametros,"ayp")) {
+    remote_parse_commands_argvc(parametros);
+
+    if (remote_command_argc<1) {
+      escribir_socket(misocket,"ERROR. Needs one parameter at least");
+      return;
+    }
+
+
+    remote_ayplayer(misocket,remote_command_argv[0],remote_command_argv[1]);
+  }
+
 
  else if (!strcmp(comando_sin_parametros,"clear-membreakpoints")) {
 	 clear_mem_breakpoints();
   }
+
+
+
+  else if (!strcmp(comando_sin_parametros,"cpu-code-coverage") ) {
+    remote_parse_commands_argvc(parametros);
+
+    if (remote_command_argc<1) {
+      escribir_socket(misocket,"ERROR. Needs at least one parameter");
+      return;
+    }
+
+	//Asignar punteros. Si no existen parametros adicionales, cadenas vacias
+
+	//En este caso un parametros adicionales. Inicializados a cadenas vacias
+	char *second_parameter="";
+	//second_parameter=NULL;
+
+
+	if (remote_command_argc>1) second_parameter=remote_command_argv[1];
+
+
+    remote_cpu_code_coverage(misocket,remote_command_argv[0],second_parameter);
+  }
+
+
+  else if (!strcmp(comando_sin_parametros,"cpu-history") ) {
+    remote_parse_commands_argvc(parametros);
+
+    if (remote_command_argc<1) {
+      escribir_socket(misocket,"ERROR. Needs at least one parameter");
+      return;
+    }
+
+	//Asignar punteros. Si no existen parametros adicionales, cadenas vacias
+
+	//En este caso dos parametros adicionales. Inicializados a cadenas vacias
+	char *second_parameter="";
+	//second_parameter=NULL;
+
+	char *third_parameter="";
+	//third_parameter=NULL;
+
+	if (remote_command_argc>1) second_parameter=remote_command_argv[1];
+	if (remote_command_argc>2) third_parameter=remote_command_argv[2];
+
+	//El primero y segundo parametro no seran nunca cero porque ya estamos haciendo comprobacion por remote_command_argc antes
+    remote_cpu_history(misocket,remote_command_argv[0],second_parameter,third_parameter);
+  }
+
+
 
 
 
@@ -3404,6 +4016,19 @@ char buffer_retorno[2048];
 
   else if (!strcmp(comando_sin_parametros,"cpu-step-over") || !strcmp(comando_sin_parametros,"cso")) {
     remote_cpu_step_over(misocket);
+  }
+
+
+  else if (!strcmp(comando_sin_parametros,"cpu-transaction-log") ) {
+    remote_parse_commands_argvc(parametros);
+
+    if (remote_command_argc<2) {
+      escribir_socket(misocket,"ERROR. Needs two parameters");
+      return;
+    }
+
+
+    remote_cpu_transaction_log(misocket,remote_command_argv[0],remote_command_argv[1]);
   }
 
   else if (!strcmp(comando_sin_parametros,"disable-breakpoint") || !strcmp(comando_sin_parametros,"db")) {
@@ -3503,7 +4128,7 @@ char buffer_retorno[2048];
   }
 
 
-   else if (!strcmp(comando_sin_parametros,"evaluate-condition") || !strcmp(comando_sin_parametros,"ec")) {
+   /*else if (!strcmp(comando_sin_parametros,"evaluate-condition") || !strcmp(comando_sin_parametros,"ec")) {
     if (parametros[0]==0) {
       escribir_socket(misocket,"Error. No expression");
     }
@@ -3511,7 +4136,7 @@ char buffer_retorno[2048];
       int result=debug_breakpoint_condition_loop(parametros,1);
       escribir_socket_format(misocket,"Result: %s -> %s",parametros,(result ? "True" : "False " ));
     }
-  }
+  }*/
 
 
 
@@ -3526,6 +4151,37 @@ char buffer_retorno[2048];
 		remote_calling_end_emulator.v=1;
 		end_emulator();
   }
+
+
+  else if (!strcmp(comando_sin_parametros,"extended-stack") ) {
+
+	  if (!CPU_IS_Z80) {
+		  escribir_socket(misocket,"ERROR. CPU is not Z80");
+		  return;
+	  }
+
+    remote_parse_commands_argvc(parametros);
+
+    if (remote_command_argc<2) {
+      escribir_socket(misocket,"ERROR. Needs at least two parameters");
+      return;
+    }
+
+
+
+	//Asignar punteros. Si no existen parametros adicionales, cadenas vacias
+
+	//En este caso solo un parametro adicional
+	char *third_parameter="";
+	//third_parameter=NULL;
+
+	if (remote_command_argc>2) third_parameter=remote_command_argv[2];
+
+
+	//El primero y segundo parametro no seran nunca cero porque ya estamos haciendo comprobacion por remote_command_argc antes
+    remote_extended_stack(misocket,remote_command_argv[0],remote_command_argv[1],third_parameter);
+  }
+
 
 
   else if (!strcmp(comando_sin_parametros,"find-label")) {
@@ -3818,6 +4474,26 @@ char buffer_retorno[2048];
     escribir_socket (misocket,buffer_retorno);
   }
 
+	else if (!strcmp(comando_sin_parametros,"get-snapshot")) {
+		z80_byte *buffer_temp;
+		buffer_temp=malloc(ZRCP_GET_PUT_SNAPSHOT_MEM); //16 MB es mas que suficiente
+		if (buffer_temp==NULL) cpu_panic("Can not allocate memory for get-snapshot");
+
+		z80_byte *puntero=buffer_temp; 
+		int longitud;
+
+  		save_zsf_snapshot_file_mem(NULL,puntero,&longitud);
+
+		//printf ("longitud: %d\n",longitud);
+
+		int i;
+		for (i=0;i<longitud;i++) {
+			escribir_socket_format(misocket,"%02X",buffer_temp[i]);
+		}
+
+	 	free(buffer_temp);
+	}
+
 	else if (!strcmp(comando_sin_parametros,"get-stack-backtrace")) {
 
     int items=5;
@@ -3853,6 +4529,26 @@ char buffer_retorno[2048];
 		char buffer_partial[32];
 		debug_get_t_estados_parcial(buffer_partial);
 		escribir_socket (misocket,buffer_partial);
+	}
+
+	//Este comando no se usa en la funcion de juegos online, aunque lo hago como complemento a set-ui-io-ports, por si resulta util para algo
+	else if (!strcmp(comando_sin_parametros,"get-ui-io-ports") ) {
+		
+//;                    Bits:  4    3    2    1    0     ;desplazamiento puerto
+//puerto_65278   db    255  ; V    C    X    Z    Sh    ;0
+//puerto_65022   db    255  ; G    F    D    S    A     ;1
+//puerto_64510    db              255  ; T    R    E    W    Q     ;2
+//puerto_63486    db              255  ; 5    4    3    2    1     ;3
+//puerto_61438    db              255  ; 6    7    8    9    0     ;4
+//puerto_57342    db              255  ; Y    U    I    O    P     ;5
+//puerto_49150    db              255  ; H                J         K      L    Enter ;6
+//puerto_32766    db              255  ; B    N    M    Simb Space ;7
+
+		escribir_socket_format(misocket,"%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+			puerto_65278,puerto_65022,puerto_64510,puerto_63486,
+			puerto_61438,puerto_57342,puerto_49150,puerto_32766,
+			puerto_especial_joystick);
+
 	}
 
 
@@ -4010,6 +4706,39 @@ char buffer_retorno[2048];
 			kartusho_press_button();
 	}
 
+	else if (!strcmp(comando_sin_parametros,"ifrom-press-button")) {
+			ifrom_press_button();
+	}	
+
+
+        else if (!strcmp(comando_sin_parametros,"load-binary")) {
+                remote_parse_commands_argvc(parametros);
+
+
+		
+
+                if (remote_command_argc<3) {
+                        escribir_socket(misocket,"ERROR. Needs three parameters");
+                        return;
+                }
+
+		//int load_binary_file(char *binary_file_load,int valor_leido_direccion,int valor_leido_longitud)
+
+		char *archivo;
+		archivo=remote_command_argv[0];
+
+		int valor_leido_direccion=parse_string_to_number(remote_command_argv[1]);
+
+		int valor_leido_longitud=parse_string_to_number(remote_command_argv[2]);
+
+		int retorno=load_binary_file(archivo,valor_leido_direccion,valor_leido_longitud);
+
+		if (retorno) escribir_socket(misocket,"ERROR loading file");
+
+
+	}
+
+
 	else if (!strcmp(comando_sin_parametros,"load-source-code") || !strcmp(comando_sin_parametros,"lsc")) {
 					remote_load_source_code(misocket,parametros);
 	}
@@ -4021,6 +4750,89 @@ char buffer_retorno[2048];
 	else if (!strcmp(comando_sin_parametros,"noop")) {
 		//No hacer absolutamente nada
 	}
+
+
+	else if (!strcmp(comando_sin_parametros,"print-footer") ) {
+		
+		if (parametros[0]==0) {
+			escribir_socket(misocket,"ERROR. No message set");
+		}
+
+		else {
+
+			char *s=parametros;
+			//int parametros_recibidos=0;
+			int i=0;
+
+			char mensaje[AUTOSELECTOPTIONS_MAX_FOOTER_LENGTH];
+	
+			while (*s && i<AUTOSELECTOPTIONS_MAX_FOOTER_LENGTH-1) {
+				mensaje[i++]=*s;
+				s++;
+			}
+
+			//printf ("i: %d\n",i);
+			mensaje[i]=0;
+
+			put_footer_first_message(mensaje);
+			
+
+
+		}
+
+	}	
+
+//Este comando se usa (o se usara) en la funcion de juegos online
+	else if (!strcmp(comando_sin_parametros,"put-snapshot") ) {
+		/*
+		Se puede enviar un snapshot por script asi:
+		#!/bin/bash
+
+		( sleep 1 ; echo -n "put-snapshot " ; cat pruebasnap.txt ; sleep 1 ) | telnet localhost 10000
+		//Teniendo en cuenta que pruebasnap.txt contiene el volcado que se ha generado con get-snapshot
+		 */
+		z80_byte valor;
+		if (parametros[0]==0) {
+			escribir_socket(misocket,"ERROR. No parameters set");
+		}
+
+		else {
+
+			char *s=parametros;
+			int parametros_recibidos=0;
+
+			z80_byte *buffer_destino;
+			buffer_destino=malloc(ZRCP_GET_PUT_SNAPSHOT_MEM); //16 MB es mas que suficiente
+			if (buffer_destino==NULL) cpu_panic("Can not allocate memory for put-snapshot");
+
+		
+			while (*s) {
+				char buffer_valor[4];
+				buffer_valor[0]=s[0];
+				buffer_valor[1]=s[1];
+				buffer_valor[2]='H';
+				buffer_valor[3]=0;
+				//printf ("%s\n",buffer_valor);
+				valor=parse_string_to_number(buffer_valor);
+				//printf ("valor: %d\n",valor);
+				
+				buffer_destino[parametros_recibidos++]=valor;
+				//menu_debug_write_mapped_byte(direccion++,valor);
+
+				s++;
+				if (*s) s++;
+			}
+
+			//Enviarlo como snapshot, pero al final de un frame de pantalla
+			//load_zsf_snapshot_file_mem(NULL,buffer_destino,parametros_recibidos);
+			pending_zrcp_put_snapshot_buffer_destino=buffer_destino;
+			pending_zrcp_put_snapshot_longitud=parametros_recibidos;
+			
+
+
+		}
+
+	}	
 
 	else if (!strcmp(comando_sin_parametros,"read-memory")) {
 		unsigned int inicio=0;
@@ -4134,6 +4946,39 @@ char buffer_retorno[2048];
 
 	}
 
+
+	else if (!strcmp(comando_sin_parametros,"send-keys-event")) {
+
+		remote_parse_commands_argvc(parametros);
+
+		if (remote_command_argc<2) {
+			escribir_socket(misocket,"ERROR. Needs two parameters minimum");
+			return;
+		}
+
+
+	
+
+		int tecla=parse_string_to_number(remote_command_argv[0]);
+		int evento=parse_string_to_number(remote_command_argv[1]);
+		int nomenu=0;
+
+		if (remote_command_argc==3) nomenu=parse_string_to_number(remote_command_argv[2]);
+
+		int enviar=1;
+		if (nomenu && menu_abierto) enviar=0;
+
+
+		//Enviar la tecla pero que no vuelva a entrar por zeng
+		if (enviar) {
+			printf ("Procesando desde ZRCP comando send-keys-event: tecla %d evento %d\n",tecla,evento);
+			util_set_reset_key_continue_after_zeng(tecla,evento);
+		}
+
+
+	}	
+
+
 	else if (!strcmp(comando_sin_parametros,"send-keys-string")) {
 		//remote_parse_commands_argvc(parametros);
 
@@ -4208,6 +5053,74 @@ else if (!strcmp(comando_sin_parametros,"set-debug-settings") || !strcmp(comando
 	if (parametros[0]==0) escribir_socket(misocket,"ERROR. No parameter set");
 	else remote_debug_settings=parse_string_to_number(parametros);
 }
+
+//Este comando se usa (o se usara) en la funcion de juegos online
+else if (!strcmp(comando_sin_parametros,"set-ui-io-ports") ) {
+		z80_byte valor;
+		if (parametros[0]==0) {
+			escribir_socket(misocket,"ERROR. No parameters set");
+		}
+
+		else {
+
+			char *s=parametros;
+			int parametros_recibidos=0;
+
+#define ZRCP_CMD_SET_UI_IO_PORTS_TOTAL_PARAMS 9
+	
+
+			z80_byte buffer_destino[ZRCP_CMD_SET_UI_IO_PORTS_TOTAL_PARAMS];
+		
+			while (*s) {
+				char buffer_valor[4];
+				buffer_valor[0]=s[0];
+				buffer_valor[1]=s[1];
+				buffer_valor[2]='H';
+				buffer_valor[3]=0;
+				//printf ("%s\n",buffer_valor);
+				valor=parse_string_to_number(buffer_valor);
+				//printf ("valor: %d\n",valor);
+				
+				buffer_destino[parametros_recibidos++]=valor;
+				//menu_debug_write_mapped_byte(direccion++,valor);
+
+				s++;
+				if (*s) s++;
+			}
+
+			//Ver si total de parametros recibidos correctos
+			if (parametros_recibidos!=ZRCP_CMD_SET_UI_IO_PORTS_TOTAL_PARAMS) {
+				escribir_socket_format(misocket,"ERROR. Number of bytes received different than %d",ZRCP_CMD_SET_UI_IO_PORTS_TOTAL_PARAMS);
+			}
+			else {
+				//Meterlo en los puertos tal cual
+//;                    Bits:  4    3    2    1    0     ;desplazamiento puerto
+//puerto_65278   db    255  ; V    C    X    Z    Sh    ;0
+//puerto_65022   db    255  ; G    F    D    S    A     ;1
+//puerto_64510    db              255  ; T    R    E    W    Q     ;2
+//puerto_63486    db              255  ; 5    4    3    2    1     ;3
+//puerto_61438    db              255  ; 6    7    8    9    0     ;4
+//puerto_57342    db              255  ; Y    U    I    O    P     ;5
+//puerto_49150    db              255  ; H                J         K      L    Enter ;6
+//puerto_32766    db              255  ; B    N    M    Simb Space ;7
+				puerto_65278=buffer_destino[0];		
+				puerto_65022=buffer_destino[1];		
+				puerto_64510=buffer_destino[2];		
+				puerto_63486=buffer_destino[3];		
+				puerto_61438=buffer_destino[4];		
+				puerto_57342=buffer_destino[5];		
+				puerto_49150=buffer_destino[6];		
+				puerto_32766=buffer_destino[7];	
+				puerto_especial_joystick=buffer_destino[8];	
+
+				//0xFEFE,0xFDFE,0xFBFE,0xF7FE,0xEFFE,0xDFFE,0xBFFE,0x7FFE
+			}
+
+
+		}
+
+	}
+
 
 else if (!strcmp(comando_sin_parametros,"set-machine") || !strcmp(comando_sin_parametros,"sm")) {
 	if (parametros[0]==0) escribir_socket(misocket,"ERROR. No parameter set");
@@ -4760,6 +5673,10 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 	}
 
 
+	
+
+
+
 				else if (!strcmp(comando_sin_parametros,"tsconf-get-af-port") ) {
 
 			  	if (!MACHINE_IS_TSCONF) escribir_socket(misocket,"ERROR. Machine is not TSConf");
@@ -4907,6 +5824,28 @@ else if (!strcmp(comando_sin_parametros,"write-memory-raw") ) {
 
 }
 
+else if (!strcmp(comando_sin_parametros,"write-port") ) {
+
+	if (!CPU_IS_Z80) escribir_socket(misocket,"ERROR. CPU is not Z80");
+	else {
+
+              remote_parse_commands_argvc(parametros);
+
+              if (remote_command_argc<2) {
+                      escribir_socket(misocket,"ERROR. Needs two parameters");
+                      return;
+              }
+
+			z80_int port=parse_string_to_number(remote_command_argv[0]);
+
+            z80_byte value=parse_string_to_number(remote_command_argv[1]);
+
+			out_port(port,value);
+
+
+	}
+}
+
 		else if (!strcmp(comando_sin_parametros,"zxevo-get-nvram") ) {
 
 			  	if (!MACHINE_IS_ZXEVO) escribir_socket(misocket,"ERROR. Machine is not ZX-Evo");
@@ -4977,6 +5916,46 @@ int remote_initialize_port(void)
   return 0;
 }
 
+void remote_show_client_ip(int sock_conectat)
+{
+
+//Estructura del socket client, obtinguda per saber el nom del client
+struct sockaddr_in sockaddr_client;
+
+ socklen_t long_sockaddr;
+	char *direccio_client; //Adreça IP del client en format text
+	
+
+	//Obtenir socket client
+	long_sockaddr=sizeof(sockaddr_client);
+	if (getpeername(sock_conectat,(struct sockaddr *)&sockaddr_client,&long_sockaddr)<0) {
+		debug_printf (VERBOSE_DEBUG,"ZRCP: Error getting client IP");
+		return;
+	}
+
+
+
+	//debug_printf (VERBOSE_DEBUG,"ncdd_servidor_fill: %x",sockaddr_client.sin_addr.s_addr);
+
+
+	//Obtenir direccio IP client, en format text ("A.B.C.D")
+	direccio_client=inet_ntoa(sockaddr_client.sin_addr);
+	if (direccio_client==NULL) {
+		debug_printf (VERBOSE_DEBUG,"ZRCP: Error getting client IP string");
+		return;
+	}
+
+
+	debug_printf (VERBOSE_DEBUG,"ZRCP: Client IP: %s",direccio_client);
+
+
+
+
+
+
+
+}
+
 void *thread_remote_protocol_function(void *nada)
 {
         /*while (1) {
@@ -5023,13 +6002,16 @@ void *thread_remote_protocol_function(void *nada)
 				else {
 
 					debug_printf (VERBOSE_DEBUG,"Received remote command connection petition");
+					
+					//debugar direccion ip origen
+					remote_show_client_ip(sock_conectat);
 
 				          //Enviamos mensaje bienvenida
 				          //char bienvenida[1024];
 				          //sprintf (bienvenida,"%s","Welcome to ZEsarUX remote protocol\n");
 				          //write(sock_conectat,bienvenida,strlen(bienvenida));
                   escribir_socket(sock_conectat,"Welcome to ZEsarUX remote command protocol (ZRCP)\nWrite help for available commands\n");
-
+ 
           //if ( (write(sock,buffer,longitut)) <0 ) return -1;
 
 					remote_salir_conexion=0;
@@ -5093,7 +6075,7 @@ void *thread_remote_protocol_function(void *nada)
 
 							//if (leidos) {
 								buffer_lectura_socket[indice_destino]=0;
-								debug_printf (VERBOSE_DEBUG,"Remote command. Lenght Read text: %d",indice_destino);
+								debug_printf (VERBOSE_DEBUG,"Remote command. Length Read text: %d",indice_destino);
 
 								//int j;
 								//for (j=0;buffer_lectura_socket[j];j++) printf ("%d %c\n",j,buffer_lectura_socket[j]);
@@ -5101,10 +6083,12 @@ void *thread_remote_protocol_function(void *nada)
 								//temp
 								//if (indice_destino> DEBUG_MAX_MESSAGE_LENGTH-100)verbose_level=0;
 
-								//Esto probablemente petara el emulador si el verbose level esta al menos 3 y el comando recibido excede 1024... esto es
-								//porque el buffer de texto en la funcion debug_printf es precisamente de 1024
-								//Entonces por ejemplo el comando write-mapped-memory si se le envia una secuencia de mas de 1024 caracteres, petara en este caso
-								debug_printf (VERBOSE_DEBUG,"Remote command. Read text: [%s]",buffer_lectura_socket);
+								//Para que no pete el emulador si el verbose level esta al menos 3 y el comando recibido excede el maximo que puede mostrar debug_printf
+								
+								if (strlen(buffer_lectura_socket)<DEBUG_MAX_MESSAGE_LENGTH) {
+									debug_printf (VERBOSE_DEBUG,"Remote command. Read text: [%s]",buffer_lectura_socket);
+								}
+								
 
 								interpreta_comando(buffer_lectura_socket,sock_conectat);
 							//}
@@ -5137,7 +6121,7 @@ void init_remote_protocol(void)
 
   if (remote_protocol_enabled.v==0) return;
 
-	debug_printf (VERBOSE_INFO,"Starting remote protocol listener on port %d",remote_protocol_port);
+	debug_printf (VERBOSE_INFO,"Starting ZEsarUX remote protocol (ZRCP) listener on port %d",remote_protocol_port);
 	thread_remote_inicializado.v=0;
 
 	if (pthread_create( &thread_remote_protocol, NULL, &thread_remote_protocol_function, NULL) ) {
@@ -5149,6 +6133,12 @@ void init_remote_protocol(void)
 	remote_protocol_ended.v=0;
 
 
+}
+
+void enable_and_init_remote_protocol(void)
+{
+	remote_protocol_enabled.v=1;
+	init_remote_protocol();
 }
 
 void end_remote_protocol(void)
@@ -5165,7 +6155,10 @@ void end_remote_protocol(void)
 	remote_cerrar_conexion();
 #ifdef MINGW
 	closesocket(sock_listen);
-	WSACleanup();
+	//desactivo esto ya que esto implica que no se va a usar mas los windows sockets, cosa no cierta (se pueden usar en zeng por ejemplo)
+	//ademas no estamos llamando a WSAStartup al inicio
+	//Se deberia hacer el WSACleanup al finalizar el emulador
+	//WSACleanup();
 #else
 	close(sock_listen);
 #endif
@@ -5186,6 +6179,12 @@ void init_remote_protocol(void)
 }
 
 void end_remote_protocol(void)
+{
+
+}
+
+
+void enable_and_init_remote_protocol(void)
 {
 
 }

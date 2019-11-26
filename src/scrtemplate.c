@@ -47,9 +47,34 @@ videoname with the video driver name in lowercase letters, like "xwindows"
 #include <stdio.h>
 
 
+//Funcion de poner pixel en pantalla de driver, teniendo como entrada el color en RGB
+void scrvideoname_putpixel_final_rgb(int x,int y,unsigned int color_rgb)
+{
+	//Putpixel Call (x,y,color_rgb);
+}
+
+//Funcion de poner pixel en pantalla de driver, teniendo como entrada el color indexado
+void scrvideoname_putpixel_final(int x,int y,unsigned int color)
+{
+	//Putpixel Call (x,y,spectrum_colortable[color]);
+}
+
+
 void scrvideoname_putpixel(int x,int y,unsigned int color)
 {
-        //Putpixel Call (x,y,spectrum_colortable[color]);
+
+        if (menu_overlay_activo==0) {
+                //Putpixel con menu cerrado
+                scrvideoname_putpixel_final(x,y,color);
+                return;
+        }          
+
+        //Metemos pixel en layer adecuado
+	buffer_layer_machine[y*ancho_layer_menu_machine+x]=color;        
+
+        //Putpixel haciendo mix  
+        screen_putpixel_mix_layers(x,y);   
+
 }
 
 
@@ -85,7 +110,8 @@ void scrvideoname_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80
         f.v=0;
         //128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-        scr_putsprite_comun(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f);
+
+        scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,menu_gui_zoom);
 
 }
 
@@ -93,35 +119,23 @@ void scrvideoname_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80
 void scrvideoname_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel) {
 
 
-        int yorigen;
 
+        int yorigen;
 
 	yorigen=screen_get_emulated_display_height_no_zoom_bottomborder_en()/8;
 
-/*
-        if (MACHINE_IS_Z88) yorigen=24;
 
-	else if (MACHINE_IS_CPC) {
-                yorigen=(CPC_DISPLAY_HEIGHT/8);
-                if (border_enabled.v) yorigen+=CPC_TOP_BORDER_NO_ZOOM/8;
-        }
 
-	else if (MACHINE_IS_PRISM) {
-                yorigen=(PRISM_DISPLAY_HEIGHT/8);
-                if (border_enabled.v) yorigen+=PRISM_TOP_BORDER_NO_ZOOM/8;
-        }
+        //scr_putchar_menu(x,yorigen+y,caracter,tinta,papel);
+        y +=yorigen;
+        z80_bit inverse;
 
- 
+        inverse.v=0;
 
-        else {
-                //Spectrum o ZX80/81
-                if (border_enabled.v) yorigen=31;
-                else yorigen=24;
-        }
+        //128 y 129 corresponden a franja de menu y a letra enye minuscula
+        if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
 
-*/
-
-        scr_putchar_menu(x,yorigen+y,caracter,tinta,papel);
+        scr_putchar_footer_comun_zoom(caracter,x,y,inverse,tinta,papel);        
 }
 
 
@@ -156,7 +170,13 @@ void scrvideoname_refresca_border(void)
 void scrvideoname_refresca_pantalla(void)
 {
 
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
 
+        sem_screen_refresh_reallocate_layers=1;
 
 
         if (MACHINE_IS_ZX8081) {
@@ -213,7 +233,9 @@ void scrvideoname_refresca_pantalla(void)
 
 
         //Escribir footer
-        draw_footer();
+        draw_middle_footer();
+
+sem_screen_refresh_reallocate_layers=0;
 
 }
 
@@ -249,6 +271,33 @@ void scrvideoname_detectedchar_print(z80_byte caracter)
 
 }
 
+
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrvideoname_get_menu_width(void)
+{
+        int max=screen_get_emulated_display_width_no_zoom_border_en()/menu_char_width/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_WIDTH) max=OVERLAY_SCREEN_MAX_WIDTH;
+
+                //printf ("max x: %d %d\n",max,screen_get_emulated_display_width_no_zoom_border_en());
+
+        return max;
+}
+
+
+int scrvideoname_get_menu_height(void)
+{
+        int max=screen_get_emulated_display_height_no_zoom_border_en()/8/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_HEIGTH) max=OVERLAY_SCREEN_MAX_HEIGTH;
+
+                //printf ("max y: %d %d\n",max,screen_get_emulated_display_height_no_zoom_border_en());
+        return max;
+}
+
+int scrvideoname_driver_can_ext_desktop (void)
+{
+        return 0;
+}
+
 int scrvideoname_init (void) {
 
 	debug_printf (VERBOSE_INFO,"Init VIDEONAME_CAP Video Driver");
@@ -256,6 +305,14 @@ int scrvideoname_init (void) {
 
         //Inicializaciones necesarias
         scr_putpixel=scrvideoname_putpixel;
+        scr_putpixel_final=scrvideoname_putpixel_final;
+        scr_putpixel_final_rgb=scrvideoname_putpixel_final_rgb;
+
+        scr_get_menu_width=scrvideoname_get_menu_width;
+        scr_get_menu_height=scrvideoname_get_menu_height;
+	scr_driver_can_ext_desktop=scrvideoname_driver_can_ext_desktop;
+
+
         scr_putchar_zx8081=scrvideoname_putchar_zx8081;
         scr_debug_registers=scrvideoname_debug_registers;
         scr_messages_debug=scrvideoname_messages_debug;

@@ -26,7 +26,7 @@
 
 extern z80_byte zxevo_nvram[];
 
-extern z80_byte zxevo_last_port_eff7;
+//extern z80_byte zxevo_last_port_eff7;
 
 extern z80_byte zxevo_last_port_dff7;
 

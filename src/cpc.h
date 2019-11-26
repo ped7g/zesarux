@@ -89,4 +89,8 @@ extern z80_byte cpc_forzar_modo_video_modo;
 
 extern void cpc_splash_videomode_change(void);
 
+extern z80_bit cpc_send_double_vsync;
+
+extern void cpc_handle_vsync_state(void);
+
 #endif

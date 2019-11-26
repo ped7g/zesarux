@@ -33,7 +33,7 @@ extern int tape_block_tap_seek(int longitud,int direccion);
 extern int tape_out_block_tap_open(void);
 extern int tape_out_block_tap_close(void);
 extern int tape_block_tap_save(void *dir,int longitud);
-extern void tape_block_tap_begin_save(void);
+extern void tape_block_tap_begin_save(int longitud,z80_byte flag);
 
 
 

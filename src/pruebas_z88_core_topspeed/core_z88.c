@@ -195,7 +195,7 @@ void z88_gestionar_interrupcion(void)
                                                 //printf ("Calling NMI with pc=0x%x\n",reg_pc);
                                                 //call_address(0x66);
 						iff1.v=0;
-                                                push_valor(reg_pc); 
+                                                push_valor(reg_pc,PUSH_VALUE_TYPE_NON_MASKABLE_INTERRUPT); 
                                                 reg_pc=0x66; 
 
 

@@ -37,6 +37,7 @@
 #include "compileoptions.h"
 #include "debug.h"
 #include "settings.h"
+#include "ay38912.h"
 
 
 
@@ -698,3 +699,368 @@ void audioalsa_send_frame(char *buffer)
 
 	//return new_audioalsa_send_frame(buffer);
 }
+
+
+
+//Rutinas midi
+
+//Para ver dispositivos midi:
+//cat /proc/asound/seq/clients
+
+//Para iniciar timidity en modo secuenciador midi externo:
+//timidity -iA -Os -B2,8 -EFreverb=0
+
+#define ZESARUX_MID_PPQ 96
+
+
+//Guarda el estado actual del midi
+struct s_zesarux_mid_alsa_audio_info {
+
+	/* Parametros utilitzados en la libreria ALSA  */
+	int port;
+	snd_seq_t *handle;
+	int cua;
+	int client;
+
+	//Cliente midi
+	int midi_client,midi_port;
+
+	//utilizado en la subscripcion y demas...
+	snd_seq_addr_t sender, dest;
+	snd_seq_port_subscribe_t *subs;
+
+
+
+
+};
+
+//struct s_zesarux_mid_alsa_audio_info zesarux_mid_alsa_audio_info;
+
+
+//Guarda el estado actual del midi
+struct s_zesarux_mid_alsa_audio_info zesarux_mid_alsa_audio_info;
+
+
+
+
+
+//Crear un cliente alsa sequencer
+snd_seq_t *alsa_mid_audio_open_client()
+{
+	int err;
+	err = snd_seq_open(&zesarux_mid_alsa_audio_info.handle, "default", SND_SEQ_OPEN_OUTPUT, 0);
+	if (err < 0)
+		return NULL;
+	snd_seq_set_client_name(zesarux_mid_alsa_audio_info.handle, "ZEsarUX MIDI Client");
+
+	zesarux_mid_alsa_audio_info.client=snd_seq_client_id(zesarux_mid_alsa_audio_info.handle);
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_audio_open_client: Client: %d",zesarux_mid_alsa_audio_info.client);
+
+	return zesarux_mid_alsa_audio_info.handle;
+}
+
+// crear un nuevo port sequencer. Retorna el port id
+int alsa_mid_audio_new_port
+(snd_seq_t *handle)
+{
+	return snd_seq_create_simple_port(handle, "Midi Out port",
+                        				SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ,
+												SND_SEQ_PORT_TYPE_APPLICATION);
+}
+
+//Inicializar el tempo de la cola
+void alsa_mid_alsa_mid_audio_set_tempo_init
+(void)
+{
+	snd_seq_queue_tempo_t *tempo;
+
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_alsa_mid_audio_set_tempo_init");
+
+
+	snd_seq_queue_tempo_alloca(&tempo);
+	snd_seq_queue_tempo_set_tempo(tempo, 1000000); // 60 BPM
+	snd_seq_queue_tempo_set_ppq(tempo, ZESARUX_MID_PPQ); // 48 PPQ
+	//els ppq, con esta funcion, solo se pueden seleccionar antes de activar la cola
+
+	snd_seq_set_queue_tempo(zesarux_mid_alsa_audio_info.handle, zesarux_mid_alsa_audio_info.cua, tempo);
+}
+
+//Cambio del tempo de la cola
+void alsa_mid_audio_set_tempo
+(void)
+{
+//TEMPO=(60*1000000)/BPM
+//(BPM/60)*PPQ=ticks/temps
+
+	unsigned int tempo;
+	//int p;
+	unsigned int bpm;
+
+
+	//forzado
+	bpm=120;
+
+	tempo=(60*1000000)/bpm;
+
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_audio_set_tempo: Setting tempo=%u",tempo);
+
+
+	snd_seq_change_queue_tempo(zesarux_mid_alsa_audio_info.handle,zesarux_mid_alsa_audio_info.cua,tempo,NULL);
+}
+
+
+
+//Crear una nueva cola sequencer y retornar el id
+int alsa_mid_audio_new_queue
+(snd_seq_t *handle)
+{
+	return snd_seq_alloc_named_queue(handle, "ZEsarUX alsa queue");
+}
+
+//Se suscribe al puerto midi indicado. Retorna <0 en caso de error
+int alsa_mid_subscribe_midi_port(int midi_client, int midi_port)
+{
+
+	int err;
+
+	zesarux_mid_alsa_audio_info.dest.client = midi_client;
+	zesarux_mid_alsa_audio_info.dest.port = midi_port;
+	zesarux_mid_alsa_audio_info.sender.client = zesarux_mid_alsa_audio_info.client;
+	zesarux_mid_alsa_audio_info.sender.port = zesarux_mid_alsa_audio_info.port;
+
+	snd_seq_port_subscribe_alloca(&zesarux_mid_alsa_audio_info.subs);
+	snd_seq_port_subscribe_set_sender(zesarux_mid_alsa_audio_info.subs, &zesarux_mid_alsa_audio_info.sender);
+	snd_seq_port_subscribe_set_dest(zesarux_mid_alsa_audio_info.subs, &zesarux_mid_alsa_audio_info.dest);
+
+	snd_seq_port_subscribe_set_time_update(zesarux_mid_alsa_audio_info.subs, 1);
+	snd_seq_port_subscribe_set_time_real(zesarux_mid_alsa_audio_info.subs, 1);
+
+	err=snd_seq_subscribe_port(zesarux_mid_alsa_audio_info.handle, zesarux_mid_alsa_audio_info.subs);
+	if (err<0) return err;
+
+	return 0;
+
+}
+
+//Se desuscribe al puerto midi indicado. Retorna <0 en caso de error
+int alsa_mid_unsubscribe_midi_port(void)
+{
+
+	int err;
+
+
+	snd_seq_port_subscribe_alloca(&zesarux_mid_alsa_audio_info.subs);
+	snd_seq_port_subscribe_set_sender(zesarux_mid_alsa_audio_info.subs, &zesarux_mid_alsa_audio_info.sender);
+	snd_seq_port_subscribe_set_dest(zesarux_mid_alsa_audio_info.subs, &zesarux_mid_alsa_audio_info.dest);
+
+	snd_seq_port_subscribe_set_time_update(zesarux_mid_alsa_audio_info.subs, 1);
+	snd_seq_port_subscribe_set_time_real(zesarux_mid_alsa_audio_info.subs, 1);
+
+	err=snd_seq_unsubscribe_port(zesarux_mid_alsa_audio_info.handle, zesarux_mid_alsa_audio_info.subs);
+	if (err<0) {
+		debug_printf (VERBOSE_ERR,"Error unsubscribing midi alsa port");
+		return err;
+	}
+
+	return 0;
+
+}
+
+
+//Hacer note on de una nota inmediatamente
+int alsa_note_on(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+
+	debug_printf (VERBOSE_PARANOID,"noteon event channel %d note %d velocity %d",channel,note,velocity);
+
+	snd_seq_event_t ev;
+
+	snd_seq_ev_clear(&ev);
+
+	snd_seq_ev_set_source(&ev, zesarux_mid_alsa_audio_info.port);
+	snd_seq_ev_set_subs(&ev);
+
+	snd_seq_ev_set_direct(&ev);
+	snd_seq_ev_set_noteon(&ev, channel, note, velocity);
+	return (snd_seq_event_output(zesarux_mid_alsa_audio_info.handle, &ev));
+
+}
+
+
+//Hacer note off de una nota inmediatamente
+int alsa_note_off(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+
+	debug_printf (VERBOSE_PARANOID,"noteoff event channel %d note %d velocity %d",channel,note,velocity);
+	snd_seq_event_t ev;
+
+	snd_seq_ev_clear(&ev);
+
+
+	snd_seq_ev_set_source(&ev, zesarux_mid_alsa_audio_info.port);
+	snd_seq_ev_set_subs(&ev);
+
+	snd_seq_ev_set_direct(&ev);
+	snd_seq_ev_set_noteoff(&ev, channel, note, velocity);
+	return (snd_seq_event_output(zesarux_mid_alsa_audio_info.handle, &ev));
+
+}
+
+
+
+//Inicializar el sistema ALSA
+int alsa_mid_initialize_audio(void)
+{
+	//Creamos el cliente
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_initialize_audio: Creating client");
+
+	if (alsa_mid_audio_open_client()==NULL) {
+		debug_printf (VERBOSE_ERR,"Error creating alsa client");
+		return 1;
+	}
+
+	//Creamos el puerto
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_initialize_audio: Creating port");
+
+	zesarux_mid_alsa_audio_info.port=alsa_mid_audio_new_port(zesarux_mid_alsa_audio_info.handle);
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_initialize_audio: Port: %d",zesarux_mid_alsa_audio_info.port);
+
+	if (zesarux_mid_alsa_audio_info.port<0) {
+		debug_printf (VERBOSE_ERR,"Error creating port");
+		return 1;
+	}
+
+	//Creamos la cola
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_initialize_audio: Creating queue");
+
+	zesarux_mid_alsa_audio_info.cua=alsa_mid_audio_new_queue(zesarux_mid_alsa_audio_info.handle);
+	if (zesarux_mid_alsa_audio_info.cua<0) {
+		debug_printf (VERBOSE_ERR,"Error creating queue");
+		return 1;
+	}
+
+	//Escogemos el tempo. Realmente hace falta dado que usamos notas directas??
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_initialize_audio: Choosing tempo");
+	alsa_mid_alsa_mid_audio_set_tempo_init();
+
+	//Nos suscribimos al puerto de midi
+
+	debug_printf (VERBOSE_DEBUG,"midi_alsa::alsa_mid_initialize_audio: Subscribing midi client=%d port=%d",
+				zesarux_mid_alsa_audio_info.midi_client,zesarux_mid_alsa_audio_info.midi_port);
+
+	if (alsa_mid_subscribe_midi_port(zesarux_mid_alsa_audio_info.midi_client,zesarux_mid_alsa_audio_info.midi_port)<0) {
+
+		debug_printf (VERBOSE_ERR,"Error subscribing midi client=%d port=%d",
+				zesarux_mid_alsa_audio_info.midi_client,zesarux_mid_alsa_audio_info.midi_port);
+		return 1;
+
+	}
+	//subscriure_port_midi_equivalent(midi_client,midi_port);
+
+	//Iniciamos la cola. Dado que lanzamos notas directas esto no hace falta
+	//printf ("midi_alsa::alsa_mid_initialize_audio: Iniciem la cua\n");
+	/*if (alsa_mid_audio_initialize_queue()<0) {
+		printf ("Error iniciant la cua\n");
+		exit (1);
+	}*/
+
+	return 0;
+}
+
+
+
+
+//Utilizado para calcular el valor del volumen
+long alsa_mid_percent_to_alsa(int val, long pmin, long pmax)
+{
+  return pmin + ((pmax - pmin) * val + 50) / 100;
+}
+
+
+//Establecer el volumen del master
+void alsa_mid_set_volume_master(int percent)
+{
+	snd_mixer_t *mixer;
+	snd_mixer_elem_t *elem;    //utilitzat pel master volume
+	snd_mixer_selem_id_t *id;
+	long pmin,pmax;
+
+	snd_mixer_selem_id_alloca(&id);
+
+	snd_mixer_open(&mixer, 0);         //Obrir el mesclador
+	snd_mixer_attach(mixer, "default");//Utilitzar el mesclador per defecte
+	snd_mixer_selem_register(mixer, NULL, NULL);
+	snd_mixer_load(mixer);             //Carregar el mesclador
+
+	snd_mixer_selem_id_set_name(id, "Master");
+
+	elem = snd_mixer_find_selem(mixer, id);
+
+	//Parece que da error al ejecutar esto
+	//snd_mixer_selem_get_playback_volume_range(elem,&pmin,&pmax);
+
+	//Parece que da error al ejecutar esto
+	//snd_mixer_selem_set_playback_volume_all(elem, alsa_mid_percent_to_alsa(percent,pmin,pmax));
+
+	snd_mixer_close(mixer);
+
+}
+
+
+//Inicializar la musica
+void alsa_mid_initialize_volume(void)
+{
+
+        alsa_mid_set_volume_master(alsa_midi_volume);
+}
+
+
+
+
+
+
+
+//int alsa_midi_client=0;
+//int alsa_midi_port=0;
+int alsa_midi_volume=100;
+
+
+
+int alsa_mid_initialize_all(void)
+//Devuelve 1 si error
+{
+
+        //Inicializar sistema ALSA midi
+        zesarux_mid_alsa_audio_info.midi_client=audio_midi_client;
+        zesarux_mid_alsa_audio_info.midi_port=audio_midi_port;
+
+    if (alsa_mid_initialize_audio() ) return 1;
+
+	alsa_mid_initialize_volume();
+
+
+
+	return 0;
+
+
+
+}
+
+void alsa_mid_finish_all(void)
+{
+	alsa_mid_unsubscribe_midi_port();
+}
+
+
+void alsa_midi_output_flush_output(void)
+{
+	snd_seq_drain_output(zesarux_mid_alsa_audio_info.handle);
+}
+

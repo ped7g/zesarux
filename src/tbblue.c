@@ -41,6 +41,8 @@
 #include "datagear.h"
 #include "ay38912.h"
 #include "multiface.h"
+#include "uartbridge.h"
+#include "chardevice.h"
 
 #define TBBLUE_MAX_SRAM_8KB_BLOCKS 224
 
@@ -88,6 +90,23 @@ z80_byte tbblue_copper_memory[TBBLUE_COPPER_MEMORY];
 
 //Indice al opcode copper a ejecutar
 z80_int tbblue_copper_pc=0;
+
+z80_byte tbblue_machine_id=8;
+
+struct s_tbblue_machine_id_definition tbblue_machine_id_list[]=
+{
+	{1,               "DE-1"},
+	{2,               "DE-2"},
+	{5,               "FBLabs"},
+	{6,               "VTrucco"},
+	{7,               "WXEDA"},
+	{8,               "Emulators"},
+	{10,              "ZX Spectrum Next"},
+	{11,              "Multicore"},
+	{250,             "ZX Spectrum Next Antibrick"},
+
+ 	{255,""}
+};
 
 //Obtiene posicion de escritura del copper
 z80_int tbblue_copper_get_write_position(void)
@@ -563,7 +582,6 @@ z80_int tbblue_palette_sprite_first[256];
 z80_int tbblue_palette_sprite_second[256];
 z80_int tbblue_palette_tilemap_first[256];
 z80_int tbblue_palette_tilemap_second[256];
-z80_int cached_transparency_fallback_color=RGB9_INDEX_FIRST_COLOR+0;   // cache for register[74] value: 9b black by default
 
 //Diferentes layers a componer la imagen final
 /*
@@ -854,12 +872,15 @@ z80_int tbblue_get_palette_active_ula(z80_byte index)
 z80_int tbblue_get_palette_active_tilemap(z80_byte index)
 {
 /*
-(R/W) 0x6B (107) => Tilemap Control
-  bit 7    = 1 to enable the tilemap
-  bit 6    = 0 for 40x32, 1 for 80x32
-  bit 5    = 1 to eliminate the attribute entry in the tilemap
-  bit 4    = palette select
-  bits 3-0 = Reserved set to 0
+Bit	Function
+7	1 to enable the tilemap
+6	0 for 40x32, 1 for 80x32
+5	1 to eliminate the attribute entry in the tilemap
+4	palette select (0 = first Tilemap palette, 1 = second)
+3	(core 3.0) enable "text mode"
+2	Reserved, must be 0
+1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
+0 to use bit 0 of tile attribute as "ULA over tilemap" per-tile-selector
 */
 	if (tbblue_registers[0x6B] & 16) return tbblue_palette_tilemap_second[index];
         else return tbblue_palette_tilemap_first[index];
@@ -889,7 +910,7 @@ void tbsprite_pattern_put_value_index(z80_byte sprite,z80_byte index_in_sprite,z
 	tbsprite_new_patterns[tbsprite_pattern_get_offset_index(sprite,index_in_sprite)]=value;
 }
 
-//64 sprites
+
 /*
 [0] 1st: X position (bits 7-0).
 [1] 2nd: Y position (0-255).
@@ -2472,12 +2493,12 @@ which allows you access to all SRAM.
 	z80_byte multisetting=tbblue_registers[6]&8;
 
 	if (multisetting) {
-		printf ("Enabling multiface\n");
+		//printf ("Enabling multiface\n");
 		//sleep (1);
 		//temp multiface_enable();
 	}
 	else {
-		printf ("Disabling multiface\n");
+		//printf ("Disabling multiface\n");
 		//sleep (1);
 		//temp multiface_disable();
 	}
@@ -2694,12 +2715,15 @@ void tbblue_reset_common(void)
 
 	//Aunque no esté especificado como tal, ponemos este a 0
 	/*
-	(R/W) 0x6B (107) => Tilemap Control
-  bit 7    = 1 to enable the tilemap
-  bit 6    = 0 for 40x32, 1 for 80x32
-  bit 5    = 1 to eliminate the attribute entry in the tilemap
-  bit 4    = palette select
-  bits 3-0 = Reserved set to 0
+Bit	Function
+7	1 to enable the tilemap
+6	0 for 40x32, 1 for 80x32
+5	1 to eliminate the attribute entry in the tilemap
+4	palette select (0 = first Tilemap palette, 1 = second)
+3	(core 3.0) enable "text mode"
+2	Reserved, must be 0
+1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
+0 to use bit 0 of tile attribute as "ULA over tilemap" per-tile-selector
 	*/
 
 	tbblue_registers[107]=0;
@@ -2950,7 +2974,7 @@ z80_byte tbblue_get_register_port(void)
 
 void tbblue_get_string_palette_format(char *texto)
 {
-//if (value&128) screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
+//if (value&128) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
 	/*
 	(R/W) 0x43 (67) => Palette Control
 	bit 0 = Disable the standard Spectrum flash feature to enable the extra colours.
@@ -2999,7 +3023,7 @@ void tbblue_get_string_palette_format(char *texto)
 
 void tbblue_splash_palette_format(void)
 {
-//if (value&128) screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
+//if (value&128) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
 	/*
 	(R/W) 0x43 (67) => Palette Control
 	bit 0 = Disable the standard Spectrum flash feature to enable the extra colours.
@@ -3019,12 +3043,12 @@ void tbblue_splash_palette_format(void)
 
 	sprintf (mensaje,"Setting %s",videomode);
 
-	screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
+	screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
 
 	
 
 	/*
-	if ((tbblue_registers[67]&1)==0) screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Disabling extra colour palette");
+	if ((tbblue_registers[67]&1)==0) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Disabling extra colour palette");
 	else {
 
 		z80_byte palformat=tbblue_registers[66];
@@ -3051,9 +3075,9 @@ void tbblue_splash_palette_format(void)
 
 		char mensaje[200];
 		sprintf (mensaje,"Enabling extra colour palette: %d inks %d papers",tintas,papeles);
-		screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
+		screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
 	}
-	*/	
+	*/
 
 }
 
@@ -3253,8 +3277,8 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 		case 21:
 			//modo lores
 			if ( (last_register_21&128) != (value&128)) {
-				if (value&128) screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
-				else screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Disabling lores video mode");
+				if (value&128) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
+				else screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Disabling lores video mode");
 			}
 		break;
 
@@ -3343,13 +3367,6 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 			tbblue_write_palette_value_high8_low1(value);
 		break;
 
-		// Transparency color register - cache the 9bit extended value in separate variable
-			//(R/W) 0x4A (74) => Transparency colour fallback
-			//	bits 7-0 = Set the 8 bit colour.
-			//	(0 = black on reset on reset)
-		case 74:
-			cached_transparency_fallback_color=RGB9_INDEX_FIRST_COLOR+tbblue_get_9bit_colour(value);
-		break;
 
 		//MMU
 		case 80:
@@ -3457,15 +3474,28 @@ z80_byte tbblue_get_value_port_register(z80_byte registro)
 	(R) 0x01 (01) => Version (Nibble most significant = Major, Nibble less significant = Minor)
 	*/
 
-	//temp
-	/*if (registro==40 || registro==41 || registro==42 || registro==43) {
-		printf ("reading tbblue register %042XH from pc=%04XH\n",registro,reg_pc);
-	}*/
 
 	switch(registro)
 	{
 		case 0:
-			return 8;
+
+/*
+hardware numbers
+#define HWID_DE1A               1               DE-1 
+#define HWID_DE2A               2               DE-2  
+#define HWID_DE2N               3               DE-2 (new) 
+#define HWID_DE1N               4               DE-1 (new) 
+#define HWID_FBLABS             5               FBLabs 
+#define HWID_VTRUCCO   				 	6               VTrucco 
+#define HWID_WXEDA              7               WXEDA 
+#define HWID_EMULATORS  				8               Emulators 
+#define HWID_ZXNEXT             10              ZX Spectrum Next 
+#define HWID_MC                 11              Multicore 
+#define HWID_ZXNEXT_AB  				250             ZX Spectrum Next Anti-brick 
+*/
+
+
+			return tbblue_machine_id; //8;
 		break;
 
 
@@ -3753,11 +3783,10 @@ z80_int tbblue_get_border_color(z80_int color)
 	}
     else if (flash_disabled) {   // ULANext mode ON
 
-        //to-be-confirmed core2.00.27 change - commented at this moment
-        //if (tbblue_registers[0x42] == 255) {    // full-ink mode takes border colour from "fallback"
+        if (tbblue_registers[0x42] == 255) {    // full-ink mode takes border colour from "fallback"
         //    // in this case this is final result, just return it (no further processing needed)
-        //    return cached_transparency_fallback_color;
-        //}
+            return RGB9_INDEX_FIRST_COLOR + tbblue_get_9bit_colour(tbblue_registers[0x4A]);
+        }
 
         // other ULANext modes take border color from palette starting at 128..135
         color += 128;
@@ -3769,7 +3798,7 @@ z80_int tbblue_get_border_color(z80_int color)
     color = tbblue_get_palette_active_ula(color);
     // 3) check for transparent colour -> use fallback colour if border is "transparent"
     if (tbblue_si_transparent(color)) {
-        return cached_transparency_fallback_color;
+        color = tbblue_get_9bit_colour(tbblue_registers[0x4A]);
     }
     return color + RGB9_INDEX_FIRST_COLOR;
 }
@@ -3936,7 +3965,7 @@ void tbblue_do_tile_putpixel(z80_byte pixel_color,z80_byte transparent_colour,z8
 }
 
 //Devuelve el color del pixel dentro de un tilemap
-z80_byte tbblue_get_pixel_tile_xy(int x,int y,z80_byte *puntero_this_tiledef)
+z80_byte tbblue_get_pixel_tile_xy_4bpp(int x,int y,z80_byte *puntero_this_tiledef)
 {
 	//4bpp
 	int offset_x=x/2;
@@ -3957,7 +3986,83 @@ z80_byte tbblue_get_pixel_tile_xy(int x,int y,z80_byte *puntero_this_tiledef)
 		return (byte_leido>>4) & 0xF;
 	}
 
+}
 
+int tbblue_tiles_are_monocrome(void)
+{
+/*
+Registro 6BH
+
+
+  
+    (R/W) 0x6B (107) => Tilemap Control
+
+
+Bit	Function
+7	1 to enable the tilemap
+6	0 for 40x32, 1 for 80x32
+5	1 to eliminate the attribute entry in the tilemap
+4	palette select (0 = first Tilemap palette, 1 = second)
+3	(core 3.0) enable "text mode"
+2	Reserved, must be 0
+1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
+0 to use bit 0 of tile attribute as "ULA over tilemap" per-tile-selector
+
+0	1 to enforce "tilemap over ULA" layer priority
+
+Bits 7 & 6 enable the tilemap and select resolution.
+
+Bit 5 changes the structure of the tilemap so that it contains only 8-bit tilemap-id entries instead of 16-bit tilemap-id and tile-attribute entries.
+
+If 8-bit tilemap is selected, the tilemap contains only tile numbers and the attributes are taken from Default Tilemap Attribute Register ($6C).
+
+Bit 4 selects one of two tilemap palettes used for final colour lookup.
+
+Bit 1 enables the 512-tile-mode when the tile attribute (either global in $6C or per tile in map data) contains ninth bit of tile-id value. 
+In this mode the tiles are drawn under ULA pixels, unless bit 0 is used to force whole tilemap over ULA.
+
+Bit 0 can enforce tilemap over ULA either in 512-tile-mode, or even override the per-tile bit selector from tile attributes. 
+If zero, the tilemap priority is either decided by attribute bit or in 512-tile-mode it is under ULA.
+
+
+*/
+
+
+	return tbblue_registers[0x6b] & 8; //bit "text mode"/monocromo
+
+}
+
+
+//Devuelve el color del pixel dentro de un tilemap
+z80_byte tbblue_get_pixel_tile_xy_monocromo(int x,int y,z80_byte *puntero_this_tiledef)
+{
+	//4bpp
+	int offset_x=0;
+
+	//int pixel_a_derecha=x%2;
+
+	int offset_y=y; //Cada linea ocupa 1 bytes
+
+	int offset_final=offset_y+offset_x;
+
+
+	z80_byte byte_leido=puntero_this_tiledef[offset_final];
+
+	return (byte_leido>> (7-x) ) & 0x1;
+
+}
+
+
+z80_byte tbblue_get_pixel_tile_xy(int x,int y,z80_byte *puntero_this_tiledef)
+{
+	//si monocromo
+	if (tbblue_tiles_are_monocrome() ) {
+		return tbblue_get_pixel_tile_xy_monocromo(x,y,puntero_this_tiledef);
+	}
+
+	else {
+		return tbblue_get_pixel_tile_xy_4bpp(x,y,puntero_this_tiledef);
+	}
 }
 
 /*int temp_tile_rebote_x=10;
@@ -4002,12 +4107,15 @@ z80_int tbblue_layer_ula[TBBLUE_LAYERS_PIXEL_WIDTH];
 	orig_puntero_a_layer=puntero_a_layer;
 
   /*
-    (R/W) 0x6B (107) => Tilemap Control
-  bit 7    = 1 to enable the tilemap
-  bit 6    = 0 for 40x32, 1 for 80x32
-  bit 5    = 1 to eliminate the attribute entry in the tilemap
-  bit 4    = palette select
-  bits 3-0 = Reserved set to 0
+Bit	Function
+7	1 to enable the tilemap
+6	0 for 40x32, 1 for 80x32
+5	1 to eliminate the attribute entry in the tilemap
+4	palette select (0 = first Tilemap palette, 1 = second)
+3	(core 3.0) enable "text mode"
+2	Reserved, must be 0
+1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
+0 to use bit 0 of tile attribute as "ULA over tilemap" per-tile-selector
    */
 	z80_byte tbblue_tilemap_control=tbblue_registers[107];
 
@@ -4208,8 +4316,17 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 			}
 		}
 
-		//Sacar puntero a principio tiledef. cada tiledef ocupa 4 bytes * 8 = 32
-		int offset_tiledef=tnum*(TBBLUE_TILE_WIDTH/2)*TBBLUE_TILE_HEIGHT;
+		//Sacar puntero a principio tiledef. 
+		int offset_tiledef;
+
+
+		if (tbblue_tiles_are_monocrome()) {
+			offset_tiledef=tnum*TBBLUE_TILE_HEIGHT;
+		}
+		else {
+			//4 bpp. cada tiledef ocupa 4 bytes * 8 = 32
+			offset_tiledef=tnum*(TBBLUE_TILE_WIDTH/2)*TBBLUE_TILE_HEIGHT;
+		}
 
 		//sumar posicion y
 		//offset_tiledef += linea_en_tile*4;
@@ -4371,8 +4488,15 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 	int final_borde_izquierdo,int inicio_borde_derecho,int ancho_rainbow)
 {
 
+
 	int i;
 		z80_int color;
+
+
+	//(R/W) 0x4A (74) => Transparency colour fallback
+	//	bits 7-0 = Set the 8 bit colour.
+	//	(0 = black on reset on reset)
+	z80_int fallbackcolour = RGB9_INDEX_FIRST_COLOR + tbblue_get_9bit_colour(tbblue_registers[74]);
 
 	for (i=0;i<ancho_rainbow;i++) {
 
@@ -4395,9 +4519,10 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 					else {
 						//Borde izquierdo o derecho o pantalla. Ver si estamos en pantalla
 						if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
-							*puntero_final_rainbow=cached_transparency_fallback_color;
+							//Poner color indicado por "Transparency colour fallback" registro
+							*puntero_final_rainbow=fallbackcolour;
 							//doble de alto
-							puntero_final_rainbow[ancho_rainbow]=cached_transparency_fallback_color;
+							puntero_final_rainbow[ancho_rainbow]=fallbackcolour;								
 						}
 						else {
 							//Es borde. dejar ese color
@@ -4421,6 +4546,12 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 //Nos situamos en la linea justo donde empiezan los tiles
 void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 {
+
+
+	//(R/W) 0x4A (74) => Transparency colour fallback
+		//	bits 7-0 = Set the 8 bit colour.
+		//	(0 = black on reset on reset)
+	z80_int fallbackcolour = RGB9_INDEX_FIRST_COLOR + tbblue_get_9bit_colour(tbblue_registers[74]);
 
 	int y;
 	int diferencia_border_tiles=screen_indice_inicio_pant-TBBLUE_TILES_BORDER;
@@ -4517,9 +4648,10 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 					else {
 						//Borde izquierdo o derecho o pantalla. Ver si estamos en pantalla
 						if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
-							*puntero_final_rainbow=cached_transparency_fallback_color;
+							//Poner color indicado por "Transparency colour fallback" registro:
+							*puntero_final_rainbow=fallbackcolour;
 							//doble de alto
-							puntero_final_rainbow[ancho_rainbow]=cached_transparency_fallback_color;
+							puntero_final_rainbow[ancho_rainbow]=fallbackcolour;
 						}
 						else {
 							//Es borde. dejar ese color
@@ -4683,6 +4815,335 @@ z80_bit tbblue_reveal_layer_ula={0};
 z80_bit tbblue_reveal_layer_layer2={0};
 z80_bit tbblue_reveal_layer_sprites={0};
 
+void tbblue_do_ula_standard_overlay()
+{
+
+
+	//Render de capa standard ULA (normal, timex) 
+
+	//printf ("scan line de pantalla fisica (no border): %d\n",t_scanline_draw);
+
+	//linea que se debe leer
+	int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
+
+
+
+	int x,bit;
+	z80_int direccion;
+	z80_byte byte_leido;
+
+
+	int color=0;
+	z80_byte attribute;
+	z80_int ink,paper;
+
+
+	z80_byte *screen=get_base_mem_pantalla();
+
+
+	/*
+	(R/W) 0x32 (50) => ULA / LoRes Offset X
+bits 7-0 = X Offset (0-255)(Reset to 0 after a reset)
+ULA can only scroll in multiples of 8 pixels so the lowest 3 bits have no effect at this time.
+	*/
+
+	//entonces sumar 1 posicion por cada 8 del scroll
+
+	z80_byte ula_offset_x=tbblue_registers[50];
+	ula_offset_x /=8;
+	int indice_origen_bytes=ula_offset_x*2; //*2 dado que leemos del puntero_buffer_atributos que guarda 2 bytes: pixel y atributo	
+
+	/*
+	(R/W) 0x33 (51) => ULA / LoRes Offset Y
+bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
+
+
+	linea_lores +=tbblue_registers[0x33];
+
+	linea_lores=linea_lores % 192;
+
+	*/
+
+	z80_byte tbblue_scroll_y=tbblue_registers[51];
+	
+
+	scanline_copia +=tbblue_scroll_y;
+	scanline_copia=scanline_copia % 192;
+
+
+
+	//Usado cuando hay scroll vertical y por tanto los pixeles y atributos salen de la pantalla tal cual (modo sin rainbow)
+	int pos_no_rainbow_pix_x;
+
+
+	//scroll x para modo no rainbow (es decir, cuando hay scroll vertical)
+	pos_no_rainbow_pix_x=ula_offset_x;
+	pos_no_rainbow_pix_x %=32;	
+
+
+	//Estos direccion y dir_atributo usados cuando hay scroll vertical y por tanto los pixeles y atributos salen de la pantalla tal cual (modo sin rainbow),
+	//y tambien en timex 512x192
+	direccion=screen_addr_table[(scanline_copia<<5)];
+
+	int fila=scanline_copia/8;
+	int dir_atributo=6144+(fila*32);
+
+
+	z80_byte *puntero_buffer_atributos;
+	z80_byte col6;
+	z80_byte tin6, pap6;
+
+	z80_byte timex_video_mode=timex_port_ff&7;
+	z80_bit si_timex_hires={0};
+	z80_bit si_timex_8_1={0};
+
+	if (timex_video_mode==2) si_timex_8_1.v=1;
+
+	//Por defecto
+	puntero_buffer_atributos=scanline_buffer;
+
+	if (timex_video_emulation.v) {
+	//Modos de video Timex
+	/*
+000 - Video data at address 16384 and 8x8 color attributes at address 22528 (like on ordinary Spectrum);
+
+001 - Video data at address 24576 and 8x8 color attributes at address 30720;
+
+010 - Multicolor mode: video data at address 16384 and 8x1 color attributes at address 24576;
+
+110 - Extended resolution: without color attributes, even columns of video data are taken from address 16384, and odd columns of video data are taken from address 24576
+	*/
+		switch (timex_video_mode) {
+
+			case 4:
+			case 6:
+				//512x192 monocromo. 
+				//y color siempre fijo
+				/*
+	bits D3-D5: Selection of ink and paper color in extended screen resolution mode (000=black/white, 001=blue/yellow, 010=red/cyan, 011=magenta/green, 100=green/magenta, 101=cyan/red, 110=yellow/blue, 111=white/black); these bits are ignored when D2=0
+
+				black, blue, red, magenta, green, cyan, yellow, white
+				*/
+
+				//Si D2==0, these bits are ignored when D2=0?? Modo 4 que es??
+
+				tin6=get_timex_ink_mode6_color();
+
+
+				//Obtenemos color
+				pap6=get_timex_paper_mode6_color();
+				//printf ("papel: %d\n",pap6);
+
+				//Y con brillo
+				col6=((pap6*8)+tin6)+64;
+
+			
+				si_timex_hires.v=1;
+			break;
+
+
+		}
+	}
+
+	//Capa de destino
+	int posicion_array_layer=0;
+	posicion_array_layer +=(screen_total_borde_izquierdo*border_enabled.v*2); //Doble de ancho
+
+
+	int columnas=32;
+
+	if (si_timex_hires.v) {
+		columnas=64;
+	}
+
+    for (x=0;x<columnas;x++) {
+
+		if (tbblue_scroll_y) {
+			//Si hay scroll vertical (no es 0) entonces el origen de los bytes no se obtiene del buffer de pixeles y color en alta resolucion,
+			//Si no que se obtiene de la pantalla tal cual
+			//TODO: esto es una limitacion de tal y como hace el render el tbblue, en que hago render de una linea cada vez,
+			//para corregir esto, habria que tener un buffer destino con todas las lineas de ula y hacer luego overlay con cada
+			//capa por separado, algo completamente impensable
+			//de todas maneras esto es algo extraño que suceda: que alguien le de por hacer efectos en color en alta resolucion, en capa ula,
+			//y activar el scroll vertical. En teoria tambien puede hacer parpadeos en juegos normales, pero quien va a querer cambiar el scroll en juegos
+			//que no estan preparados para hacer scroll?
+			byte_leido=screen[direccion+pos_no_rainbow_pix_x];
+
+
+			if (si_timex_8_1.v==0) {
+				attribute=screen[dir_atributo+pos_no_rainbow_pix_x];	
+			}
+
+			else {
+				//timex 8x1
+				attribute=screen[direccion+pos_no_rainbow_pix_x+8192];
+			}
+
+
+
+		}
+
+		else {
+
+			//Modo sin scroll vertical. Permite scroll horizontal. Es modo rainbow
+
+			byte_leido=puntero_buffer_atributos[indice_origen_bytes++];
+
+			attribute=puntero_buffer_atributos[indice_origen_bytes++];
+
+		}
+
+
+
+		//32 columnas
+		//truncar siempre a modulo 64 (2 bytes: pixel y atributo)
+		indice_origen_bytes %=64;
+
+		if (si_timex_hires.v) {
+			if ((x&1)==0) byte_leido=screen[direccion+pos_no_rainbow_pix_x];
+			else byte_leido=screen[direccion+pos_no_rainbow_pix_x+8192];
+
+			attribute=col6;
+		}			
+			
+		get_pixel_color_tbblue(attribute,&ink,&paper);
+			
+    	for (bit=0;bit<8;bit++) {			
+			color= ( byte_leido & 128 ? ink : paper ) ;
+
+			int posx=x*8+bit; //Posicion pixel. Para clip window registers	
+			if (si_timex_hires.v) posx /=2;
+
+			//Tener en cuenta valor clip window
+			
+			//(W) 0x1A (26) => Clip Window ULA/LoRes
+			if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1] && scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][3]) {
+				if (!tbblue_force_disable_layer_ula.v) {
+					z80_int color_final=tbblue_get_palette_active_ula(color);
+
+					//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
+					if (tbblue_si_transparent(color_final)) color_final=TBBLUE_SPRITE_TRANS_FICT;
+
+					tbblue_layer_ula[posicion_array_layer]=color_final;
+					if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer+1]=color_final; //doble de ancho
+
+				}
+			}
+
+		
+			posicion_array_layer++;
+			if (si_timex_hires.v==0) posicion_array_layer++; //doble de ancho
+        	byte_leido=byte_leido<<1;
+				
+      	}
+
+		if (si_timex_hires.v) {
+				if (x&1) {
+					pos_no_rainbow_pix_x++;
+					//direccion++;
+				}
+		}
+
+		else {
+			//direccion++;
+			pos_no_rainbow_pix_x++;
+		}
+
+
+			
+		pos_no_rainbow_pix_x %=32;		
+
+	  }
+	
+}
+
+
+
+
+void tbblue_do_ula_lores_overlay()
+{
+
+
+	//Render de capa ULA LORES
+	//printf ("scan line de pantalla fisica (no border): %d\n",t_scanline_draw);
+
+	//linea que se debe leer
+	int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
+
+
+	int color;
+
+	/* modo lores
+	(R/W) 0x15 (21) => Sprite and Layers system
+  bit 7 - LoRes mode, 128 x 96 x 256 colours (1 = enabled)
+  	*/
+
+	  	
+
+	z80_byte *lores_pointer;
+	z80_byte posicion_x_lores_pointer;
+
+	
+	int linea_lores=scanline_copia;  
+	//Sumamos offset y
+	/*
+	(R/W) 0x33 (51) => LoRes Offset Y
+	bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
+	Being only 96 pixels, this allows the display to scroll in "half-pixels",
+	at the same resolution and smoothness as Layer 2.
+	*/
+	linea_lores +=tbblue_registers[0x33];
+
+	linea_lores=linea_lores % 192;
+	//if (linea_lores>=192) linea_lores -=192;
+
+	lores_pointer=get_lores_pointer(linea_lores/2);  //admite hasta y=95, dividimos entre 2 linea actual
+
+	//Y scroll horizontal
+	posicion_x_lores_pointer=tbblue_registers[0x32];
+  		
+
+
+	int posicion_array_layer=0;
+	posicion_array_layer +=(screen_total_borde_izquierdo*border_enabled.v*2); //Doble de ancho
+
+
+	int posx;
+	z80_int color_final;
+
+	for (posx=0;posx<256;posx++) {
+				
+		color=lores_pointer[posicion_x_lores_pointer/2];
+		//tenemos indice color de paleta
+		//transformar a color final segun paleta ula activa
+		//color=tbblue_get_palette_active_ula(lorescolor);
+
+		posicion_x_lores_pointer++; 
+		//nota: dado que es una variable de 8 bits, automaticamente se trunca al pasar de 255 a 0, por tanto no hay que sacar el modulo de division con 256
+		
+		//Tener en cuenta valor clip window
+		
+		//(W) 0x1A (26) => Clip Window ULA/LoRes
+		if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1] && scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][3]) {
+			if (!tbblue_force_disable_layer_ula.v) {
+				color_final=tbblue_get_palette_active_ula(color);
+
+				//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
+				if (tbblue_si_transparent(color_final)) color_final=TBBLUE_SPRITE_TRANS_FICT;
+
+				tbblue_layer_ula[posicion_array_layer]=color_final;
+				tbblue_layer_ula[posicion_array_layer+1]=color_final; //doble de ancho
+
+			}
+		}
+
+		posicion_array_layer+=2; //doble de ancho
+				
+    }
+
+
+}
+
 //Guardar en buffer rainbow la linea actual. Para Spectrum. solo display
 //Tener en cuenta que si border esta desactivado, la primera linea del buffer sera de display,
 //en cambio, si border esta activado, la primera linea del buffer sera de border
@@ -4723,256 +5184,14 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
   	//En zona visible pantalla (no borde superior ni inferior)
   	if (t_scanline_draw>=screen_indice_inicio_pant && t_scanline_draw<screen_indice_fin_pant) {
 
+			int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
 
-				//Render de capa ULA 
 
-        //printf ("scan line de pantalla fisica (no border): %d\n",t_scanline_draw);
+			int tbblue_lores=tbblue_registers[0x15] & 128;
+			if (tbblue_lores) tbblue_do_ula_lores_overlay();
+		  	else tbblue_do_ula_standard_overlay();
 
-        //linea que se debe leer
-        int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
-
-
-                //Dado que es 192, dividir linea entre dos para duplicar pixeles en altura
-                //printf ("dividir scanline copia\n");
-                //scanline_copia /=2;
-
-
-        //la copiamos a buffer rainbow
-        //z80_int *puntero_buf_rainbow;
-        //esto podria ser un contador y no hace falta que lo recalculemos cada vez. TODO
-        int y;
-
-        y=t_scanline_draw-screen_invisible_borde_superior;
-        if (border_enabled.v==0) y=y-screen_borde_superior;
-
-                //Dado que es 192, dividir linea entre dos para duplicar pixeles en altura
-                //printf ("dividir scanline copia\n");
-                //y /=2;				
-
-				//int ancho_rainbow=get_total_ancho_rainbow();
-
-        //puntero_buf_rainbow=&rainbow_buffer[ y*ancho_rainbow ];
-
-        //puntero_buf_rainbow +=screen_total_borde_izquierdo*border_enabled.v*2; //doble de ancho
-
-
-        int x,bit;
-        z80_int direccion;
-        z80_byte byte_leido;
-
-
-        int color=0;
-
-        z80_byte attribute;
-		z80_int ink,paper;
-
-
-
-        z80_byte *screen=get_base_mem_pantalla();
-
-        direccion=screen_addr_table[(scanline_copia<<5)];
-
-
-
-		//Mantener el offset y en 0..191
-		z80_byte tbblue_reg_23=tbblue_registers[23]; 
-
-		int offset_scroll=tbblue_reg_23+scanline_copia;
-		offset_scroll %=192;
-
-
-
-		z80_byte *puntero_buffer_atributos;
-
-
-	
-
-
-		//temporal modo 6 timex 512x192 pero hacemos 256x192
-		//z80_byte temp_prueba_modo6[SCANLINEBUFFER_ONE_ARRAY_LENGTH];
-		z80_byte col6;
-		z80_byte tin6, pap6;
-
-		z80_byte timex_video_mode=timex_port_ff&7;
-		//z80_byte timexhires_resultante;
-		//z80_int timexhires_origen;
-
-		z80_bit si_timex_hires={0};
-
-		//Por defecto
-		puntero_buffer_atributos=scanline_buffer;
-
-	/* modo lores
-	(R/W) 0x15 (21) => Sprite and Layers system
-  bit 7 - LoRes mode, 128 x 96 x 256 colours (1 = enabled)
-  	*/
-
-	  	int tbblue_lores=tbblue_registers[0x15] & 128;
-
-  		z80_byte *lores_pointer;
-  		z80_byte posicion_x_lores_pointer=0;
-
-  		if (tbblue_lores) {
-	  		int linea_lores=scanline_copia;  
-  			//Sumamos offset y
-	  		/*
-  			(R/W) 0x33 (51) => LoRes Offset Y
-  			bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
-  			Being only 96 pixels, this allows the display to scroll in "half-pixels",
-  			at the same resolution and smoothness as Layer 2.
-  			*/
-  			linea_lores +=tbblue_registers[0x33];
-
-  			linea_lores=linea_lores % 192;
-  			//if (linea_lores>=192) linea_lores -=192;
-
-  			lores_pointer=get_lores_pointer(linea_lores/2);  //admite hasta y=95, dividimos entre 2 linea actual
-
-	  		//Y scroll horizontal
-  			posicion_x_lores_pointer=tbblue_registers[0x32];
-  		}
-
-
-		if (timex_video_emulation.v) {
-		//Modos de video Timex
-		/*
-000 - Video data at address 16384 and 8x8 color attributes at address 22528 (like on ordinary Spectrum);
-
-001 - Video data at address 24576 and 8x8 color attributes at address 30720;
-
-010 - Multicolor mode: video data at address 16384 and 8x1 color attributes at address 24576;
-
-110 - Extended resolution: without color attributes, even columns of video data are taken from address 16384, and odd columns of video data are taken from address 24576
-		*/
-			switch (timex_video_mode) {
-
-				case 4:
-				case 6:
-				//512x192 monocromo. aunque hacemos 256x192
-				//y color siempre fijo
-				/*
-bits D3-D5: Selection of ink and paper color in extended screen resolution mode (000=black/white, 001=blue/yellow, 010=red/cyan, 011=magenta/green, 100=green/magenta, 101=cyan/red, 110=yellow/blue, 111=white/black); these bits are ignored when D2=0
-
-				black, blue, red, magenta, green, cyan, yellow, white
-				*/
-
-				//Si D2==0, these bits are ignored when D2=0?? Modo 4 que es??
-
-				//col6=(timex_port_ff>>3)&7;
-				tin6=get_timex_ink_mode6_color();
-
-
-				//Obtenemos color
-				//tin6=col6;
-				pap6=get_timex_paper_mode6_color();
-				//printf ("papel: %d\n",pap6);
-
-				//Y con brillo
-				col6=((pap6*8)+tin6)+64;
-
-				//Nos inventamos un array de colores, con mismo color siempre, correspondiente a lo que dice el registro timex
-				//Saltamos de dos en dos
-				//De manera similar al buffer scanlines_buffer, hay pixel, atributo, pixel, atributo, etc
-				//por eso solo llenamos la parte que afecta al atributo
-
-			
-				si_timex_hires.v=1;
-				break;
-
-
-			}
-		}
-
-		int posicion_array_layer=0;
-
-		posicion_array_layer +=(screen_total_borde_izquierdo*border_enabled.v*2); //Doble de ancho
-
-
-		int posicion_array_pixeles_atributos=0;
-
-		int columnas=32;
-
-		if (si_timex_hires.v) {
-			columnas=64;
-		}
-
-    for (x=0;x<columnas;x++) {
-
-            byte_leido=puntero_buffer_atributos[posicion_array_pixeles_atributos++];
-
-			      attribute=puntero_buffer_atributos[posicion_array_pixeles_atributos++];
-
-			if (si_timex_hires.v) {
-
-				if ((x&1)==0) byte_leido=screen[direccion];
-				else byte_leido=screen[direccion+8192];
-
-				attribute=col6;
-			}			
-               
-
-			get_pixel_color_tbblue(attribute,&ink,&paper);
-			
-
-      for (bit=0;bit<8;bit++) {
-				
-				color= ( byte_leido & 128 ? ink : paper ) ;
-
-				if (tbblue_lores) {
-					
-
-					z80_byte lorescolor=lores_pointer[posicion_x_lores_pointer/2];
-					//tenemos indice color de paleta
-					//transformar a color final segun paleta ula activa
-					//color=tbblue_get_palette_active_ula(lorescolor);
-
-					color=lorescolor;
-
-					posicion_x_lores_pointer++; 
-				}
-
-				int posx=x*8+bit; //Posicion pixel. Para clip window registers	
-				if (si_timex_hires.v) posx /=2;
-
-
-				//Capa ula
-				//Tener en cuenta valor clip window
-				
-				//(W) 0x1A (26) => Clip Window ULA/LoRes
-				if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1] && scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][3]) {
-					if (!tbblue_force_disable_layer_ula.v) {
-						z80_int color_final=tbblue_get_palette_active_ula(color);
-
-						//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
-						if (tbblue_si_transparent(color_final)) color_final=TBBLUE_SPRITE_TRANS_FICT;
-
-						tbblue_layer_ula[posicion_array_layer]=color_final;
-						if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer+1]=color_final; //doble de ancho
-
-					}
-				}
-
-		
-				posicion_array_layer++;
-
-				if (si_timex_hires.v==0) posicion_array_layer++; //doble de ancho
-
-        byte_leido=byte_leido<<1;
-				
-      }
-
-			if (si_timex_hires.v) {
-					if (x&1) direccion++;
-			}
-
-			else direccion++;
-
-	  }
-
-
-
-
-			//Overlay de layer2
+		//Overlay de layer2
 							//Capa layer2
 				if (tbblue_is_active_layer2() && !tbblue_force_disable_layer_layer_two.v) {
 					if (scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][3]) {
@@ -4984,7 +5203,6 @@ bits D3-D5: Selection of ink and paper color in extended screen resolution mode 
 						}
 					}
 				}
-
 
 	}
 
@@ -5310,4 +5528,53 @@ void screen_tbblue_refresca_no_rainbow(void)
 
                         screen_tbblue_refresca_pantalla_comun();
                 }
+}
+
+
+void tbblue_out_port_32765(z80_byte value)
+{
+				//printf ("TBBLUE changing port 32765 value=0x%02XH\n",value);
+                                puerto_32765=value;
+
+				//para indicar a la MMU la  pagina en los segmentos 6 y 7
+				tbblue_registers[80+6]=(value&7)*2;
+				tbblue_registers[80+7]=(value&7)*2+1;
+
+				//En rom entra la pagina habitual de modo 128k, evitando lo que diga la mmu
+				tbblue_registers[80]=255;
+				tbblue_registers[81]=255;
+
+                tbblue_set_memory_pages();
+}
+
+
+z80_byte tbblue_uartbridge_readdata(void)
+{
+
+	return uartbridge_readdata();
+}
+
+
+void tbblue_uartbridge_writedata(z80_byte value)
+{
+ 
+	uartbridge_writedata(value);
+
+
+}
+
+z80_byte tbblue_uartbridge_readstatus(void)
+{
+	//No dispositivo abierto
+	if (!uartbridge_available()) return 0;
+
+	
+	int status=chardevice_status(uartbridge_handler);
+	
+
+	z80_byte status_retorno=0;
+
+	if (status & CHDEV_ST_RD_AVAIL_DATA) status_retorno |= TBBLUE_UART_STATUS_DATA_READY;
+
+	return status_retorno;
 }

@@ -41,15 +41,15 @@ Examples
 
 */
 
-//#define EMULATOR_VERSION "7.2"
+//#define EMULATOR_VERSION "8.1"
 
-//#define EMULATOR_VERSION "7.2-SN"
-#define EMULATOR_VERSION "7.2-RC"
+#define EMULATOR_VERSION "8.1-SN"
+//#define EMULATOR_VERSION "8.-RC"
 #define SNAPSHOT_VERSION
 
-#define EMULATOR_DATE "26 February 2019"
-#define EMULATOR_SHORT_DATE "26/02/2019"
-#define EMULATOR_GAME_EDITION "Neula"
+#define EMULATOR_DATE "07 November 2019"
+#define EMULATOR_SHORT_DATE "07/11/2019"
+#define EMULATOR_GAME_EDITION "xxx"
 #define EMULATOR_EDITION_NAME EMULATOR_GAME_EDITION " edition"
 
 //8 bits
@@ -154,6 +154,9 @@ extern z80_bit interrupcion_pendiente;
 extern z80_bit z80_ejecutando_halt;
 extern z80_byte im_mode;
 extern z80_bit cpu_step_mode;
+extern int core_refetch;
+extern int cpu_duracion_pulso_interrupcion;
+extern z80_bit core_end_frame_check_zrcp_zeng_snap;
 
 #ifndef GCC_UNUSED
 
@@ -429,7 +432,18 @@ extern z80_byte last_inves_low_ram_poke_menu;
 
 extern void random_ram_inves(z80_byte *puntero,int longitud);
 
+//Tipos de CPU Z80
+#define TOTAL_Z80_CPU_TYPES 3
+enum z80_cpu_types
+{
+  Z80_TYPE_GENERIC,
+  Z80_TYPE_MOSTEK,
+  Z80_TYPE_CMOS
+};
 
+extern enum z80_cpu_types z80_cpu_current_type;
+
+extern char *z80_cpu_types_strings[];
 
 //valor obtenido probando
 #define MAX_EMULATE_MEMORY_REFRESH_COUNTER 1500000
@@ -492,6 +506,8 @@ extern z80_bit core_spectrum_uses_reduced;
 
 
 extern char parameter_disablebetawarning[];
+
+extern int total_minutes_use;
 
 
 #endif

@@ -39,7 +39,7 @@ extern int initial_tap_sequence;
 extern z80_bit noautoload;
 extern z80_bit tape_any_flag_loading;
 
-extern int tape_loading_counter;
+//extern int tape_loading_counter;
 
 extern int (*tape_block_open)(void);
 extern int (*tape_block_read)(void *dir,int longitud);
@@ -50,7 +50,7 @@ extern int (*tape_out_block_open)(void);
 extern int (*tape_out_block_close)(void);
 
 extern int (*tape_block_save)(void *dir,int longitud);
-extern void (*tape_block_begin_save)(void);
+extern void (*tape_block_begin_save)(int longitud,z80_byte flag);
 
 extern void tape_init(void);
 extern void tape_out_init(void);
@@ -78,7 +78,7 @@ extern int tape_pause;
 
 extern int tape_loading_counter;
 extern void draw_tape_text(void);
-extern void delete_tape_text(void);
+//extern void delete_tape_text(void);
 
 extern void gestionar_autoload_spectrum(void);
 extern void gestionar_autoload_cpc(void);
@@ -134,5 +134,12 @@ extern void tape_check_known_loaders(void);
 extern void draw_tape_text_top_speed(void);
 
 extern void realtape_print_footer(void);
+
+extern int tape_out_block_pzx_open(void);
+extern int tape_out_block_pzx_close(void);
+extern int tape_block_pzx_save(void *dir,int longitud);
+extern void tape_block_pzx_begin_save(int longitud,z80_byte flag);
+
+
 
 #endif

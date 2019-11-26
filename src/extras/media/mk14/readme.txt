@@ -28,7 +28,7 @@ Many are written in hexadecimal format, like this: (clock):
 
 The format of every line is (looking at first line):
 : no meaning
-08 : lenght of the data
+08 : length of the data
 0F16 : address to load the data
 00 : no meaning
 1200000076404002 : efective data to write at 0F16

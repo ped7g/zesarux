@@ -83,6 +83,8 @@ z80_byte (*lee_puerto)(z80_byte puerto_h,z80_byte puerto_l);
 void (*out_port)(z80_int puerto,z80_byte value);
 z80_byte (*fetch_opcode)(void);
 
+void (*push_valor)(z80_int valor,z80_byte tipo); 
+
 z80_byte lee_puerto_teclado(z80_byte puerto_h);
 z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l);
 
@@ -450,6 +452,56 @@ void neg(void)
         reg_a=0;
 	sub_a_reg(tempneg);
 }
+
+
+
+//Comun al generar interrupcion en im0/1
+void cpu_common_jump_im01(void)
+{
+	//if (im_mode==0 || im_mode==1) {
+	reg_pc=56;
+	t_estados += 7;
+
+
+	//Im modo 0 la interrupción es un t-estado más rápido que con Im modo 1, en cpu mostek
+
+	if (im_mode==0 && z80_cpu_current_type==Z80_TYPE_MOSTEK) t_estados--;
+}
+
+
+//Rutinas de cpu core vacias para que, al parsear breakpoints del config file, donde aun no hay inicializada maquina,
+//funciones como opcode1=XX , peek(x), etc no peten porque utilizan funciones peek. Inicializar también las de puerto por si acaso
+
+z80_byte peek_byte_vacio(z80_int dir GCC_UNUSED)
+{
+	return 0;
+}
+
+void poke_byte_vacio(z80_int dir GCC_UNUSED,z80_byte valor GCC_UNUSED)
+{
+
+}
+
+
+z80_byte lee_puerto_vacio(z80_byte puerto_h GCC_UNUSED,z80_byte puerto_l GCC_UNUSED)
+{
+	return 0;
+}
+
+
+void out_port_vacio(z80_int puerto GCC_UNUSED,z80_byte value GCC_UNUSED)
+{
+
+}
+
+z80_byte fetch_opcode_vacio(void)
+{
+	return 0;
+}
+
+
+
+
 
 void poke_byte_no_time_spectrum_48k(z80_int dir,z80_byte valor)
 {
@@ -1466,17 +1518,14 @@ z80_byte *zxuno_return_segment_memory(z80_int dir)
 	int segmento;
 	z80_byte *puntero;
 
-	segmento=dir/16384;
-	puntero=zxuno_memory_paged_new[segmento];
+	segmento=dir/8192;
+	puntero=zxuno_memory_paged_brandnew[segmento];
 	return puntero;
 }
 
 void poke_byte_no_time_zxuno(z80_int dir,z80_byte valor)
 {
-	//int segmento;
 	z80_byte *puntero;
-	//segmento=dir / 16384;
-
 
 	puntero=zxuno_return_segment_memory(dir);
 
@@ -1486,7 +1535,7 @@ void poke_byte_no_time_zxuno(z80_int dir,z80_byte valor)
 		//Si no es rom
 		if (dir>16383) {
 			//printf ("Poke bootm %X %X\n",dir,valor);
-			dir = dir & 16383;
+			dir = dir & 8191;
 
 			puntero=puntero+dir;
 			*puntero=valor;
@@ -1502,7 +1551,7 @@ void poke_byte_no_time_zxuno(z80_int dir,z80_byte valor)
 set_visualmembuffer(dir);
 
 #endif
-			dir = dir & 16383;
+			dir = dir & 8191;
 			puntero=puntero+dir;
 			*puntero=valor;
 		}
@@ -1543,7 +1592,7 @@ z80_byte peek_byte_no_time_zxuno(z80_int dir)
 
 				puntero=zxuno_return_segment_memory(dir);
 
-				dir = dir & 16383;
+				dir = dir & 8191;
 				puntero=puntero+dir;
 
 				return *puntero;
@@ -2085,13 +2134,14 @@ void poke_byte_no_time_baseconf(z80_int dir,z80_byte valor)
 		puntero=baseconf_return_segment_memory(dir);
 
 
-		if (dir<16384) {
+		//if (dir<16384) {
+	//return;
 
 			if (baseconf_memory_segments_type[dir/16384]==0) {
 				//0 rom
 				return;
 			}
-		}
+		//}
 
 		dir = dir & 16383;
 		puntero=puntero+dir;
@@ -2121,6 +2171,9 @@ int segmento;
 
 z80_byte peek_byte_no_time_baseconf(z80_int dir)
 {
+
+	lee_byte_evo_aux(dir);
+
 	#ifdef EMULATE_VISUALMEM
 		set_visualmemreadbuffer(dir);
 	#endif
@@ -2517,10 +2570,11 @@ z80_byte lee_puerto_cpc_no_time(z80_byte puerto_h,z80_byte puerto_l GCC_UNUSED)
 
 	//Controladora 8255 PPI
 	if ((puerto_h & 8)==0) {
+		//printf ("Leyendo puerto cpc %02XH\n",puerto_h);
 		return cpc_in_ppi(puerto_h);
 	}
 
-
+	//printf ("Returning unused cpc port %02X%02XH\n",puerto_h,puerto_l);
 	return 255;
 
 }
@@ -3183,6 +3237,39 @@ z80_int pop_valor()
         return valor;
 
 }
+
+//Tener en cuenta los valores de tipo para los strings:
+/*enum push_value_type {
+	PUSH_VALUE_TYPE_DEFAULT=0,
+	PUSH_VALUE_TYPE_CALL,
+	PUSH_VALUE_TYPE_RST,
+	PUSH_VALUE_TYPE_PUSH,
+	PUSH_VALUE_TYPE_MASKABLE_INTERRUPT,
+        PUSH_VALUE_TYPE_NON_MASKABLE_INTERRUPT
+};
+*/
+
+char *push_value_types_strings[TOTAL_PUSH_VALUE_TYPES]={
+	"default",
+	"call",
+	"rst",
+	"push",
+	"maskable_interrupt",
+	"non_maskable_interrupt"
+};
+
+
+
+//En la funcion por defecto no usamos el tipo
+//El tipo realmente sera un valor en el rango del enum de push_value_type
+//lo pongo como z80_byte y no como enum porque luego al activar extended_stack, las funciones de nested
+//requieren que ese parametro sea z80_byte
+void push_valor_default(z80_int valor,z80_byte tipo GCC_UNUSED) 
+{ 
+        reg_sp -=2; 
+        poke_word(reg_sp,valor); 
+} 
+
 
 
 z80_byte rlc_valor_comun(z80_byte value)
@@ -4125,6 +4212,8 @@ z80_byte lee_puerto_zx80_no_time(z80_byte puerto_h,z80_byte puerto_l)
 	debug_fired_in=1;
 	z80_byte valor;
 
+	z80_int puerto=value_8_to_16(puerto_h,puerto_l);
+
 	//xx1D Zebra Joystick                          - - - F R L D U   (0=Pressed)
 	if ( puerto_l==0x1d) {
 		 if (joystick_emulation==JOYSTICK_ZEBRA) {
@@ -4288,6 +4377,11 @@ z80_byte lee_puerto_zx80_no_time(z80_byte puerto_h,z80_byte puerto_l)
 
 	}
 
+	//ZEsarUX ZXI ports
+	if (hardware_debug_port.v) {
+		if (puerto==ZESARUX_ZXI_ZX8081_PORT_REGISTER) return zesarux_zxi_read_last_register();
+		if (puerto==ZESARUX_ZXI_ZX8081_PORT_DATA)     return zesarux_zxi_read_register_value();
+    	}
 
 
 
@@ -5889,8 +5983,8 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
 
 	*/
 
-	//kempston mouse
-	if ( kempston_mouse_emulation.v  &&  (puerto_l&32) == 0  &&  ( (puerto_h&7)==3 || (puerto_h&7)==7 || (puerto_h&2)==2 ) ) {
+	//kempston mouse. Solo con menu cerrado
+	if ( !menu_abierto && kempston_mouse_emulation.v  &&  (puerto_l&32) == 0  &&  ( (puerto_h&7)==3 || (puerto_h&7)==7 || (puerto_h&2)==2 ) ) {
 		//printf ("kempston mouse. port 0x%x%x\n",puerto_h,puerto_l);
 
 //IN 64479 - return X axis (0-255)
@@ -5927,6 +6021,10 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
 			if (mouse_left) acumulado &=(255-2);
                         //right button
                         if (mouse_right) acumulado &=(255-1);
+                        
+                        //en Next, bits altos se usan para wheel, como no los emulamos, a 0
+                        //https://specnext.dev/wiki/Kempston_Mouse_Buttons
+                        if (MACHINE_IS_TBBLUE) acumulado &=0x0F;
                 }
 
 		//printf ("devolvemos valor: %d\n",acumulado);
@@ -5997,7 +6095,13 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
 		//sea 0 antes de empezar
 		// http://devnext.referata.com/wiki/UART_TX
 		// https://www.specnext.com/the-next-on-the-network/
-		if (puerto==TBBLUE_UART_RX_PORT) return 0;
+		//if (puerto==TBBLUE_UART_RX_PORT) return 0;
+
+
+		if (puerto==TBBLUE_UART_RX_PORT) return tbblue_uartbridge_readdata();
+
+		//puerto estado es el de escritura pero en lectura
+		if (puerto==TBBLUE_UART_TX_PORT) return tbblue_uartbridge_readstatus();
 
 		//TODO puerto segundo joystick. De momento retornar 0
 		if (puerto==TBBLUE_SECOND_KEMPSTON_PORT) return 0;
@@ -6115,7 +6219,7 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
         }
 
 	//Puerto Timex Paginacion
-        if (puerto_l==0xf4 && (MACHINE_IS_CHLOE || MACHINE_IS_TIMEX_TS2068 || MACHINE_IS_PRISM) ) {
+        if (puerto_l==0xf4 && (MACHINE_IS_CHLOE || MACHINE_IS_TIMEX_TS2068 || MACHINE_IS_PRISM || is_zxuno_chloe_mmu() ) ) {
 		return timex_port_f4;
 
         }
@@ -6157,13 +6261,27 @@ Bit 5 If set disable Chrome features ( reading/writing to port 1FFDh, reading fr
 		if (puerto==8189) return puerto_8189;
 	}
 
+		if (MACHINE_IS_PENTAGON) {
+					if (puerto==0xeff7) return puerto_eff7;
+				}	
+
 	if (MACHINE_IS_TSCONF) {
 
 		//Puertos nvram
-		if (puerto==0xeff7) return zxevo_last_port_eff7;
+		if (puerto==0xeff7) return puerto_eff7;
 		if (puerto==0xdff7) return zxevo_last_port_dff7;
 		if (puerto==0xbff7) return zxevo_nvram[zxevo_last_port_dff7];
 		if (puerto_l==0xaf) return tsconf_get_af_port(puerto_h);
+
+		//Puertos ZIFI
+		if (puerto==TSCONF_ZIFI_ERROR_REG) return tsconf_zifi_read_error_reg();
+		if (puerto==TSCONF_ZIFI_DATA_REG) return tsconf_zifi_read_data_reg();
+		if (puerto==TSCONF_ZIFI_INPUT_FIFO_STATUS) return tsconf_zifi_read_input_fifo_status(); 
+		if (puerto==TSCONF_ZIFI_OUTPUT_FIFO_STATUS) return tsconf_zifi_read_output_fifo_status(); 
+
+		//Puerto desconocido pero que usa la demo zifi. Tambien lo usa en escritura pero no se como va
+		if (puerto==0x57) return tsconf_read_port_57();
+
 
 		//Otros puertos
 		//printf ("Leyendo puerto %04XH\n",puerto);
@@ -6171,28 +6289,35 @@ Bit 5 If set disable Chrome features ( reading/writing to port 1FFDh, reading fr
 	}
 
 	if (MACHINE_IS_BASECONF) {
-		//printf ("Baseconf reading port %04XH\n",puerto);
+		//printf ("Baseconf reading port %04XH on pc=%04XH\n",puerto,reg_pc);
 
 		//Puertos nvram. TODO gestion puertos shadow
-		if (puerto==0xeff7 && !baseconf_shadow_ports_available() ) return zxevo_last_port_eff7;
+		if (puerto==0xeff7 /*&& !baseconf_shadow_ports_available()*/ ) return puerto_eff7;
 
-		if (puerto==0xdff7 && !baseconf_shadow_ports_available() ) return zxevo_last_port_dff7;
-		if (puerto==0xdef7 && baseconf_shadow_ports_available() ) return zxevo_last_port_dff7;
+		if (puerto==0xdff7 /*&& !baseconf_shadow_ports_available()*/ ) return zxevo_last_port_dff7;
+		if (puerto==0xdef7 /*&& baseconf_shadow_ports_available()*/ ) return zxevo_last_port_dff7;
 
-		if (puerto==0xbff7 && !baseconf_shadow_ports_available() ) {
+		if (puerto==0xbff7 /*&& !baseconf_shadow_ports_available()*/ ) {
 			//printf ("baseconf reading nvram register %02XH\n",zxevo_last_port_dff7);
+			//return zxevo_nvram[zxevo_last_port_dff7];
+
+
+			return (puerto_eff7 & 0x80) ? zxevo_nvram[zxevo_last_port_dff7] : 0xff;
+		}
+
+        if ( (puerto&0x00FF)==0xBF ) {
+               return baseconf_last_port_bf;
+        }        
+
+
+
+		if (puerto==0xbef7 /*&& baseconf_shadow_ports_available()*/ ) {
+			//printf ("baseconf reading nvram register %02XH\n",zxevo_last_port_dff7);
+
 			return zxevo_nvram[zxevo_last_port_dff7];
 		}
-		if (puerto==0xbef7 && baseconf_shadow_ports_available() ) {
-			//printf ("baseconf reading nvram register %02XH\n",zxevo_last_port_dff7);
 
-			//prueba chorra
-			/*if (zxevo_last_port_dff7==0xef) {
-				printf ("retornando 3\n");
-				return 3;
-			}*/
-			return zxevo_nvram[zxevo_last_port_dff7];
-		}
+		printf ("Baseconf reading unhandled port %04XH on pc=%04XH\n",puerto,reg_pc);
 
 	}
 
@@ -6735,6 +6860,15 @@ void out_port_spectrum_border(z80_int puerto,z80_byte value)
 			i=t_estados;
                         //printf ("t_estados %d screen_testados_linea %d bord: %d\n",t_estados,screen_testados_linea,i);
 
+						//Con esto se ve la ukflag, la confusio y la rage se ven perfectas
+						if (pentagon_timing.v) i -=2;
+
+						else {
+							//Maquinas no pentagon, pero de 128k
+							//esto hace que se vea bien la ula128 y scroll2017							
+							if (MACHINE_IS_SPECTRUM_128_P2) i+=2;
+						}
+
 			//Este i>=0 no haria falta en teoria
 			//pero ocurre a veces que justo al activar rainbow, t_estados_linea_actual tiene un valor descontrolado
                         if (i>=0 && i<CURRENT_FULLBORDER_ARRAY_LENGTH) {
@@ -6896,7 +7030,8 @@ Port: 10-- ---- ---- --0-
 			//ver si paginacion desactivada
 			//if (puerto_32765 & 32) return;
 
-			if ((puerto_32765 & 32)==0) {
+			//if ((puerto_32765 & 32)==0) {
+			if (mem_paging_is_enabled()) {
 
 				puerto_32765=value;
 				//Paginar RAM y ROM
@@ -6912,7 +7047,7 @@ Port: 10-- ---- ---- --0-
 
 
 
-                }
+        }
 	}
 
 	if (MACHINE_IS_SPECTRUM_P2A_P3)
@@ -6962,7 +7097,7 @@ Port: 10-- ---- ---- --0-
         	        if ( (puerto & 49154) == 16384 ) {
                 	        zxuno_p2a_write_page_port(puerto,value);
 
-	                        //return;
+	                        
         	        }
 
 	                //Puerto tipicamente 8189
@@ -6970,7 +7105,7 @@ Port: 10-- ---- ---- --0-
         	        // the hardware will respond to all port addresses with bit 1 reset, bit 12 set and bits 13, 14 and 15 reset).
 	                if ( (puerto & 61442 )== 4096) {
         	                zxuno_p2a_write_page_port(puerto,value);
-	                        //return;
+	                        
         	        }
 
 
@@ -6989,7 +7124,7 @@ Port: 10-- ---- ---- --0-
                                 //zxuno_p2a_write_page_port(puerto,value);
 				//printf ("Paginacion 32765 con bootm activo\n");
 
-                                //return;
+                               
                         }
 
                         //Puerto tipicamente 8189
@@ -7202,6 +7337,22 @@ acts as expected unless this registe is explicitly changed by the user/software.
 
 				}
 
+				if (MACHINE_IS_PENTAGON) {
+					if (puerto==0xeff7) {
+						z80_byte estado_antes=puerto_eff7 & 1;
+						puerto_eff7=value;
+						
+						//splash si el modo esta disponible
+						if (pentagon_16c_mode_available.v) {
+
+						if ( (value&1) != estado_antes) {
+							if (value) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling 16C mode");
+							else screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Disabling 16C mode");
+						}
+						}
+					}
+				}
+
 
 				//Puertos de Paginacion
 				if (MACHINE_IS_TSCONF)
@@ -7259,13 +7410,13 @@ acts as expected unless this registe is explicitly changed by the user/software.
 			    }
 
 					//Puertos NVRAM
-					if (puerto==0xeff7) zxevo_last_port_eff7=value;
+					if (puerto==0xeff7) puerto_eff7=value;
 					if (puerto==0xdff7) zxevo_last_port_dff7=value;
 
 
 					if (puerto==0xbff7) {
 						//Si esta permitida la escritura
-						if (zxevo_last_port_eff7&128) zxevo_nvram[zxevo_last_port_dff7]=value;
+						if (puerto_eff7&128) zxevo_nvram[zxevo_last_port_dff7]=value;
 					}
 
 					if (puerto_l==0xaf) tsconf_write_af_port(puerto_h,value);
@@ -7321,11 +7472,14 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 						mmc_write(value);
 					}
 
+					//Puertos ZIFI
+					if (puerto==TSCONF_ZIFI_COMMAND_REG) tsconf_zifi_write_command_reg(value);
+					if (puerto==TSCONF_ZIFI_DATA_REG) tsconf_zifi_write_data_reg(value);
 
 
 
 					//Otros puertos en escritura, hacer debug
-					if ( (puerto & 32770) != 0 && puerto_l!=0xFE ) {
+					if ( (puerto & 32770) != 0 && puerto_l!=0xFE && puerto_l!=0xAF) {
 						//printf ("Writing TSConf port %04XH value %02XH\n",puerto,value);
 					}
 				}
@@ -7353,21 +7507,11 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 
                         //Puerto tipicamente 32765
                         // the hardware will respond only to those port addresses with
-												//bit 1 reset, bit 14 set and bit 15 reset (as opposed to just bits 1 and 15 reset on the 128K/+2).
-                        if ( (puerto & 49154) == 16384 ) {
-				//printf ("TBBLUE changing port 32765 value=0x%02XH\n",value);
-                                puerto_32765=value;
-
-				//para indicar a la MMU la  pagina en los segmentos 6 y 7
-				tbblue_registers[80+6]=(value&7)*2;
-				tbblue_registers[80+7]=(value&7)*2+1;
-
-				//En rom entra la pagina habitual de modo 128k, evitando lo que diga la mmu
-				tbblue_registers[80]=255;
-				tbblue_registers[81]=255;
-
-                                tbblue_set_memory_pages();
-                        }
+						//bit 1 reset, bit 14 set and bit 15 reset (as opposed to just bits 1 and 15 reset on the 128K/+2).
+        if ( (puerto & 49154) == 16384 ) {
+				tbblue_out_port_32765(value);
+				
+        }
 
 
                         //Puerto tipicamente 8189
@@ -7396,6 +7540,8 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 
                 if (puerto==DS1307_PORT_CLOCK) ds1307_write_port_clock(value);
                 if (puerto==DS1307_PORT_DATA) ds1307_write_port_data(value);
+
+		if (puerto==TBBLUE_UART_TX_PORT) tbblue_uartbridge_writedata(value);				
 
 
 	}
@@ -7536,54 +7682,12 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 
 	//Puerto Timex Video. 8 bit bajo a ff
 	if (timex_video_emulation.v && puerto_l==0xFF) {
-
-		if ( (timex_port_ff&7)!=(value&7)) {
-	                char mensaje[200];
-
-			if ((value&7)==0) sprintf (mensaje,"Setting Timex Video Mode 0 (standard screen 0)");
-			else if ((value&7)==1) sprintf (mensaje,"Setting Timex Video Mode 1 (standard screen 1)");
-			else if ((value&7)==2) sprintf (mensaje,"Setting Timex Video Mode 2 (hires colour 8x1)");
-			else if ((value&7)==6) {
-				if ( (zoom_x&1)==0 && timex_mode_512192_real.v) {
-					sprintf (mensaje,"Setting Timex Video Mode 6 (512x192 monochrome)");
-				}
-
-				else if (MACHINE_IS_PRISM || MACHINE_IS_TBBLUE) {
-					sprintf (mensaje,"Setting Timex Video Mode 6 (512x192 monochrome)");
-                                }
-
-				else {
-					sprintf (mensaje,"Timex Video Mode 6 (512x192 monochrome) needs Timex Real 512x192 setting enabled and horizontal zoom even. Reducing to 256x192");
-				}
-			}
-                        else sprintf (mensaje,"Setting Unknown Timex Video Mode %d",value);
-
-                	screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
-		}
-
-        	if ((value&7)==6) {
-                        //Indicar que se ha puesto modo timex en alguna parte del frame
-	                //timex_ugly_hack_last_hires=t_estados/screen_testados_linea;
-        	        //printf ("estableciendo modo timex en y: %d\n",timex_ugly_hack_last_hires);
-        	}
-
-
-		z80_byte last_timex_port_ff=timex_port_ff;
-		timex_port_ff=value;
-		//Color del border en modo timex hi-res sale de aqui
-		//Aunque con esto avisamos que el color del border en modo 512x192 se puede haber modificado
-		modificado_border.v=1;
-		if (last_timex_port_ff!=timex_port_ff) clear_putpixel_cache(); //porque se puede cambiar de modo, borrar la putpixel cache
-
-		if (MACHINE_IS_CHLOE_280SE) chloe_set_memory_pages();
-		if (MACHINE_IS_PRISM) prism_set_memory_pages();
-		if (MACHINE_IS_TIMEX_TS2068) timex_set_memory_pages();
-
+		set_timex_port_ff(value);
 	}
 
 
 	//Puerto Timex Paginacion
-	if (puerto_l==0xf4 && (MACHINE_IS_CHLOE || MACHINE_IS_TIMEX_TS2068 || MACHINE_IS_PRISM) ) {
+	if (puerto_l==0xf4 && (MACHINE_IS_CHLOE || MACHINE_IS_TIMEX_TS2068 || MACHINE_IS_PRISM || is_zxuno_chloe_mmu()) ) {
 
 		//Si prism y puerto f4 desactivado
 		if (MACHINE_IS_PRISM) {
@@ -7602,6 +7706,7 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 		if (MACHINE_IS_CHLOE_280SE) chloe_set_memory_pages();
 		if (MACHINE_IS_PRISM) prism_set_memory_pages();
 		if (MACHINE_IS_TIMEX_TS2068) timex_set_memory_pages();
+		if (is_zxuno_chloe_mmu() ) zxuno_set_memory_pages();
 
         }
 

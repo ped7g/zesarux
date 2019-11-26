@@ -24,7 +24,7 @@
 #include <curses.h>
 #include <string.h>
 #include <unistd.h>
-
+ 
 
 #include "cpu.h"
 #include "scrcurses.h"
@@ -44,6 +44,12 @@
 #include "tsconf.h"
 #include "settings.h"
 #include "chloe.h"
+#include "timex.h"
+#include "compileoptions.h"
+
+#ifdef COMPILE_CURSESW
+	#include "cursesw_ext.h"
+#endif
 
 
 #define CURSES_IZQ_BORDER 4
@@ -64,6 +70,15 @@ void scrcurses_z88_cpc_load_keymap(void)
 {
 	debug_printf (VERBOSE_INFO,"Loading keymap");
 }
+
+void scrcurses_putpixel_final_rgb(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color_rgb GCC_UNUSED)
+{
+}
+
+void scrcurses_putpixel_final(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color GCC_UNUSED)
+{
+}
+
 
 
 //no hacer nada
@@ -581,17 +596,18 @@ void scrcurses_refresca_pantalla_no_rainbow(void)
 
                                 inv=0;
 
+								//Calculamos valor pixel, para artistico o para cursesw
+ 								valor_get_pixel=0;
+								if (scr_get_4pixel(x*8,y*8)>=umbral_arttext) valor_get_pixel+=1;
+								if (scr_get_4pixel(x*8+4,y*8)>=umbral_arttext) valor_get_pixel+=2;
+								if (scr_get_4pixel(x*8,y*8+4)>=umbral_arttext) valor_get_pixel+=4;
+								if (scr_get_4pixel(x*8+4,y*8+4)>=umbral_arttext) valor_get_pixel+=8;								
+
 
                                 if (texto_artistico.v==1) {
                                         //si caracter desconocido, hacerlo un poco mas artistico
-                                        valor_get_pixel=0;
-                                        if (scr_get_4pixel(x*8,y*8)>=umbral_arttext) valor_get_pixel+=1;
-                                        if (scr_get_4pixel(x*8+4,y*8)>=umbral_arttext) valor_get_pixel+=2;
-                                        if (scr_get_4pixel(x*8,y*8+4)>=umbral_arttext) valor_get_pixel+=4;
-                                        if (scr_get_4pixel(x*8+4,y*8+4)>=umbral_arttext) valor_get_pixel+=8;
-
                                         caracter=caracteres_artisticos[valor_get_pixel];
-       				}
+       							}
 
                                 else caracter='?';
 
@@ -599,8 +615,24 @@ void scrcurses_refresca_pantalla_no_rainbow(void)
 
                                 move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
                                 //addch('~'|brillo);
-                                if (inv) addch(caracter | WA_REVERSE | brillo );
-                                else addch(caracter|brillo);
+
+								int going_to_use_cursesw=0;
+#ifdef COMPILE_CURSESW
+	//Solo usarlo si esta compilado y el setting esta activo
+								if (use_scrcursesw.v) going_to_use_cursesw=1;
+#endif
+
+
+								if (going_to_use_cursesw) {
+#ifdef COMPILE_CURSESW									
+									cursesw_ext_print_pixel(valor_get_pixel);
+#endif
+								}
+
+								else {
+                                	if (inv) addch(caracter | WA_REVERSE | brillo );
+                                	else addch(caracter|brillo);
+								}
 
                         }
 
@@ -625,8 +657,6 @@ void scrcurses_refresca_pantalla_chloe(void)
 
         //int parpadeo;
 
-	int brillo;
-
         //char caracteres_artisticos[]=" ''\".|/r.\\|7_LJ#";
 
 	z80_byte *chloe_screen;
@@ -634,6 +664,29 @@ void scrcurses_refresca_pantalla_chloe(void)
           chloe_screen=chloe_home_ram_mem_table[7];
 
 	chloe_screen += (0xd800-0xc000); //text display in offset d800 in ram 7
+
+	//Colores chloe
+	//int papel=get_timex_paper_mode6_color();
+	//int tinta=get_timex_ink_mode6_color();
+	int brillo=0;
+	int parpadeo=0;
+
+	//unsigned char atributo=brillo*64+papel*8+tinta;
+
+	unsigned char atributo_ega=peek_byte_no_time(23693);
+	//High four bits are foreground, low four bits are background
+	int papel=atributo_ega&7;
+	int tinta=(atributo_ega>>4)&7;
+	//En curses solo tenemos 8 colores. Descartamos brillo pues no lo hace bien la consola
+
+
+
+	papel=screen_ega_to_spectrum_colour(papel);
+	tinta=screen_ega_to_spectrum_colour(tinta);
+
+	unsigned char atributo=tinta+papel*8;
+
+	//in normal video do OUT 255,6. and you can do COLOR f,b
 
           for (y=0;y<24;y++) {
                 for (x=0;x<80;x++,chloe_screen++) {
@@ -644,15 +697,16 @@ void scrcurses_refresca_pantalla_chloe(void)
 			brillo=0;
 			inv=0;
 
-			/*
+			
 
                         if (colores) {
-                          asigna_color(x,y,&brillo,&parpadeo);
+                          //(x,y,&brillo,&parpadeo);
+			  asigna_color_atributo(atributo,&brillo,&parpadeo);
                         }
                         else {
                           brillo=0;
                         }
-			*/
+			
 
 			if (caracter==0) {
 				//caracter='C'; //copyright character
@@ -1034,6 +1088,15 @@ void scrcurses_refresca_pantalla(void)
 	//int valor_get_pixel;
 
 
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
+
+        sem_screen_refresh_reallocate_layers=1;
+
+
 	if (MACHINE_IS_ZX8081) {
 
                 if (rainbow_enabled.v==0) {
@@ -1198,10 +1261,13 @@ void scrcurses_refresca_pantalla(void)
 
 
         //Escribir footer
-        draw_footer();
+        draw_middle_footer();
 
 
 	refresh();
+
+
+sem_screen_refresh_reallocate_layers=0;
 
 
 }
@@ -1340,7 +1406,23 @@ void scrcurses_detectedchar_print(z80_byte caracter)
 
 }
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrcurses_get_menu_width(void)
+{
+        return 32;
+}
 
+
+int scrcurses_get_menu_height(void)
+{
+        return 24;
+}
+
+
+int scrcurses_driver_can_ext_desktop (void)
+{
+        return 0;
+}
 
 int scrcurses_init (void) {
 
@@ -1396,6 +1478,10 @@ int scrcurses_init (void) {
 //		else colores=0;
 	}
 
+#ifdef COMPILE_CURSESW
+	cursesw_ext_init();
+#endif
+
 
 scr_putchar_zx8081=scrcurses_putchar_zx8081;
 scr_debug_registers=scrcurses_debug_registers;
@@ -1403,7 +1489,13 @@ scr_debug_registers=scrcurses_debug_registers;
 scr_putchar_menu=scrcurses_putchar_menu;
 scr_putchar_footer=scrcurses_putchar_footer;
 
+        scr_get_menu_width=scrcurses_get_menu_width;
+        scr_get_menu_height=scrcurses_get_menu_height;
+scr_driver_can_ext_desktop=scrcurses_driver_can_ext_desktop;
+
 scr_putpixel=scrcurses_putpixel;
+scr_putpixel_final=scrcurses_putpixel_final;
+scr_putpixel_final_rgb=scrcurses_putpixel_final_rgb;
 
 
 scr_set_fullscreen=scrcurses_set_fullscreen;
@@ -1553,6 +1645,12 @@ void scrcurses_actualiza_tablas_teclado(void)
 
                                         }
 		}
+		
+		//simular esc en menu con @
+		if (c=='@' && menu_abierto) {
+		  util_set_reset_key(UTIL_KEY_ESC,1);
+		  return;
+		}
 
 		if (c==KEY_F(1)) {
 			util_set_reset_key(UTIL_KEY_F1,1);
@@ -1601,29 +1699,52 @@ void scrcurses_actualiza_tablas_teclado(void)
 
 
 		switch (c) {
+			        /*case KEY_HOME:
+							joystick_set_fire();
+                    break;
+
+					case KEY_LEFT:
+							joystick_set_left();
+							blink_kbd_a12 &= (255-64);
+					break;
+
+					case KEY_RIGHT:
+							joystick_set_right();
+							blink_kbd_a11 &= (255-64);
+					break;
+
+					case KEY_DOWN:
+							joystick_set_down();
+							blink_kbd_a10 &= (255-64);
+					break;
+
+					case KEY_UP:
+							joystick_set_up();
+							blink_kbd_a9 &= (255-64);
+					break;*/
+
+
+
 			        case KEY_HOME:
-                                        joystick_set_fire();
-                                break;
+							util_set_reset_key(UTIL_KEY_HOME,1);
+                    break;
 
-                                case KEY_LEFT:
-                                        joystick_set_left();
-                           		blink_kbd_a12 &= (255-64);
-                                break;
+					case KEY_LEFT:
+							util_set_reset_key(UTIL_KEY_LEFT,1);
+					break;
 
-                                case KEY_RIGHT:
-                                        joystick_set_right();
-					blink_kbd_a11 &= (255-64);
-                                break;
+					case KEY_RIGHT:
+							util_set_reset_key(UTIL_KEY_RIGHT,1);
+					break;
 
-                                case KEY_DOWN:
-                                        joystick_set_down();
-					blink_kbd_a10 &= (255-64);
-                                break;
+					case KEY_DOWN:
+							util_set_reset_key(UTIL_KEY_DOWN,1);
+					break;
 
-                                case KEY_UP:
-                                        joystick_set_up();
-					blink_kbd_a9 &= (255-64);
-                                break;
+					case KEY_UP:
+							util_set_reset_key(UTIL_KEY_UP,1);
+					break;
+
 
                                 case KEY_BACKSPACE:
 				//En algunos terminales, como Mac, genera 127

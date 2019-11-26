@@ -1,0 +1,29 @@
+
+
+--- Accesibilidad ---
+
+-tecla para accessibilidad, para poder escuchar contenido de una ventana de menu: quiza misma tecla asociada a OCR. que ademas envie ese texto al portapapeles o algun archivo
+para poderlo inspeccionar despues
+
+-Speech:
+-enter le envia siempre speech pending. normal?
+-en speech de mac, en english, al enviar opcion "yes/no", la "No" dice: "No. N"->eso lo traduce como "Number N"
+-Tecla escape debería hacer break cuando se está escuchando speech
+O quizá setting configurable 
+
+-relee item menu cuando estas sobre item que no tiene tooltip. Ver codigo:
+-				//TODO: esto no tiene efecto, sigue releyendo cuando estas sobre item que no tiene tooltip
+				//menu_speech_tecla_pulsada=1;	
+
+-settings activados con [X] se leen raro, con equis: ejemplo: "ex CPC mode" (activado), o "CPC mode" (desactivado)
+
+-script de mac say no reproduce lineas que empiezan por "--", como algunas lineas del FAQ
+
+-al leer lineas con varios hotkeys, solo lee el ultimo hotkey
+
+
+-Misma tecla F definida como ocr que en ZX Vision haga ocr+speech también. Así se pueden leer siempre los menus
+-Grabar vídeo text speech completo
+
+-Speech al moverse por líneas de menú se escucha antes de que se mueva el cursor. Por que?
+-speech: sin multitask, a veces se descuadra la linea de menu que lee. ejemplo: ir a accessibility settings, y cuando este leyendo "active item..." pulsar tecla. Creo que esto pasa desde siempre

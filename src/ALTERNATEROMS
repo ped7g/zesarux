@@ -9,6 +9,10 @@ http://sourceforge.net/projects/sebasic/
 alternaterom_sebasic4_rom1.rom SEBASIC standalone ROM 1 supporting the normal 32x24 mode, Version 4.1.0, For Spectrum 48K
 https://github.com/cheveron/sebasic4/wiki
 
+alternaterom_derby_p_32K.rom, alternaterom_derby_pp_64K.rom: Derby+ and Derby++ roms, for Spectrums with 128KB of RAM
+and 32K or 64 KB of ROM
+https://zx.itch.io/derbypro
+
 
 alternaterom_plus3e_mmcen3eE.rom  alternaterom_plus3e_mmces3eE.rom
 +3e ROMs v1.38. For Spectrum +2A/+3 models

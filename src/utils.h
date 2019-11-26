@@ -24,6 +24,8 @@
 
 #include "cpu.h"
 #include "compileoptions.h"
+#include "menu.h"
+#include "expression_parser.h"
 
 #include <stdio.h>
 #include <dirent.h>
@@ -60,7 +62,6 @@ extern void open_sharedfile(char *archivo,FILE **f);
 
 //128 kb
 #define MAX_SIZE_CONFIG_FILE 131072
-//65535
 
 extern void get_compile_info(char *s);
 
@@ -258,7 +259,7 @@ enum util_teclas
 	UTIL_KEY_BACKSPACE,
 	UTIL_KEY_HOME,
 	UTIL_KEY_LEFT,
-	UTIL_KEY_RIGHT,
+	UTIL_KEY_RIGHT,   
 	UTIL_KEY_DOWN,
 	UTIL_KEY_UP,
 	UTIL_KEY_TAB,
@@ -299,7 +300,14 @@ enum util_teclas
 	UTIL_KEY_KP9,
 	UTIL_KEY_KP_COMMA,
 	UTIL_KEY_KP_ENTER,
-	UTIL_KEY_WINKEY
+	UTIL_KEY_WINKEY,
+
+	//Estos 5 son para enviar eventos de joystick mediante ZENG
+	UTIL_KEY_JOY_FIRE,
+	UTIL_KEY_JOY_UP,
+	UTIL_KEY_JOY_DOWN,
+	UTIL_KEY_JOY_LEFT,
+	UTIL_KEY_JOY_RIGHT
 };
 
 //valores usados en funcion util_set_reset_key_z88_keymap
@@ -378,7 +386,10 @@ extern void util_set_reset_key_cpc_keymap(enum util_teclas_cpc_keymap tecla,int 
 extern void util_set_reset_key_chloe_keymap(enum util_teclas_chloe_keymap tecla,int pressrelease);
 extern void util_set_reset_key_common_keymap(enum util_teclas_common_keymap tecla,int pressrelease);
 
+
+
 extern unsigned int parse_string_to_number(char *texto);
+extern unsigned int parse_string_to_number_get_type(char *texto,enum token_parser_formato *tipo_valor);
 
 //#define TMPDIR_BASE "/tmp/zesarux"
 
@@ -406,6 +417,7 @@ extern int convert_tap_to_rwa(char *origen, char *destino);
 
 extern int convert_any_to_wav(char *origen, char *destino);
 
+extern int convert_hdf_to_raw(char *origen, char *destino);
 
 extern z80_bit quickload_guessing_tzx_type;
 
@@ -432,7 +444,7 @@ extern int si_ruta_absoluta(char *ruta);
 extern int get_file_type(int d_type, char *nombre);
 
 extern char external_tool_sox[];
-extern char external_tool_unzip[];
+//extern char external_tool_unzip[];
 extern char external_tool_gunzip[];
 extern char external_tool_tar[];
 extern char external_tool_unrar[];
@@ -538,6 +550,27 @@ struct s_subzone_info
 
 typedef struct s_subzone_info subzone_info;
 
+#define MAX_CONFIG_WINDOW_GEOMETRY 100
+
+//Tabla para guardar configuracion de geometria de ventanas
+struct s_saved_config_window_geometry 
+{
+	char nombre[100];
+	int x,y,ancho,alto;
+};
+
+typedef struct s_saved_config_window_geometry saved_config_window_geometry;
+
+extern int total_config_window_geometry;
+
+extern int util_find_window_geometry(char *nombre,int *x,int *y,int *ancho,int *alto);
+extern int util_add_window_geometry(char *nombre,int x,int y,int ancho,int alto);
+
+extern void util_add_window_geometry_compact(char *nombre,zxvision_window *ventana);
+
+extern void util_clear_all_windows_geometry(void);
+
+
 #define MAX_TECLAS_REDEFINIDAS 10
 extern tecla_redefinida lista_teclas_redefinidas[];
 
@@ -549,6 +582,8 @@ extern int util_add_redefinir_tecla(z80_byte p_tecla_original, z80_byte p_tecla_
 extern void clear_lista_teclas_redefinidas(void);
 
 extern void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease);
+
+extern void util_set_reset_key_continue_after_zeng(enum util_teclas tecla,int pressrelease);
 
 extern void convert_numeros_letras_puerto_teclado_continue(z80_byte tecla,int pressrelease);
 
@@ -563,6 +598,8 @@ extern char *customconfigfile;
 extern void get_machine_config_name_by_number(char *machine_name,int machine_number);
 
 extern int util_write_configfile(void);
+
+extern int util_create_sample_configfile(int additional);
 
 extern z80_bit save_configuration_file_on_exit;
 
@@ -650,6 +687,8 @@ extern void util_binary_to_ascii(z80_byte *origen, char *destino, int longitud_m
 
 extern void util_tape_get_info_tapeblock(z80_byte *tape,z80_byte flag,z80_int longitud,char *texto);
 
+extern void util_ascii_to_binary(int valor_origen,char *destino,int longitud_max);
+
 //extern void util_file_save(char *filename,z80_byte *puntero, long int tamanyo);
 
 extern int util_get_byte_repetitions(z80_byte *memoria,int longitud,z80_byte *byte_repetido);
@@ -691,6 +730,8 @@ extern int util_extract_o(char *filename,char *tempdir);
 
 extern int util_extract_tzx(char *filename,char *tempdir,char *tapfile);
 
+extern int util_extract_pzx(char *filename,char *tempdir,char *tapfile);
+
 extern int util_extract_trd(char *filename,char *tempdir);
 
 extern void util_file_append(char *filename,z80_byte *puntero, int tamanyo);
@@ -723,11 +764,107 @@ extern int util_get_available_drives(char *texto);
 
 extern int get_cpu_frequency(void);
 
+extern int util_daad_detect(void);
+extern int util_paws_detect(void);
+extern z80_int util_daad_get_start_vocabulary(void);
+extern int util_daad_dump_vocabulary(int tipo,char *texto,int max_string);
 
+extern int util_daad_get_limit_objects(void);
+extern int util_daad_get_limit_flags(void);
+
+extern int util_undaad_unpaws_is_quill(void);
+
+
+extern z80_byte util_daad_get_flag_value(z80_byte index);
+
+extern void util_daad_locate_word(z80_byte numero_palabra_buscar,z80_byte tipo_palabra_buscar,char *texto_destino);
+extern void util_daad_paws_locate_word(z80_byte numero_palabra_buscar,z80_byte tipo_palabra_buscar,char *texto_destino);
+extern int util_paws_dump_vocabulary_tostring(int tipo,char *texto,int max_string);
+extern void util_paws_locate_word(z80_byte numero_palabra_buscar,z80_byte tipo_palabra_buscar,char *texto_destino);
+
+extern z80_byte util_daad_get_object_value(z80_byte index);
+
+extern void util_daad_put_flag_value(z80_byte index,z80_byte value);
+extern void util_daad_put_object_value(z80_byte index,z80_byte value);
+
+extern z80_int util_daad_get_start_objects_names(void);
+extern z80_int util_daad_get_num_objects_description(void);
+
+extern void util_daad_get_object_description(z80_byte index,char *texto);
+
+extern int util_concat_string(char *original,char *string_to_add,int limite);
+
+extern int util_daad_is_in_parser(void);
+
+extern void util_daad_get_message_table_lookup(z80_byte index,z80_int table_dir,char *texto,int limite_mensajes);
+
+extern void util_daad_get_compressed_message(z80_byte index,char *texto);
+
+extern z80_int util_daad_get_num_user_messages(void);
+extern z80_int util_daad_get_num_sys_messages(void);
+extern z80_int util_daad_get_num_locat_messages(void);
+
+extern void util_daad_get_user_message(z80_byte index,char *texto);
+extern void util_daad_get_sys_message(z80_byte index,char *texto);
+extern void util_daad_get_locat_message(z80_byte index,char *texto);
+
+extern int util_daad_condact_uses_message(void);
+
+extern void util_daad_get_condact_message(char *buffer);
+
+extern z80_byte daad_peek(z80_int dir);
+extern void daad_poke(z80_int dir,z80_byte value);
+extern z80_int util_daad_get_pc_parser(void);
+extern z80_int util_paws_get_pc_parser(void); 
 
 #define MEMORY_ZONE_NUM_FILE_ZONE 16
 #define MEMORY_ZONE_NUM_TBBLUE_COPPER 17 
 #define MEMORY_ZONE_NUM_TIMEX_EX 18
 #define MEMORY_ZONE_NUM_TIMEX_DOCK 19
+
+#define MEMORY_ZONE_NUM_DAAD_CONDACTS 20
+#define MEMORY_ZONE_NUM_PAWS_CONDACTS 21
+#define MEMORY_ZONE_DEBUG 22
+#define MEMORY_ZONE_IFROM 23
+
+#define DAAD_PARSER_BREAKPOINT_PC_SPECTRUM 0x617c
+
+#define DAAD_PARSER_BREAKPOINT_PC_CPC 0x09b4 
+//0x14df
+
+#define DAAD_PARSER_CONDACT_BREAKPOINT 220
+
+#define PAWS_LONGITUD_PALABRAS 5
+#define QUILL_LONGITUD_PALABRAS 4
+
+extern char *util_unpaws_get_parser_name(void);
+extern char *util_undaad_unpaws_get_parser_name(void);
+extern int util_paws_is_in_parser(void);
+
+extern void util_str_add_char(char *texto,int posicion,char letra);
+extern void util_str_del_char(char *texto,int posicion);
+extern int get_file_lines(char *filename);
+
+extern char util_printable_char(char c);
+
+extern char *util_read_line(char *origen,char *destino,int size_orig,int max_size_dest,int *leidos);
+extern void util_normalize_name(char *texto);
+extern int util_download_file(char *hostname,char *url,char *archivo,int use_ssl);
+extern void util_normalize_query_http(char *orig,char *dest);
+
+extern int util_extract_scl(char *sclname, char *dest_dir);
+extern int util_extract_zip(char *zipname, char *dest_dir);
+
+extern void util_get_host_url(char *url, char *host);
+extern void util_get_url_no_host(char *url, char *url_no_host);
+extern int util_url_is_https(char *url);
+
+extern char util_return_valid_ascii_char(char c);
+
+extern int convert_pzx_to_rwa_tmpdir(char *origen, char *destino);
+extern int convert_pzx_to_rwa(char *origen, char *destino);
+
+#define PZX_CURRENT_MAJOR_VERSION 1
+#define PZX_CURRENT_MINOR_VERSION 0
 
 #endif

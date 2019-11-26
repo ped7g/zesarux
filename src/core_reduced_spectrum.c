@@ -57,6 +57,9 @@
 #include "scrstdout.h"
 #include "settings.h"
 
+#include "snap_zsf.h"
+#include "zeng.h"
+
 
 
 
@@ -73,8 +76,8 @@ void cpu_core_loop_reduced_spectrum(void)
 
 
 		if (tap_load_detect()) {
-        	                //si estamos en pausa, no hacer nada
-                	        if (!tape_pause) {
+			//si estamos en pausa, no hacer nada
+			if (!tape_pause) {
 					audio_playing.v=0;
 
 					draw_tape_text();
@@ -85,16 +88,16 @@ void cpu_core_loop_reduced_spectrum(void)
 					//printf ("refresco pantalla\n");
 					//audio_playing.v=1;
 					timer_reset();
-				}
+			}
 
-				else {
-					core_spectrum_store_rainbow_current_atributes();
-					//generamos nada. como si fuera un NOP
+			else {
+				core_spectrum_store_rainbow_current_atributes();
+				//generamos nada. como si fuera un NOP
 
-					contend_read( reg_pc, 4 );
+				contend_read( reg_pc, 4 );
 
 
-				}
+			}
 		}
 
 
@@ -118,8 +121,8 @@ void cpu_core_loop_reduced_spectrum(void)
 
 
 
-        	                        contend_read( reg_pc, 4 );
-					byte_leido_core_spectrum=fetch_opcode();
+				contend_read( reg_pc, 4 );
+				byte_leido_core_spectrum=fetch_opcode();
 
 
 
@@ -128,21 +131,21 @@ void cpu_core_loop_reduced_spectrum(void)
 				util_stats_increment_counter(stats_codsinpr,byte_leido_core_spectrum);
 #endif
 
-                                reg_pc++;
+				reg_pc++;
 
 				reg_r++;
 
 
 
 
-	                	codsinpr[byte_leido_core_spectrum]  () ;
+				codsinpr[byte_leido_core_spectrum]  () ;
 
 				//printf ("t_estados:%d\n",t_estados);
 
 			
 
-                        }
-                }
+            }
+        }
 
 
 
@@ -179,10 +182,10 @@ void cpu_core_loop_reduced_spectrum(void)
 				if (realtape_inserted.v && realtape_playing.v) {
 					realtape_get_byte();
 					if (realtape_loading_sound.v) {
-                        	        audio_valor_enviar_sonido /=2;
-                                	audio_valor_enviar_sonido += realtape_last_value/2;
-	                                //Sonido alterado cuando top speed
-        	                        if (timer_condicion_top_speed() ) audio_valor_enviar_sonido=audio_change_top_speed_sound(audio_valor_enviar_sonido);
+						audio_valor_enviar_sonido /=2;
+						audio_valor_enviar_sonido += realtape_last_value/2;
+						//Sonido alterado cuando top speed
+						if (timer_condicion_top_speed() ) audio_valor_enviar_sonido=audio_change_top_speed_sound(audio_valor_enviar_sonido);
 					}
 				}
 
@@ -236,39 +239,39 @@ void cpu_core_loop_reduced_spectrum(void)
 
 				if (rainbow_enabled.v==1) t_scanline_next_fullborder();
 
-		                t_scanline=0;
+				t_scanline=0;
 
-		                //printf ("final scan lines. total: %d\n",screen_scanlines);
-		                if (MACHINE_IS_INVES) {
-		                        //Inves
-		                        t_scanline_draw=screen_indice_inicio_pant;
-		                        //printf ("reset inves a inicio pant : %d\n",t_scanline_draw);
-		                }
+				//printf ("final scan lines. total: %d\n",screen_scanlines);
+				if (MACHINE_IS_INVES) {
+						//Inves
+						t_scanline_draw=screen_indice_inicio_pant;
+						//printf ("reset inves a inicio pant : %d\n",t_scanline_draw);
+				}
 
-		                else {
-                		        //printf ("reset no inves\n");
-					set_t_scanline_draw_zero();
+				else {
+						//printf ("reset no inves\n");
+						set_t_scanline_draw_zero();
 
-		                }
-
-
-                                //Parche para maquinas que no generan 312 lineas, porque si enviamos menos sonido se escuchara un click al final
-                                //Es necesario que cada frame de pantalla contenga 312 bytes de sonido
-                                //Igualmente en la rutina de envio_audio se vuelve a comprobar que todo el sonido a enviar
-                                //este completo; esto es necesario para Z88
+				}
 
 
-                                int linea_estados=t_estados/screen_testados_linea;
-
-                                while (linea_estados<312) {
-										audio_send_mono_sample(audio_valor_enviar_sonido);
-                                        linea_estados++;
-                                }
+				//Parche para maquinas que no generan 312 lineas, porque si enviamos menos sonido se escuchara un click al final
+				//Es necesario que cada frame de pantalla contenga 312 bytes de sonido
+				//Igualmente en la rutina de envio_audio se vuelve a comprobar que todo el sonido a enviar
+				//este completo; esto es necesario para Z88
 
 
+				int linea_estados=t_estados/screen_testados_linea;
+
+				while (linea_estados<312) {
+						audio_send_mono_sample(audio_valor_enviar_sonido);
+						linea_estados++;
+				}
 
 
-                                t_estados -=screen_testados_total;
+
+
+				t_estados -=screen_testados_total;
 
 				//Para paperboy, thelosttapesofalbion0 y otros que hacen letras en el border, para que no se desplacen en diagonal
 				//t_estados=0;
@@ -284,7 +287,7 @@ void cpu_core_loop_reduced_spectrum(void)
 
 					//TSConf lo gestiona mediante interrupciones de frame
 					if (MACHINE_IS_TSCONF) interrupcion_maskable_generada.v=0;
-				 	
+					
 
 
 				}
@@ -293,18 +296,17 @@ void cpu_core_loop_reduced_spectrum(void)
 				cpu_loop_refresca_pantalla();
 
 
-
 				siguiente_frame_pantalla();
 
 
 				if (debug_registers) scr_debug_registers();
 
-	  	                contador_parpadeo--;
-                        	//printf ("Parpadeo: %d estado: %d\n",contador_parpadeo,estado_parpadeo.v);
-	                        if (!contador_parpadeo) {
-        	                        contador_parpadeo=16;
-                	                estado_parpadeo.v ^=1;
-	                        }
+				contador_parpadeo--;
+				//printf ("Parpadeo: %d estado: %d\n",contador_parpadeo,estado_parpadeo.v);
+				if (!contador_parpadeo) {
+						contador_parpadeo=16;
+						estado_parpadeo.v ^=1;
+				}
 
 
 				if (!interrupcion_timer_generada.v) {
@@ -319,8 +321,11 @@ void cpu_core_loop_reduced_spectrum(void)
 					esperando_tiempo_final_t_estados.v=0;
 				}
 
+				core_end_frame_check_zrcp_zeng_snap.v=1;
 
 			}
+			//Fin bloque final de pantalla
+
 
 		}
 
@@ -331,16 +336,16 @@ void cpu_core_loop_reduced_spectrum(void)
 
 
 		//Interrupcion de 1/50s. mapa teclas activas y joystick
-                if (interrupcion_fifty_generada.v) {
+		if (interrupcion_fifty_generada.v) {
 			interrupcion_fifty_generada.v=0;
 
-                        //y de momento actualizamos tablas de teclado segun tecla leida
+			//y de momento actualizamos tablas de teclado segun tecla leida
 			//printf ("Actualizamos tablas teclado %d ", temp_veces_actualiza_teclas++);
-                       scr_actualiza_tablas_teclado();
+			scr_actualiza_tablas_teclado();
 
 
-                       //lectura de joystick
-                       realjoystick_main();
+			//lectura de joystick
+			realjoystick_main();
 
 			//printf ("temp conta fifty: %d\n",tempcontafifty++);
 		}
@@ -349,11 +354,11 @@ void cpu_core_loop_reduced_spectrum(void)
 		//Interrupcion de procesador y marca final de frame
 		if (interrupcion_timer_generada.v) {
 			//printf ("Generada interrupcion timer\n");
-                        interrupcion_timer_generada.v=0;
-                        esperando_tiempo_final_t_estados.v=0;
+			interrupcion_timer_generada.v=0;
+			esperando_tiempo_final_t_estados.v=0;
 			interlaced_numero_frame++;
 			//printf ("%d\n",interlaced_numero_frame);
-                }
+		}
 
 
 		//Interrupcion de cpu. gestion im0/1/2. Esto se hace al final de cada frame en spectrum o al cambio de bit6 de R en zx80/81
@@ -367,132 +372,122 @@ void cpu_core_loop_reduced_spectrum(void)
 
 			//if (interrupcion_non_maskable_generada.v) printf ("generada nmi\n");
 
-                        //ver si esta en HALT
-                        if (z80_ejecutando_halt.v) {
-                                        z80_ejecutando_halt.v=0;
-                                        reg_pc++;
-                        }
-
-			if (1==1) {
-
-					if (interrupcion_non_maskable_generada.v) {
-						debug_anota_retorno_step_nmi();
-						//printf ("generada nmi\n");
-                                                interrupcion_non_maskable_generada.v=0;
+			//ver si esta en HALT
+			if (z80_ejecutando_halt.v) {
+				z80_ejecutando_halt.v=0;
+				reg_pc++;
+			}
 
 
-                                                //NMI wait 14 estados
-                                                t_estados += 14;
+			if (interrupcion_non_maskable_generada.v) {
+				debug_anota_retorno_step_nmi();
+				//printf ("generada nmi\n");
+				interrupcion_non_maskable_generada.v=0;
 
 
-                                                z80_byte reg_pc_h,reg_pc_l;
-                                                reg_pc_h=value_16_to_8h(reg_pc);
-                                                reg_pc_l=value_16_to_8l(reg_pc);
-
-                                                //3 estados
-                                                poke_byte(--reg_sp,reg_pc_h);
-                                                //3 estados
-                                                poke_byte(--reg_sp,reg_pc_l);
+				//NMI wait 14 estados
+				t_estados += 14;
 
 
-                                                reg_r++;
-                                                iff1.v=0;
-                                                //printf ("Calling NMI with pc=0x%x\n",reg_pc);
+			
+				push_valor(reg_pc,PUSH_VALUE_TYPE_NON_MASKABLE_INTERRUPT);
 
-                                                //Otros 6 estados
-                                                t_estados += 6;
 
-                                                //Total NMI: NMI WAIT 14 estados + NMI CALL 12 estados
-                                                reg_pc= 0x66;
+				reg_r++;
+				iff1.v=0;
+				//printf ("Calling NMI with pc=0x%x\n",reg_pc);
 
-                                                //temp
+				//Otros 6 estados
+				t_estados += 6;
 
-                                                t_estados -=15;
-
-																								if (superupgrade_enabled.v) {
-																									//Saltar a NMI de ROM0. TODO: que pasa con puertos 32765 y 8189?
-																									superupgrade_puerto_43b = 0;
-																									puerto_32765=0;
-																									puerto_8189=0;
-																									superupgrade_set_memory_pages();
-																								}
-
-	
-
-					}
-
-					if (1==1) {
-					//else {
+				//Total NMI: NMI WAIT 14 estados + NMI CALL 12 estados
+				reg_pc= 0x66;
 
 				
 
+				t_estados -=15;
 
-					//justo despues de EI no debe generar interrupcion
-					//e interrupcion nmi tiene prioridad
-						if (interrupcion_maskable_generada.v && byte_leido_core_spectrum!=251) {
-
-						//printf ("Lanzada interrupcion spectrum normal\n");
-
-						debug_anota_retorno_step_maskable();
-						//Tratar interrupciones maskable
-						interrupcion_maskable_generada.v=0;
-
-						interrupcion_si_despues_lda_ir();
-
-						
-						z80_byte reg_pc_h,reg_pc_l;
-                                                reg_pc_h=value_16_to_8h(reg_pc);
-                                                reg_pc_l=value_16_to_8l(reg_pc);
-
-                                                poke_byte(--reg_sp,reg_pc_h);
-                                                poke_byte(--reg_sp,reg_pc_l);
-
-						reg_r++;
-
-						//Caso Inves. Hacer poke (I*256+R) con 255
-						if (MACHINE_IS_INVES) {
-							z80_byte reg_r_total=(reg_r&127) | (reg_r_bit7 &128);
-
-							z80_int dir=reg_i*256+reg_r_total;
-
-							poke_byte_no_time(dir,255);
-						}
-
-
-						//desactivar interrupciones al generar una
-						iff1.v=iff2.v=0;
-						//Modelos spectrum
-
-						if (im_mode==0 || im_mode==1) {
-							reg_pc=56;
-							t_estados += 7;
-						}
-						else {
-						//IM 2.
-
-						        z80_int temp_i;
-                                                        z80_byte dir_l,dir_h;
-
-							if (MACHINE_IS_TSCONF) temp_i=reg_i*256+tsconf_vector_fired_interrupt;
-
-                            else temp_i=reg_i*256+255;
-                                                        dir_l=peek_byte(temp_i++);
-                                                        dir_h=peek_byte(temp_i);
-                                                        reg_pc=value_8_to_16(dir_h,dir_l);
-                                                        t_estados += 7;
-
-
-							//Para mejorar demos ula128 y scroll2017
-							//Pero esto hace empeorar la demo ulatest3.tap
-							if (ula_im2_slow.v) t_estados++;
-						}
-
-					}
+				if (superupgrade_enabled.v) {
+					//Saltar a NMI de ROM0. TODO: que pasa con puertos 32765 y 8189?
+					superupgrade_puerto_43b = 0;
+					puerto_32765=0;
+					puerto_8189=0;
+					superupgrade_set_memory_pages();
 				}
 
 
+
+			}
+	
+
+			//justo despues de EI no debe generar interrupcion
+			//e interrupcion nmi tiene prioridad
+			if (interrupcion_maskable_generada.v && byte_leido_core_spectrum!=251) {
+
+				//printf ("Lanzada interrupcion spectrum normal\n");
+
+				debug_anota_retorno_step_maskable();
+				//Tratar interrupciones maskable
+				interrupcion_maskable_generada.v=0;
+
+				interrupcion_si_despues_lda_ir();
+		
+
+				push_valor(reg_pc,PUSH_VALUE_TYPE_MASKABLE_INTERRUPT);
+
+				reg_r++;
+
+				//Caso Inves. Hacer poke (I*256+R) con 255
+				if (MACHINE_IS_INVES) {
+					z80_byte reg_r_total=(reg_r&127) | (reg_r_bit7 &128);
+
+					z80_int dir=reg_i*256+reg_r_total;
+
+					poke_byte_no_time(dir,255);
+				}
+
+
+				//desactivar interrupciones al generar una
+				iff1.v=iff2.v=0;
+				//Modelos spectrum
+
+				if (im_mode==0 || im_mode==1) {
+					cpu_common_jump_im01();
+				}
+
+				else {
+				//IM 2.
+
+					z80_int temp_i;
+					z80_byte dir_l,dir_h;
+
+					if (MACHINE_IS_TSCONF) temp_i=reg_i*256+tsconf_vector_fired_interrupt;
+
+					else temp_i=reg_i*256+255;
+					dir_l=peek_byte(temp_i++);
+					dir_h=peek_byte(temp_i);
+					reg_pc=value_8_to_16(dir_h,dir_l);
+					t_estados += 7;
+
+
+					//Para mejorar demos ula128 y scroll2017
+					//Pero esto hace empeorar la demo ulatest3.tap
+					if (ula_im2_slow.v) t_estados++;
+				}
+
 			}
 
-    }
+		
+  	  	}
+	  	//Fin gestion interrupciones
+
+		//Aplicar snapshot pendiente de ZRCP y ZENG envio snapshots. Despues de haber gestionado interrupciones
+		if (core_end_frame_check_zrcp_zeng_snap.v) {
+			core_end_frame_check_zrcp_zeng_snap.v=0;
+			check_pending_zrcp_put_snapshot();
+			zeng_send_snapshot_if_needed();			
+		}
+
+
 
 }

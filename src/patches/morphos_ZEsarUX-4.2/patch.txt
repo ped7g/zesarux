@@ -10,7 +10,7 @@ diff -uN Work:DOWNLOADS/ZEsarUX-4.2/chardetect.c Work:DOWNLOADS/ZEsarUX-4.2-MOS/
 -
 +	#endif
  	if (scr_putpixel!=NULL) {
- 		screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer);
+ 		screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer);
  	}
 @@ -729,9 +730,9 @@
  	scr_detectedchar_print(c);
@@ -652,7 +652,7 @@ diff -uN Work:DOWNLOADS/ZEsarUX-4.2/scrsdl.c Work:DOWNLOADS/ZEsarUX-4.2-MOS/scrs
  
 +	#if defined(__MORPHOS__)
 +		
-+		//CREO QUE MORPHOS USA BGRA asi que habra que hacer conversion de paletas
++		//CREOï¿½QUEï¿½MORPHOSï¿½USAï¿½BGRA asi que habra que hacer conversion de paletas
 +		Uint8 *p = (Uint8 *)sdl_screen->pixels + y * sdl_screen->pitch + x * 4;
 +
 +               

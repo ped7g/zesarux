@@ -139,7 +139,7 @@ int tape_block_tap_save(void *dir,int longitud)
 }
 
 
-void tape_block_tap_begin_save(void)
+void tape_block_tap_begin_save(int longitud GCC_UNUSED,z80_byte flag GCC_UNUSED)
 {
 }
 

@@ -17,5 +17,6 @@ sleep 3
 ./zesarux --noconfigfile --verbose 3 extras/media/zx81/aydemo.p --ao $DRIVER
 ./zesarux --noconfigfile --verbose 3 extras/media/zx81/ORQUESTA.P --ao $DRIVER
 ./zesarux --noconfigfile --verbose 3 extras/media/z88/lem.epr --ao $DRIVER
+./zesarux --noconfigfile --verbose 3 extras/snap_tests/test3200z88.zx --ao $DRIVER
 
 done

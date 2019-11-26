@@ -48,6 +48,9 @@
 #include "cpc.h"
 #include "settings.h"
 
+#include "snap_zsf.h"
+#include "zeng.h"
+
 z80_byte byte_leido_core_cpc;
 
 
@@ -209,6 +212,8 @@ void cpu_core_loop_cpc(void)
 
 			t_scanline_next_line();
 
+			cpc_handle_vsync_state();
+
 
 			//CPC genera interrupciones a 300 hz
 			//Esto supone lanzar 6  (50*6=300) interrupciones en cada frame
@@ -315,12 +320,20 @@ void cpu_core_loop_cpc(void)
 					esperando_tiempo_final_t_estados.v=0;
 				}
 
+				core_end_frame_check_zrcp_zeng_snap.v=1;
+
 
 			}
 
 			//Bit de vsync
+			//Duracion vsync
+			/*z80_byte vsync_lenght=cpc_ppi_ports[3]&15;
+
+			//Si es 0, en algunos chips significa 16
+			if (vsync_lenght==0) vsync_lenght=16;
 			//cpc_ppi_ports[1];
-			if (t_scanline>=0 && t_scanline<=7) {
+			if (t_scanline>=0 && t_scanline<=vsync_lenght-1) {
+			//if (t_scanline>=0 && t_scanline<=7) {
 				//printf ("Enviando vsync en linea %d\n",t_scanline);
 				cpc_ppi_ports[1] |=1;
 			}
@@ -328,7 +341,7 @@ void cpu_core_loop_cpc(void)
 			else {
 				//printf ("NO enviando vsync en linea %d\n",t_scanline);
 				cpc_ppi_ports[1] &=(255-1);
-			}
+			}*/
 
 		}
 
@@ -389,14 +402,8 @@ void cpu_core_loop_cpc(void)
                                                 t_estados += 14;
 
 
-                                                z80_byte reg_pc_h,reg_pc_l;
-                                                reg_pc_h=value_16_to_8h(reg_pc);
-                                                reg_pc_l=value_16_to_8l(reg_pc);
-
-                                                //3 estados     
-                                                poke_byte(--reg_sp,reg_pc_h);
-                                                //3 estados
-                                                poke_byte(--reg_sp,reg_pc_l);
+                                                
+												push_valor(reg_pc,PUSH_VALUE_TYPE_NON_MASKABLE_INTERRUPT);
 
 
                                                 reg_r++;
@@ -432,12 +439,9 @@ void cpu_core_loop_cpc(void)
 						//Tratar interrupciones maskable
 						interrupcion_maskable_generada.v=0;
 
-						z80_byte reg_pc_h,reg_pc_l;
-                                                reg_pc_h=value_16_to_8h(reg_pc);
-                                                reg_pc_l=value_16_to_8l(reg_pc);
+						
 
-                                                poke_byte(--reg_sp,reg_pc_h);
-                                                poke_byte(--reg_sp,reg_pc_l);
+						push_valor(reg_pc,PUSH_VALUE_TYPE_MASKABLE_INTERRUPT);
 
 						reg_r++;
 
@@ -459,19 +463,18 @@ void cpu_core_loop_cpc(void)
 						//Modelos cpc
 
 						if (im_mode==0 || im_mode==1) {
-							reg_pc=56;
-							t_estados += 7;
+							cpu_common_jump_im01();
 						}
 						else {
 						//IM 2.
 
-						        z80_int temp_i;
-                                                        z80_byte dir_l,dir_h;   
-                                                        temp_i=reg_i*256+255;
-                                                        dir_l=peek_byte(temp_i++);
-                                                        dir_h=peek_byte(temp_i);
-                                                        reg_pc=value_8_to_16(dir_h,dir_l);
-                                                        t_estados += 7;
+							z80_int temp_i;
+							z80_byte dir_l,dir_h;   
+							temp_i=reg_i*256+255;
+							dir_l=peek_byte(temp_i++);
+							dir_h=peek_byte(temp_i);
+							reg_pc=value_8_to_16(dir_h,dir_l);
+							t_estados += 7;
 
 
 						}
@@ -482,8 +485,17 @@ void cpu_core_loop_cpc(void)
 
 			}
 
-                }
-                debug_get_t_stados_parcial_post();
+    }
+	//Fin gestion interrupciones
+
+	//Aplicar snapshot pendiente de ZRCP y ZENG envio snapshots. Despues de haber gestionado interrupciones
+	if (core_end_frame_check_zrcp_zeng_snap.v) {
+		core_end_frame_check_zrcp_zeng_snap.v=0;
+		check_pending_zrcp_put_snapshot();
+		zeng_send_snapshot_if_needed();			
+	}				
+     
+	debug_get_t_stados_parcial_post();
 
 }
 

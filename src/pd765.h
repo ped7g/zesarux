@@ -51,4 +51,6 @@ extern z80_bit dskplusthree_persistent_writes;
 
 extern void dskplusthree_flush_contents_to_disk(void);
 
+extern void dsk_insert_disk(char *nombre);
+
 #endif

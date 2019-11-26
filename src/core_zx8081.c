@@ -47,6 +47,10 @@
 #include "ula.h"
 #include "settings.h"
 
+#include "snap_zsf.h"
+#include "zeng.h"
+
+
 void init_zx8081_scanline_y_x(int y,int x,int ancho)
 {
 
@@ -358,6 +362,8 @@ void cpu_core_loop_zx8081(void)
 					esperando_tiempo_final_t_estados.v=0;
 				}
 
+				core_end_frame_check_zrcp_zeng_snap.v=1;
+
 				//para el detector de vsync sound
 				if (zx8081_detect_vsync_sound.v) {
 					if (zx8081_detect_vsync_sound_counter==0) {
@@ -448,14 +454,10 @@ void cpu_core_loop_zx8081(void)
 						t_estados += 14;
 
 
-                                                z80_byte reg_pc_h,reg_pc_l;
-                                                reg_pc_h=value_16_to_8h(reg_pc);
-                                                reg_pc_l=value_16_to_8l(reg_pc);
+                                 
 
-						//3 estados	
-                                                poke_byte(--reg_sp,reg_pc_h);
-						//3 estados
-                                                poke_byte(--reg_sp,reg_pc_l);
+
+												push_valor(reg_pc,PUSH_VALUE_TYPE_NON_MASKABLE_INTERRUPT);
 
 
 						reg_r++;
@@ -491,12 +493,9 @@ void cpu_core_loop_zx8081(void)
 
 						interrupcion_maskable_generada.v=0;
 
-						z80_byte reg_pc_h,reg_pc_l;
-						reg_pc_h=value_16_to_8h(reg_pc);
-						reg_pc_l=value_16_to_8l(reg_pc);
+						
 
-						poke_byte(--reg_sp,reg_pc_h);
-						poke_byte(--reg_sp,reg_pc_l);
+						push_valor(reg_pc,PUSH_VALUE_TYPE_MASKABLE_INTERRUPT);
 						
 						reg_r++;
 
@@ -507,15 +506,10 @@ void cpu_core_loop_zx8081(void)
 
 						//IM0/1
 						if (im_mode==0 || im_mode==1) {
-							//printf ("Calling zx80/81 interrupt address 56 :%d \r",temp_veces_interrupt_zx80++);
-                                                        reg_pc=56;
-                                                        //oficial: 
-							t_estados += 7;
+							cpu_common_jump_im01();
 
+							//Ajuste tiempos en zx80/81
 							t_estados -=6;
-
-
-
 						}
 						else {
 						//IM 2.
@@ -536,9 +530,16 @@ void cpu_core_loop_zx8081(void)
 
 			}
 
-                }
+    }
 
-                debug_get_t_stados_parcial_post();
+	//Aplicar snapshot pendiente de ZRCP y ZENG envio snapshots. Despues de haber gestionado interrupciones
+	if (core_end_frame_check_zrcp_zeng_snap.v) {
+		core_end_frame_check_zrcp_zeng_snap.v=0;
+		check_pending_zrcp_put_snapshot();
+		zeng_send_snapshot_if_needed();			
+	}
+
+    debug_get_t_stados_parcial_post();
 
 }
 

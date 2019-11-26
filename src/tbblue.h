@@ -24,9 +24,10 @@
 
 #include "cpu.h"
 
-#define TBBLUE_CORE_VERSION_MAJOR     1 
-#define TBBLUE_CORE_VERSION_MINOR     10
-#define TBBLUE_CORE_VERSION_SUBMINOR  47
+
+#define TBBLUE_CORE_VERSION_MAJOR     3
+#define TBBLUE_CORE_VERSION_MINOR     0
+#define TBBLUE_CORE_VERSION_SUBMINOR  0
 
 extern z80_byte *tbblue_ram_memory_pages[];
 
@@ -76,16 +77,21 @@ extern void tbblue_set_timing_48k(void);
 #define TBBLUE_SPRITE_PATTERN_PORT 0x5b
 #define TBBLUE_SPRITE_SPRITE_PORT 0x57
 
-#define TBBLUE_UART_RX_PORT 0x133b
+
+#define TBBLUE_UART_TX_PORT 0x133b
+//Tambien byte de estado en lectura
+
+#define TBBLUE_UART_RX_PORT 0x143b
+
+#define TBBLUE_UART_STATUS_DATA_READY 1
+#define TBBLUE_UART_STATUS_BUSY 2
+#define TBBLUE_UART_STATUS_FIFO_FULL 4
+
+
 
 #define TBBLUE_SECOND_KEMPSTON_PORT 0x37
 
-#define MAX_SPRITES_PER_LINE 12
 
-#define TBBLUE_SPRITE_BORDER 32
-#define TBBLUE_TILES_BORDER 32
-
-#define MAX_X_SPRITE_LINE (TBBLUE_SPRITE_BORDER+256+TBBLUE_SPRITE_BORDER)
 
 
 #define TBBLUE_COPPER_MEMORY 2048
@@ -106,10 +112,20 @@ extern z80_byte tbblue_get_value_port_register(z80_byte registro);
 
 extern void tbsprite_do_overlay(void);
 
+
+#define MAX_SPRITES_PER_LINE 100
+
+#define TBBLUE_SPRITE_BORDER 32
+#define TBBLUE_TILES_BORDER 32
+
+#define MAX_X_SPRITE_LINE (TBBLUE_SPRITE_BORDER+256+TBBLUE_SPRITE_BORDER)
+
+
+
 #define TBBLUE_MAX_PATTERNS 64
 #define TBBLUE_SPRITE_SIZE 256
 
-#define TBBLUE_MAX_SPRITES 64
+#define TBBLUE_MAX_SPRITES 128
 //#define TBBLUE_TRANSPARENT_COLOR_INDEX 0xE3
 //#define TBBLUE_TRANSPARENT_COLOR 0x1C6
 
@@ -229,6 +245,7 @@ extern void tbblue_copper_handle_next_opcode(void);
 extern void tbblue_copper_handle_vsync(void);
 
 extern z80_bit tbblue_deny_turbo_rom;
+extern void tbblue_set_emulator_setting_turbo(void);
 
 
 extern z80_bit tbblue_force_disable_layer_ula;
@@ -259,5 +276,24 @@ extern void get_pixel_color_tbblue(z80_byte attribute,z80_int *tinta_orig, z80_i
 extern void screen_tbblue_refresca_no_rainbow(void);
 
 extern void screen_tbblue_refresca_rainbow(void);
+
+extern z80_byte tbblue_machine_id;
+
+struct s_tbblue_machine_id_definition {
+    z80_byte id;
+    char nombre[32];
+};
+
+extern struct s_tbblue_machine_id_definition tbblue_machine_id_list[];
+
+extern z80_byte *get_lores_pointer(int y);
+
+extern void tbblue_out_port_32765(z80_byte value);
+
+extern z80_byte tbblue_uartbridge_readdata(void);
+extern void tbblue_uartbridge_writedata(z80_byte value);
+
+extern z80_byte tbblue_uartbridge_readstatus(void);
+extern int tbblue_tiles_are_monocrome(void);
 
 #endif

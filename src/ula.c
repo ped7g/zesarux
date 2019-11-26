@@ -69,6 +69,11 @@ z80_bit ula_im2_slow={0};
 
 z80_bit pentagon_timing={0};
 
+//Puerto de Pentagon y ZX Evo
+//Bit 0: activar modo 16C
+//Bit XXX: Control de acceso a celdas nvram
+z80_byte puerto_eff7=0;
+
 
 //Si se pulsan mas de dos teclas en diferentes columnas, en spectrum, se leen mas teclas.
 //El tipico caps+b+v representa caps+b+v+space

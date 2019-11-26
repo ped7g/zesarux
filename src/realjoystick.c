@@ -367,7 +367,9 @@ EOF
 
 
 
-#define STRING_DEV_JOYSTICK "/dev/input/js0"
+//#define STRING_DEV_JOYSTICK "/dev/input/js0"
+
+char string_dev_joystick[1024]="/dev/input/js0";
 
 int ptr_realjoystick;
 
@@ -647,9 +649,9 @@ int realjoystick_init(void)
 
 
 #ifndef MINGW
-	ptr_realjoystick=open(STRING_DEV_JOYSTICK,O_RDONLY|O_NONBLOCK);
+	ptr_realjoystick=open(string_dev_joystick,O_RDONLY|O_NONBLOCK);
 	if (ptr_realjoystick==-1) {
-		debug_printf(VERBOSE_INFO,"Unable to open joystick %s : %s",STRING_DEV_JOYSTICK,strerror(errno));
+		debug_printf(VERBOSE_INFO,"Unable to open joystick %s : %s",string_dev_joystick,strerror(errno));
                 return 1;
         }
 
@@ -861,9 +863,7 @@ void realjoystick_print_char(z80_byte caracter)
 
 	sprintf (buffer_mensaje,"Key: %c",caracter);
 
-	//menu_putchar_footer(SECOND_OVERLAY_X_JOYSTICK,1,caracter,7+8,0);
-
-	screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer_mensaje);
+	screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer_mensaje);
 
 
 }
@@ -872,7 +872,7 @@ void realjoystick_print_joyselect(void)
 {
 	char buffer_mensaje[64];
 	sprintf (buffer_mensaje,"Set joystick type: %s",joystick_texto[joystick_emulation]);
-	screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer_mensaje);
+	screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,buffer_mensaje);
 
 
 }
@@ -894,8 +894,7 @@ void realjoystick_set_reset_key(int index,int value)
 
         else {
 		debug_printf (VERBOSE_DEBUG,"reset key %c",tecla);
-		ascii_to_keyboard_port_set_clear(tecla,0);
-		//reset_keyboard_ports();
+		ascii_to_keyboard_port_set_clear(tecla,0);	
 	}
 
 }
@@ -934,29 +933,29 @@ void realjoystick_set_reset_action(int index,int value)
 
 	switch (index) {
 		case REALJOYSTICK_EVENT_UP:
-			if (value) joystick_set_up();
-			else joystick_release_up();
+			if (value) joystick_set_up(1);
+			else joystick_release_up(1);
 		break;
 
 		case REALJOYSTICK_EVENT_DOWN:
-			 if (value) joystick_set_down();
-			 else joystick_release_down();
+			 if (value) joystick_set_down(1);
+			 else joystick_release_down(1);
 		break;
 
-                case REALJOYSTICK_EVENT_LEFT:
-                         if (value) joystick_set_left();
-                         else joystick_release_left();
-                break;
+		case REALJOYSTICK_EVENT_LEFT:
+			if (value) joystick_set_left(1);
+			else joystick_release_left(1);
+		break;
 
-                case REALJOYSTICK_EVENT_RIGHT:
-                         if (value) joystick_set_right();
-                         else joystick_release_right();
-                break;
+		case REALJOYSTICK_EVENT_RIGHT:
+			if (value) joystick_set_right(1);
+			else joystick_release_right(1);
+		break;
 
-                case REALJOYSTICK_EVENT_FIRE:
-                         if (value) joystick_set_fire();
-                         else joystick_release_fire();
-                break;
+		case REALJOYSTICK_EVENT_FIRE:
+			if (value) joystick_set_fire(1);
+			else joystick_release_fire(1);
+		break;
 
 
 		//Evento de ESC representa ESC para navegar entre menus y tambien abrir el menu (lo que ahora es con F5 y antes era ESC)
@@ -1117,27 +1116,27 @@ void realjoystick_main(void)
 					switch (index) {
 						case REALJOYSTICK_EVENT_UP:
 							//reset abajo
-							joystick_release_down();
+							joystick_release_down(1);
 							realjoystick_set_reset_action(index,value);
 						break;
 
-                                                case REALJOYSTICK_EVENT_DOWN:
-                                                        //reset arriba
-                                                        joystick_release_up();
-                                                        realjoystick_set_reset_action(index,value);
-                                                break;
+						case REALJOYSTICK_EVENT_DOWN:
+								//reset arriba
+								joystick_release_up(1);
+								realjoystick_set_reset_action(index,value);
+						break;
 
-                                                case REALJOYSTICK_EVENT_LEFT:
-                                                        //reset derecha
-                                                        joystick_release_right();
-                                                        realjoystick_set_reset_action(index,value);
-                                                break;
+						case REALJOYSTICK_EVENT_LEFT:
+								//reset derecha
+								joystick_release_right(1);
+								realjoystick_set_reset_action(index,value);
+						break;
 
-                                                case REALJOYSTICK_EVENT_RIGHT:
-                                                        //reset izquierda
-                                                        joystick_release_left();
-                                                        realjoystick_set_reset_action(index,value);
-                                                break;
+						case REALJOYSTICK_EVENT_RIGHT:
+								//reset izquierda
+								joystick_release_left(1);
+								realjoystick_set_reset_action(index,value);
+						break;
 
 
 
@@ -1161,7 +1160,7 @@ void realjoystick_main(void)
 			do {
                         index=realjoystick_find_key(index+1,button,type,value);
                         if (index>=0) {
-                                debug_printf (VERBOSE_DEBUG,"evento encontrado en indice: %d. tecla=%c value:%d",index,realjoystick_keys_array[index].caracter,value);
+                                debug_printf (VERBOSE_DEBUG,"Event found on index: %d. key=%c value:%d",index,realjoystick_keys_array[index].caracter,value);
 
                                 //ver tipo boton normal o axis
 

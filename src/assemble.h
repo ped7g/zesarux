@@ -29,4 +29,7 @@ extern char *asm_return_op_ops(char *origen,char *opcode,char *primer_op,char *s
 
 extern int assemble_opcode(int direccion_destino,char *texto,z80_byte *destino);
 
+//maximo tamanyo que un opcode puede generar al ensamblar
+#define MAX_DESTINO_ENSAMBLADO 255
+
 #endif

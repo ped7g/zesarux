@@ -41,9 +41,9 @@
 
 //Direcciones donde estan cada pagina de ram
 //Antes habian 8 solo (8 paginas de 16kb cada una)
-//Ahora hay 32 (para un maximo de 512 kb)
+//Ahora hay 64 (para un maximo de 1024 kb)
 //z80_byte *ram_mem_table[8];
-z80_byte *ram_mem_table[32];
+z80_byte *ram_mem_table[64];
 
 //Direcciones donde estan cada pagina de rom
 //array para +2a usamos 4 elementos
@@ -519,21 +519,51 @@ z80_byte mem_get_ram_page(void)
 
 	z80_byte bit3=0;
 	z80_byte bit4=0;
+	z80_byte bit5=0;
 
-	if (mem128_multiplicador==2 || mem128_multiplicador==4) {
+	if (mem128_multiplicador==2 || mem128_multiplicador==4 || mem128_multiplicador==8) {
 		bit3=puerto_32765&64;  //Bit 6
 		//Lo movemos a bit 3
 		bit3=bit3>>3;
 	}
 
-  if (mem128_multiplicador==4) {
+  if (mem128_multiplicador==4 || mem128_multiplicador==8) {
       bit4=puerto_32765&128;  //Bit 7
       //Lo movemos a bit 4
       bit4=bit4>>3;
   }
 
+	if (mem128_multiplicador==8) {
+		bit5=puerto_32765&32;  //Bit 5 tal cual
+	}
 
-	ram_entra=ram_entra|bit3|bit4;
+	ram_entra=ram_entra|bit3|bit4|bit5;
+	
+	//en pentagon 1024, puerto eff7 bit 2 puede forzar 128kb
+	/*
+	From:
+	https://zx-pk.ru/archive/index.php/t-11490.html
+	Pentagon 1024 kB
+port 7FFD: (adressation 01xxxxxx xxxxxx0x )
+D0 = bank 0 ;128 kB memory
+D1 = bank 1 ;128 kB memory
+D2 = bank 2 ;128 kB memory
+D3 = videoram
+D4 = rom
+D5 = bank 5 ;1024 kB memory (if D2 of port EFF7=0)
+D6 = bank 3 ;256 kB memory
+D7 = bank 4 ;512 kB memory
+port EFF7: (adressation 1110xxxx xxxx0xxx )
+D2 = 1 - set 128 kB mode
+0 - enable 1MB memory
+(if D2 of port EFF7=1 then D5 of port 7FFD is used for disable paging)
+D3 = 1 - disable rom and connect ram page 0 in adress space 0-3FFF
+	*/
+	
+	if (MACHINE_IS_PENTAGON && mem128_multiplicador==8 && (puerto_eff7 & 4) ) {
+	   ram_entra &= 7;
+	}
+	
 
 	//printf ("ram entra: %d\n",ram_entra);
 
@@ -542,7 +572,7 @@ z80_byte mem_get_ram_page(void)
 
 void mem_set_multiplicador_128(z80_byte valor)
 {
-	if (valor==1 || valor==2 || valor==4) {
+	if (valor==1 || valor==2 || valor==4 || valor==8) {
 		mem128_multiplicador=valor;
 	}
 	else {
@@ -603,7 +633,10 @@ void mem128_p2a_write_page_port(z80_int puerto, z80_byte value)
 		// the hardware will respond only to those port addresses with bit 1 reset, bit 14 set and bit 15 reset (as opposed to just bits 1 and 15 reset on the 128K/+2).
 	        if ( (puerto & 49154) == 16384 ) {
 			//ver si paginacion desactivada
-			if (puerto_32765 & 32) return;
+			//if (puerto_32765 & 32) return;
+
+			if (!mem_paging_is_enabled()) return;
+
 			puerto_32765=value;
 
 			//si modo de paginacion ram en rom, volver
@@ -611,6 +644,8 @@ void mem128_p2a_write_page_port(z80_int puerto, z80_byte value)
 				//printf ("Ram in ROM enabled. So RAM paging change with 32765 not allowed. out value:%d\n",value);
 				//Livingstone supongo II hace esto, continuamente cambia de Screen 5/7 y ademas cambia
 				//formato de paginas de 4,5,6,3 a 4,7,6,3 tambien continuamente
+				//Hay que tener en cuenta que pese a que no hace cambio de paginacion,
+				//si que permite cambiar de video shadow 5/7 ya que el puerto_32765 ya se ha escrito antes de entrar aqui				
 				return;
 			}
 
@@ -672,7 +707,8 @@ void mem_init_memory_tables_128k(void)
                         puntero +=16384;
                 }
 
-                for (i=0;i<32;i++) {
+				//1 MB
+                for (i=0;i<64;i++) {
                         ram_mem_table[i]=&memoria_spectrum[puntero];
                         puntero +=16384;
                 }
@@ -689,8 +725,34 @@ void mem_init_memory_tables_p2a(void)
                         puntero +=16384;
                 }
 
-                for (i=0;i<32;i++) {
+				//1 MB
+                for (i=0;i<64;i++) {
                         ram_mem_table[i]=&memoria_spectrum[puntero];
                         puntero +=16384;
                 }
+}
+
+
+int mem_paging_is_enabled(void)
+{
+	//Si emulamos 1024 KB, paginacion siempre activa, excepto pentagon 1024 con bit 2 puerto eff7
+	if (mem128_multiplicador==8) {
+	  if (MACHINE_IS_PENTAGON) {
+	    if ((puerto_eff7 & 4)==0) {
+	      //pentagon con bit 2 de eff7 a cero  paginamos 1024 y por tanto no hay bloqueo de paginacion
+	      return 1;
+	    }
+	    //pentagon 1024 pero bloqueado a 128kb
+	    //dejar que siga al ultimo if
+	  }
+	  
+	  //no es pentagon
+	  else {
+	    return 1;
+	  }
+	  
+	}
+
+	if ((puerto_32765 & 32)==0) return 1;
+	else return 0;
 }

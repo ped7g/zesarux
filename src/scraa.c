@@ -118,6 +118,14 @@ void scraa_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte
 	papel++;
 }
 
+void scraa_putpixel_final_rgb(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color_rgb GCC_UNUSED)
+{
+}
+
+void scraa_putpixel_final(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color GCC_UNUSED)
+{
+}
+
 void scraa_putpixel(int x,int y,unsigned int color)
 {
 
@@ -221,6 +229,16 @@ void scraa_refresca_pantalla_solo_driver(void)
 void scraa_refresca_pantalla(void)
 {
 
+
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
+
+        sem_screen_refresh_reallocate_layers=1;
+
+
         if (MACHINE_IS_ZX8081) {
                 scraa_refresca_pantalla_zx81();
         }
@@ -307,11 +325,14 @@ void scraa_refresca_pantalla(void)
 
 	
         //Escribir footer
-        draw_footer();
+        draw_middle_footer();
 
 
 
 	aa_flush (context);
+
+
+sem_screen_refresh_reallocate_layers=0;
 
 
 }
@@ -639,6 +660,25 @@ void scraa_detectedchar_print(z80_byte caracter)
 }
 
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scraa_get_menu_width(void)
+{
+        return 32;
+}
+
+
+int scraa_get_menu_height(void)
+{
+        return 24;
+}
+
+
+int scraa_driver_can_ext_desktop (void)
+{
+        return 0;
+}
+
+
 int scraa_init (void) 
 {
 
@@ -695,11 +735,15 @@ int aa_kbdmode;
 
 
 scr_putpixel=scraa_putpixel;
+scr_putpixel_final=scraa_putpixel_final;
+scr_putpixel_final_rgb=scraa_putpixel_final_rgb;
 scr_putchar_zx8081=scraa_putchar_zx8081;
 scr_putchar_menu=scraa_putchar_menu;
 scr_putchar_footer=scraa_putchar_footer;
 
-
+        scr_get_menu_width=scraa_get_menu_width;
+        scr_get_menu_height=scraa_get_menu_height;
+	scr_driver_can_ext_desktop=scraa_driver_can_ext_desktop;
 
 rparams = aa_getrenderparams();
 aa_resizehandler(context, scraaresize);

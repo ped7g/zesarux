@@ -50,7 +50,7 @@ extern z80_bit superupgrade_flash_write_protected;
 
 extern z80_byte superupgrade_get_rom_bank(void);
 
-extern int superupgrade_flash_operating_counter;
+//extern int superupgrade_flash_operating_counter;
 
 extern void delete_superupgrade_flash_text(void);
 extern void superupgrade_flush_flash_to_disk(void);

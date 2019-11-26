@@ -42,6 +42,7 @@ extern void menu_debug_tsconf_tbblue_tilenav(MENU_ITEM_PARAMETERS);
 extern void menu_audio_new_waveform(MENU_ITEM_PARAMETERS);
 extern void menu_debug_new_visualmem(MENU_ITEM_PARAMETERS);
 extern void menu_audio_new_ayplayer(MENU_ITEM_PARAMETERS);
+extern int menu_audio_new_ayplayer_si_mostrar(void);
 extern void menu_debug_hexdump(MENU_ITEM_PARAMETERS);
 extern void menu_osd_adventure_keyboard(MENU_ITEM_PARAMETERS);
 extern void menu_osd_adventure_keyboard_next(void);
@@ -50,6 +51,39 @@ extern void menu_display_total_palette(MENU_ITEM_PARAMETERS);
 
 extern void menu_debug_disassemble(MENU_ITEM_PARAMETERS);
 extern void menu_debug_assemble(MENU_ITEM_PARAMETERS);
+
+extern void menu_cpu_settings(MENU_ITEM_PARAMETERS);
+extern void menu_settings_display(MENU_ITEM_PARAMETERS);
+
+extern void menu_draw_background_windows(MENU_ITEM_PARAMETERS);
+extern void menu_debug_cpu_stats(MENU_ITEM_PARAMETERS);
+extern void menu_tbblue_machine_id(MENU_ITEM_PARAMETERS);
+
+extern void menu_ext_desktop_settings(MENU_ITEM_PARAMETERS);
+extern void menu_cpu_transaction_log(MENU_ITEM_PARAMETERS);
+
+extern void menu_debug_view_sprites(MENU_ITEM_PARAMETERS);
+
+extern void menu_debug_registers(MENU_ITEM_PARAMETERS);
+extern void menu_debug_registers_splash_memory_zone(void);
+extern void menu_breakpoint_fired(char *s);
+
+extern void menu_ay_partitura(MENU_ITEM_PARAMETERS);
+extern void menu_record_mid(MENU_ITEM_PARAMETERS);
+
+extern void menu_direct_midi_output(MENU_ITEM_PARAMETERS);
+extern void menu_ay_mixer(MENU_ITEM_PARAMETERS);
+extern void menu_uartbridge(MENU_ITEM_PARAMETERS);
+extern void menu_network(MENU_ITEM_PARAMETERS);
+extern void menu_settings_statistics(MENU_ITEM_PARAMETERS);
+
+extern void menu_debug_change_memory_zone_splash(void);
+
+
+extern void menu_zeng_send_message(MENU_ITEM_PARAMETERS);
+extern int menu_zeng_send_message_cond(void);
+extern int menu_zsock_http(char *host, char *url,int *http_code,char **mem,int *t_leidos, char **mem_after_headers,int skip_headers,char *add_headers,int use_ssl,char *redirect_url);
+extern int menu_download_wos(char *host,char *url,char *archivo_temp,int ssl_use);
 
 #endif
 

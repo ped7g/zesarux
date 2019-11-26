@@ -63,6 +63,14 @@
 	#undef USE_PTHREADS
 #endif
 
+
+#ifdef MINGW
+	//Parece que en Windows el timer en pthreads no funciona bien... lo desactivamos
+	#undef USE_PTHREADS
+#endif
+
+
+
 #ifdef USE_PTHREADS
 #include <pthread.h>
 
@@ -636,42 +644,17 @@ void timer_check_interrupt(void)
                                 //resetear texto splash
                                 reset_splash_text();
 
-				//temporizador de second layer solo para un tiempo concreto
-				/*
-				if (menu_second_layer_counter) {
-					menu_second_layer_counter--;
-					if (menu_second_layer_counter==0) {
-						debug_printf (VERBOSE_INFO,"disable second layer");
-						//disable_second_layer();
-
-						if (menu_abierto==0) menu_overlay_activo=0;
-					}
-				}
-				*/
+			
 
 				//temporizador de carga de cinta para escribir texto loading en pantalla
-				if (tape_loading_counter) {
+				/*if (tape_loading_counter) {
 					tape_loading_counter--;
 					if (tape_loading_counter==0) {
 						delete_tape_text();
 					}
-				}
+				}*/
 
-				//temporizador de impresion para escribir texto printing en pantalla
-                                if (printing_counter) {
-                                        printing_counter--;
-                                        if (printing_counter==0) {
-                                                delete_print_text();
-                                        }
-                                }
-
-                                //temporizador de impresion para escribir texto flash zxuno en pantalla
-                                if (zxuno_flash_operating_counter) {
-                                        zxuno_flash_operating_counter--;
-                                        if (zxuno_flash_operating_counter==0) {
-                                                delete_zxuno_flash_text();
-                                        }
-                                }
+	                           
 
 			
 
@@ -683,31 +666,8 @@ void timer_check_interrupt(void)
                                         }
                                 }
 
-				//temporizador de impresion para escribir texto flash superupgrade en pantalla
-				if (superupgrade_flash_operating_counter) {
-							        superupgrade_flash_operating_counter--;
-								if (superupgrade_flash_operating_counter==0) {
-									                delete_superupgrade_flash_text();
-								}
-				}
+			
 				
-
-                                //temporizador de impresion para escribir texto ZXPAND en pantalla
-                                if (zxpand_operating_counter) {
-                                        zxpand_operating_counter--;
-                                        if (zxpand_operating_counter==0) {
-                                                delete_zxpand_text();
-                                        }
-                                }
-
-
-				//temporizador de impresion para escribir texto filter en pantalla
-				if (textspeech_operating_counter) {
-					textspeech_operating_counter--;
-					if (textspeech_operating_counter==0) {
-						textspeech_clear_operating();
-					}
-				}
 
 
 
@@ -847,7 +807,7 @@ long timer_get_elapsed_seconds_since_first_version(void)
 	//printf ("segundos desde creacion: %ld\n",z80_uptime_seconds);
 
 	return z80_total_seconds;
-
+ 
 }
 
 

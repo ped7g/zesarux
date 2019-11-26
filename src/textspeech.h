@@ -56,7 +56,7 @@ extern void textspeech_add_character(z80_byte c);
 
 extern void textspeech_send_new_line(void);
 
-extern int textspeech_operating_counter;
+//extern int textspeech_operating_counter;
 
 extern void textspeech_print_operating(void);
 extern void textspeech_clear_operating(void);

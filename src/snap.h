@@ -57,6 +57,8 @@ extern void autosave_snapshot_at_fixed_interval(void);
 
 extern void load_z80_snapshot(char *archivo);
 
+extern void load_nex_snapshot(char *archivo);
+
 extern void snapshot_quick_save(char *nombre);
 
 extern z80_bit sna_setting_no_change_machine;
@@ -67,5 +69,13 @@ extern char *z80file_machines_id[];
 
 #define AUTOSAVE_NAME "zesarux_autosave.zsf"
 
+extern void snapshot_get_date_time_string(char *texto);
+
+extern void snap_dump_zsf_on_cpu_panic(void);
+
+extern void snapshot_get_date_time_string_human(char *texto);
+
+#define SNA_48K_HEADER_SIZE 27
+#define SNA_128K_HEADER_SIZE 4
 
 #endif

@@ -608,6 +608,89 @@ int assemble_sustituir_ixiy(int es_prefijo_ix_iy,char *buf_primer_op,char *buf_s
 
 }
 
+
+int assemble_opcode_defm(char *texto,z80_byte *destino)
+{
+	//Asumimos que el primer parámetro empieza just despues de "defm " " 
+	//posicion 6
+	int indice=6;
+
+	int longitud_total=0;
+
+	while (texto[indice]!=0 && texto[indice]!='"') {
+		*destino=texto[indice++];
+
+		destino++;
+		longitud_total++;
+
+	}
+
+	//printf ("longitud: %d\n",longitud_total);
+	return longitud_total;
+}
+
+
+int assemble_opcode_defs(char *texto,z80_byte *destino)
+{
+	//Asumimos que el primer parámetro empieza just despues de "defs " 
+	//posicion 5
+	int indice=5;
+
+
+	int longitud_total=parse_string_to_number(&texto[indice]);
+
+	if (longitud_total<=0 || longitud_total>MAX_DESTINO_ENSAMBLADO) return 0; //Error
+
+	int i;
+
+	for (i=0;i<longitud_total;i++) {
+		
+		*destino=0; //meter ceros en destino
+		destino++;
+
+	}
+
+	//printf ("longitud: %d\n",longitud_total);
+	return longitud_total;
+}
+
+int assemble_opcode_defb_defw(int si_defw,char *texto,z80_byte *destino)
+{
+	//Asumimos que el primer parámetro empieza just despues de "defb " 
+	//posicion 5
+	int indice=5;
+	char buffer_numero[255];
+
+	int longitud_total=0;
+
+	while (texto[indice]!=0) {
+		int indice_buffer_numero=0;
+		while (texto[indice]!=0 && texto[indice]!=',') {
+			buffer_numero[indice_buffer_numero++]=texto[indice++];
+		}
+		buffer_numero[indice_buffer_numero]=0;
+		
+		int numero=parse_string_to_number(buffer_numero);
+		//printf ("numero: [%s] [%d]\n",buffer_numero,numero);
+
+		*destino=numero & 0xFF;
+		destino++;
+		longitud_total++;
+
+		if (si_defw) {
+			numero=numero>>8;
+			*destino=numero & 0xFF;
+			destino++;
+			longitud_total++;			
+		}
+
+		if (texto[indice]!=0) indice++;
+	}
+
+	//printf ("longitud: %d\n",longitud_total);
+	return longitud_total;
+}
+
 //Ensamblado de instruccion.
 //Retorna longitud de opcode. 0 si error
 //Lo ensambla en puntero indicado destino
@@ -640,6 +723,27 @@ int assemble_opcode(int direccion_destino,char *texto,z80_byte *destino)
 
         //tipo de parametros de la instruccion. Tener en cuenta que algunos pueden ser n y nn a la vez, o rp y rp2 a la vez, etc
 	//Si coincide con algun tipo de parametro conocido, y si no, se trata como numero
+
+
+	//Casos especiales defb, defw, defm, defs
+	if (parametros_entrada) {
+		if (!strcasecmp("defb",buf_opcode)) {
+			return assemble_opcode_defb_defw(0,texto,destino);
+		}
+
+		if (!strcasecmp("defw",buf_opcode)) {
+			return assemble_opcode_defb_defw(1,texto,destino);
+		}
+ 
+		if (!strcasecmp("defm",buf_opcode)) {
+			return assemble_opcode_defm(texto,destino);
+		}		
+
+		if (!strcasecmp("defs",buf_opcode)) {
+			return assemble_opcode_defs(texto,destino);
+		}				
+
+	}
 
 
         //Recorrer array de ensamblado

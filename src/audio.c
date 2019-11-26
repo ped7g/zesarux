@@ -43,6 +43,19 @@
 	#include <sndfile.h>
 #endif
 
+#ifdef COMPILE_ALSA
+#include "audioalsa.h"
+#endif
+
+#ifdef COMPILE_COREAUDIO
+#include "audiocoreaudio.h"
+#endif 
+
+//Para rutinas midi windows que hay aqui
+#ifdef MINGW
+#include <windows.h>   
+#include <mmsystem.h>  
+#endif
 
 //Si se usa audio sdl2. para workaround con el detector de silencio, que genera zumbido con sdl2
 //Esta a 0 inicialmente. Si se usa sdl2, se pondra a 1, y ya no se pondra a 0 hasta no salir del emulador
@@ -623,6 +636,10 @@ void envio_audio(void)
 
         }
 
+	mid_frame_event();
+
+	midi_output_frame_event();
+
 }
 
 
@@ -672,7 +689,7 @@ void beeper_new_line(void) {
                 //Siguientes valores inicializamos a 65535
                 for (i=1;i<CURRENT_BEEPER_ARRAY_LENGTH;i++) buffer_beeper[i]=65535;
 
-		//printf ("beeper array lenght: %d\n",i);
+		//printf ("beeper array length: %d\n",i);
 }
 
 char get_value_beeper_sum_array(void)
@@ -986,6 +1003,24 @@ nota_musical tabla_notas_musicales[MAX_NOTAS_MUSICALES]={
 {"B9",15804}
 };
 
+//convertir nombre nota en formato string a formato mid
+//Si no coincide, retornar -1
+int get_mid_number_note(char *str)
+{
+	//nota_musical tabla_notas_musicales[MAX_NOTAS_MUSICALES]={
+	const int offset_inicial=12;  //C0=12
+
+	//cadena vacia, -1
+	if (str[0]==0) return -1;
+
+	int i;
+	for (i=0;i<MAX_NOTAS_MUSICALES;i++) {
+		if (!strcasecmp(str,tabla_notas_musicales[i].nombre)) return i+offset_inicial;
+	}
+
+	return -1;
+}
+
 //devuelve nombre nota, segun su frecuencia se aproxime lo maximo
 char *get_note_name(int frecuencia)
 {
@@ -1017,6 +1052,35 @@ char *get_note_name(int frecuencia)
 
 	//debug_printf (VERBOSE_DEBUG,"Nota frecuencia: %d Indice result: %d nota: %s",frecuencia,indice_result,tabla_notas_musicales[indice_result].nombre);
 	return tabla_notas_musicales[indice_result].nombre;
+}
+
+//devuelve numero nota (0...6 do,re... si), si es sostenido, y numero de octava, segun string obtenido de funcion get_note_name
+//Devuelve nota -1 si string no coincide con lo esperado
+void get_note_values(char *texto,int *nota_final,int *si_sostenido,int *octava)
+{
+	char *nota_string="cdefgab";
+
+	int i;
+	
+	*nota_final=-1;
+	*octava=0;
+	for (i=0;i<7;i++) {
+		if (letra_minuscula(texto[0])==nota_string[i]) {
+			*nota_final=i;
+			break;
+		}
+	}
+
+	*si_sostenido=0;
+	if (*nota_final>=0) {
+		if (texto[1]=='#') {
+			*si_sostenido=1;
+			*octava=texto[2]-'0';
+		}
+		else {
+			*octava=texto[1]-'0';
+		}
+	}
 }
 
 int set_audiodriver_null(void) {
@@ -1638,7 +1702,7 @@ do {
 
 
 		if (bloque_direccion!=0) {
-			debug_printf (VERBOSE_DEBUG,"Block: %d address: %04XH lenght: %d offset in ay file: %d",
+			debug_printf (VERBOSE_DEBUG,"Block: %d address: %04XH length: %d offset in ay file: %d",
 				bloque,bloque_direccion,bloque_longitud,bloque_offset);
 
 			z80_int origen_archivo=pdata+4+bloque_offset;
@@ -1839,7 +1903,8 @@ typedef struct s_audiobuffer_stats audiobuffer_stats;
                 if (valor_sonido>audiomax) audiomax=valor_sonido;
                 if (valor_sonido<audiomin) audiomin=valor_sonido;
 
-                valor_sonido_sin_signo=valor_sonido;
+                valor_sonido_sin_signo=128+valor_sonido;
+				//if (valor_sonido<0) printf ("%d %d\n",valor_sonido,valor_sonido_sin_signo);
 
                 if (valor_sonido_sin_signo>valor_anterior_sin_signo) signoactual=+1;
                 if (valor_sonido_sin_signo<valor_anterior_sin_signo) signoactual=-1;
@@ -2068,3 +2133,1117 @@ void audiodac_send_sample_value(z80_byte value)
 	audiodac_last_value_data=value;
 	silence_detection_counter=0;
 }
+
+
+//Funciones midi
+
+//Convierte valor entero en variable length. Se devuelve en el orden tal cual tiene que ir en destino
+//Devuelve longitud en bytes
+int util_int_variable_length(unsigned int valor,z80_byte *destino)
+{
+
+    //Controlar rango maximo
+    if (valor>0x0FFFFFFF) valor=0x0FFFFFFF;
+
+    //Inicializarlo a cero
+    //destino[0]=destino[1]=destino[2]=destino[3]=0;
+    int longitud=1;
+
+    //Lo metemos temporalmente ahi
+    unsigned int final=0;
+
+    final=valor & 0x7F;
+
+    do {
+        valor=valor>>7;
+        if (valor) {
+            final=final<<8;
+            final |=(valor & 0x7f);
+            final |=128;
+            longitud++;
+        }
+    } while (valor);
+
+    //Y lo metemos en buffer destino
+    int i;
+    for (i=0;i<longitud;i++) { //maximo 4 bytes, por si acaso
+        z80_byte valor_leer=final & 0xFF;
+        final=final>>8;
+
+        destino[i]=valor_leer;
+    }
+
+    return longitud;
+
+
+}
+
+
+
+
+//Meter cabecera archivo mid. Retorna longitud en bytes
+int mid_mete_cabecera(z80_byte *midi_file,int pistas,int division)
+{
+
+    //cabecera
+    memcpy(midi_file,"MThd",4);
+
+    
+
+    //Valor 6
+    midi_file[4]=0;
+    midi_file[5]=0;
+    midi_file[6]=0;
+    midi_file[7]=6;
+
+    //Formato
+    midi_file[8]=0;
+    midi_file[9]=1;
+
+    //Pistas. This is a 16-bit binary number, MSB first.
+    midi_file[10]=(pistas>>8) & 0xFF;
+    midi_file[11]=pistas & 0xFF;   
+
+ 
+    //Division. Ticks per quarter note (negra?)
+    //int division=50; //96; //lo que dura la negra. hacemos 50 para 1/50s
+
+    midi_file[12]=0x00;
+    midi_file[13]=division;   
+
+	return 14;
+}
+
+//Pone inicio pista. Retorna longitud bloque
+//Posteriormente habra que poner longitud del bloque en (mem+4)
+int mid_mete_inicio_pista(z80_byte *mem,int division)
+{
+
+      //Pista
+    memcpy(mem,"MTrk",4);
+    int indice=4;
+
+    //int notas=7;
+
+    //longitud eventos. meter cuando se finalice pista
+    indice +=4;
+
+
+    //Time signature
+    //4 bytes; 4/4 time; 24 MIDI clocks/click, 8 32nd notes/ 24 MIDI clocks (24 MIDI clocks = 1 crotchet = 1 beat)
+    //El 0 del principio es el deltatime
+    unsigned char midi_clocks=0x18; //24=96/4
+
+    midi_clocks=division/4;
+
+	//un poco mas lento
+	//midi_clocks /=4;
+
+    unsigned char midi_time_signature[]={0x00,0xFF,0x58,0x04,0x04,0x02,midi_clocks,0x08};
+    memcpy(&mem[indice],midi_time_signature,8);
+    indice +=8;
+
+    //Tempo
+    //3 bytes: 500,000 usec/ quarter note = 120 beats/minute
+    //El 0 del principio es el deltatime
+	int tempo=500000;
+	tempo*=2;
+
+
+
+    unsigned char midi_tempo[]={0x00,0xFF,0x51,0x03,0x07,0xA1,0x20};
+	midi_tempo[4]=(tempo>>16)&0xFF;
+	midi_tempo[5]=(tempo>>8)&0xFF;
+	midi_tempo[6]=(tempo)&0xFF;
+    memcpy(&mem[indice],midi_tempo,7);
+    indice +=7;
+
+	//Y texto de ZEsarUX en cada pista
+	//FF 03 : Sequence/Track Name
+	char *midi_zesarux_message="\x00\xff\x03\x1b" "Created on ZEsarUX emulator"; //27=0x1B
+	int longitud_bloque=27+4;
+
+    memcpy(&mem[indice],midi_zesarux_message,longitud_bloque);
+    indice +=longitud_bloque;	
+
+	return indice;
+
+}
+
+//Devuelve longitud en bytes
+int mid_mete_evento_final_pista(unsigned char *mem)
+{
+
+    int indice=0;
+
+    //Evento al momento
+    mem[indice++]=0;    
+
+
+    mem[indice++]=0xFF;
+    mem[indice++]=0x2F;
+    mem[indice++]=0x00;
+
+    return indice;
+
+}
+
+//Mete los 4 bytes que indican longitud de pista
+//mem apunta a inicio de cabecera pista "MTrk"
+//longitud es todo el bloque de pista, desde MTrk hasta despues del evento de final de pista
+void mid_mete_longitud_pista(z80_byte *mem,int longitud)
+{
+	    //Meter longitud eventos
+    int longitud_eventos=longitud-4-4; //evitar los 4 bytes que indican precisamente longitud y los 4 de "Mtrk"
+
+	int puntero_longitud_pista=4;
+
+    //longitud eventos. meter al final
+    mem[puntero_longitud_pista++]=(longitud_eventos>>24) & 0xFF;
+    mem[puntero_longitud_pista++]=(longitud_eventos>>16) & 0xFF;
+    mem[puntero_longitud_pista++]=(longitud_eventos>>8) & 0xFF;
+    mem[puntero_longitud_pista++]=(longitud_eventos  ) & 0xFF;    
+}
+
+
+//Mete nota mid. Devuelve longitud en bytes
+int mid_mete_nota(z80_byte *mem,int silencio_anterior,int duracion,int canal_midi,int keynote,int velocity)
+{
+
+    int indice=0;
+
+    unsigned int deltatime=duracion;
+
+
+
+    //Evento note on. meter silencio anterior
+    //mem[indice++]=0;
+    indice +=util_int_variable_length(silencio_anterior,&mem[indice]);
+   
+
+    //int canal_midi=0;
+    unsigned char noteonevent=(128+16) | (canal_midi & 0xf);
+
+
+    mem[indice++]=noteonevent;
+    mem[indice++]=keynote & 127;
+    mem[indice++]=velocity & 127;
+
+
+
+    //Evento note off
+    int longitud_delta=util_int_variable_length(deltatime,&mem[indice]);
+    indice +=longitud_delta;
+
+
+    unsigned char noteoffevent=(128) | (canal_midi & 0xf);
+
+    mem[indice++]=noteoffevent;
+    mem[indice++]=keynote & 127;
+    mem[indice++]=velocity & 127;
+
+    return indice;
+}
+
+
+
+//Notas anteriores sonando, 3 canales
+char mid_nota_sonando[MAX_AY_CHIPS*3][4];
+
+
+int mid_nota_sonando_duracion[MAX_AY_CHIPS*3];
+
+
+//Puntero a inicio pista de cada canal
+int mid_inicio_pista[MAX_AY_CHIPS*3];
+
+//Indice actual en cada buffer destino
+int mid_indices_actuales[MAX_AY_CHIPS*3];
+
+
+//Silencios acumulados en cada canal
+int mid_silencios_acumulados[MAX_AY_CHIPS*3];
+
+
+
+int mid_parm_division=50;
+
+
+z80_byte *mid_memoria_export[MAX_AY_CHIPS*3];//3 canales
+
+
+z80_bit mid_is_recording={0};
+
+z80_bit mid_is_paused={0};
+
+char mid_export_file[PATH_MAX];
+
+int mid_chips_al_start=1;
+
+//Para saber si se ha grabado algo, para menu
+//int mid_record_at_least_one=0;
+
+//Para estadistica
+int mid_notes_recorded=0;
+
+//Dice que ya se han finalizado las pistas, metiendo cabecera de final y longitud de pistas
+z80_bit mid_flush_finished_tracks={0};
+
+
+//Permite grabar canales que sean tono+ruido, en exportar a .mid
+z80_bit mid_record_noisetone={0};
+
+
+//Permite enviar canales que sean tono+ruido, en midi output
+z80_bit midi_output_record_noisetone={0};
+
+void mid_reset_export_buffers(void)
+{
+	//Poner todos bufferes a null para decir que no estan asignados
+	int i;
+
+	for (i=0;i<MAX_AY_CHIPS*3;i++) {
+		mid_memoria_export[i]=NULL;
+	}
+}
+
+//Dice de todos los bufferes de canales cuanto esta ocupado el que mas
+int mid_max_buffer(void)
+{
+
+	//Poner todos bufferes a null para decir que no estan asignados
+	int maximo=0;
+	int i;
+
+	int total_canales;
+
+	total_canales=3*mid_chips_al_start; 
+
+	for (i=0;i<total_canales;i++) {
+		if (mid_indices_actuales[i]>maximo) maximo=mid_indices_actuales[i];
+	}
+
+	return maximo;
+
+}
+
+
+void mid_initialize_export(void)
+{
+
+	mid_chips_al_start=ay_retorna_numero_chips();
+	mid_flush_finished_tracks.v=0;
+	mid_notes_recorded=0;	
+
+	int total_pistas=3*mid_chips_al_start;
+
+			int canal;
+			for (canal=0;canal<total_pistas;canal++) {
+
+
+				//Metemos cabecera bloque
+				int indice=0;
+
+
+				//int pistas=3;
+
+				//Cabecera archivo
+				//indice +=mid_mete_cabecera(&mid_memoria_export[canal][indice],pistas,division);
+
+				//Si esta NULL, asignar
+				if (mid_memoria_export[canal]==NULL) {
+
+					mid_memoria_export[canal]=malloc(MAX_MID_EXPORT_BUFFER);
+
+					if (mid_memoria_export[canal]==NULL) cpu_panic("Can not allocate mid export buffer");
+
+				}
+
+
+				//Inicio pista 
+				mid_inicio_pista[canal]=indice; //TODO: esto es 0 siempre
+
+				indice +=mid_mete_inicio_pista(&mid_memoria_export[canal][indice],mid_parm_division);
+				mid_indices_actuales[canal]=indice;
+
+				mid_silencios_acumulados[canal]=0;
+
+				//Al principio decimos que hay un silencio sonando. De 1/50 s
+				mid_nota_sonando[canal][0]=0;
+
+				mid_nota_sonando_duracion[canal]=1;
+
+				//Decir que no ha sonado aun ninguna noda
+				//mid_record_at_least_one=0;
+
+				
+			}
+
+
+}
+
+int mid_has_been_initialized(void)
+{
+	//Solo con que el primer buffer apunte a algun sitio
+	if (mid_memoria_export[0]!=NULL) return 1;
+	else return 0;
+}
+
+
+void mid_export_put_note(int canal,char *nota,int duracion)
+{
+	//Si era silencio
+	if (nota[0]==0) {
+		//Acumular silencio para siguiente nota y volver
+		mid_silencios_acumulados[canal]=duracion;
+		return;
+	}
+
+
+	//Si no habia sonado nada aun, no meter silencio acumulado, resetearlos todos a cero
+	//Para no grabar silencios del principio
+	//Esto NO va bien
+	/*if (!mid_notes_recorded) {
+			int total_pistas=3*mid_chips_al_start;
+
+			int canal;
+			for (canal=0;canal<total_pistas;canal++) {	
+				//Acumulados tienen que ser todos iguales
+				//printf ("acumulado %d\n",mid_silencios_acumulados[canal]);
+				mid_silencios_acumulados[canal]=0;
+			}	
+	}*/
+
+
+	mid_notes_recorded++;
+
+	//Leer indice actual
+	int indice=mid_indices_actuales[canal];
+
+	//Comprobar si se acerca al final del buffer, en ese caso error y dejar de grabar
+	if (indice>=MAX_MID_EXPORT_BUFFER-128) {
+		mid_is_recording.v=0;
+		debug_printf (VERBOSE_ERR,"Error exporting to MID. Memory buffer full. Stopping recording");
+		return;
+	}
+
+
+	//Obtener nota
+	int nota_numero=get_mid_number_note(nota);
+
+	if (nota_numero<0) {
+		//Nota invalida. no se deberia llegar aqui nunca
+		debug_printf (VERBOSE_DEBUG,"Invalid note %s",nota);
+		return;
+	}
+
+	debug_printf (VERBOSE_DEBUG,"Adding note %d in channel %d silence before %d length %d",nota_numero,canal,mid_silencios_acumulados[canal],duracion);
+
+	indice +=mid_mete_nota(&mid_memoria_export[canal][indice],mid_silencios_acumulados[canal],duracion,canal,nota_numero,0x40);
+
+
+	//Ya no hay silencio acumulado
+	mid_silencios_acumulados[canal]=0;	
+
+
+	//Guardar indice 
+	mid_indices_actuales[canal]=indice;	
+	
+}
+
+//Cierra pistas y graba a disco
+void mid_flush_file(void)
+{
+
+	//if (temp_desactivado_mid) return ;
+
+	//Cerrar pistas
+	int canal;
+
+	if (mid_flush_finished_tracks.v==0) {
+
+		//printf ("Cerrando pistas\n");
+
+		mid_flush_finished_tracks.v=1;
+
+		for (canal=0;canal<3*mid_chips_al_start;canal++) {
+			int indice=mid_indices_actuales[canal];			
+			//Final de pista
+			indice +=mid_mete_evento_final_pista(&mid_memoria_export[canal][indice]);
+
+			int inicio_pista=mid_inicio_pista[canal];
+
+			//Indicar longitud de pista
+			int longitud_pista=indice-inicio_pista;
+
+			mid_mete_longitud_pista(&mid_memoria_export[canal][inicio_pista],longitud_pista);	
+
+			//Guardar indice 
+			mid_indices_actuales[canal]=indice;			
+
+		}
+
+
+	}
+
+
+	//Generar cabecera
+	z80_byte cabecera_midi[256];
+
+	//Escribir todas las pistas
+	int pistas=3*mid_chips_al_start;
+
+	//Cabecera archivo
+	int division=mid_parm_division;
+	int longitud_cabecera=mid_mete_cabecera(cabecera_midi,pistas,division);
+
+	//Abrir archivo. Grabar cabecera y grabar las 3 pistas
+
+
+	//Grabar a disco
+FILE *ptr_midfile;
+
+     ptr_midfile=fopen(mid_export_file,"wb");
+     if (!ptr_midfile) {
+                        debug_printf(VERBOSE_ERR,"Can not write midi file");
+                        return;
+      }
+
+	//la cabecera
+    fwrite(cabecera_midi, 1, longitud_cabecera, ptr_midfile);
+
+
+
+
+	//cada pista
+	for (canal=0;canal<pistas;canal++) {
+		int longitud_pista=mid_indices_actuales[canal];
+		debug_printf (VERBOSE_DEBUG,"Writing Channel %d length %d",canal,longitud_pista);
+		fwrite(mid_memoria_export[canal], 1, longitud_pista, ptr_midfile);
+	}
+
+
+      fclose(ptr_midfile);		
+
+}
+
+//Evento de frame
+void mid_frame_event(void)
+{
+
+	if (mid_is_recording.v==1 && mid_is_paused.v==0) {
+
+
+
+
+
+		int chip;
+
+
+			char nota[4];
+
+
+		for (chip=0;chip<mid_chips_al_start;chip++) {
+			int canal;
+			for (canal=0;canal<3;canal++) {
+
+
+				int freq=ay_retorna_frecuencia(canal,chip);
+
+
+				sprintf(nota,"%s",get_note_name(freq) );
+
+			
+				
+				//int reg_tono;
+				int reg_vol;
+
+				reg_vol=8+canal;
+
+				int mascara_mezclador=1|8; 
+				int valor_esperado_mezclador=8; //Esperamos por defecto no ruido (bit3 a 1) y tono (bit0 a 0)
+
+				int valor_esperado_mezclador_tonoruido=0; //Canal con tono y ruido (bit3 a 0) y tono (bit0 a 0)
+
+
+				/*
+				1xx1 -> no tono ni ruido
+				0xx1 -> ruido
+
+				0xx0 -> ruido+tono
+				1xx0 -> tono
+				*/
+
+
+				if (canal>0) {
+					mascara_mezclador=mascara_mezclador<<canal;
+					valor_esperado_mezclador=valor_esperado_mezclador<<canal;
+				}
+
+
+				//Si canales no suenan como tono, o volumen 0 meter cadena vacia en nota
+				int suena_nota=0;
+
+
+				if ( (ay_retorna_mixer_register(chip) &mascara_mezclador)==valor_esperado_mezclador) suena_nota=1; //Solo tono
+
+				//Se permite tono y ruido?
+				if (mid_record_noisetone.v) {
+					if ( (ay_retorna_mixer_register(chip) &mascara_mezclador)==valor_esperado_mezclador_tonoruido) {
+						suena_nota=1;
+						//printf ("tonoruido\n");
+					}
+				}
+
+
+				//Pero si no hay volumen, no hay nota
+				if (ay_3_8912_registros[chip][reg_vol]==0) suena_nota=0;
+
+				//if (!suena_nota) printf ("no suena\n");
+				//else printf ("suena\n");
+
+				if (!suena_nota) nota[0]=0;
+
+
+				
+				
+
+				int canal_final=3*chip+canal;
+
+				//Comparar si igual o anterior
+				if (!strcasecmp(nota,mid_nota_sonando[canal_final])) {
+					mid_nota_sonando_duracion[canal_final]++;
+					//printf ("nota igual [%s] duracion [%d]\n",
+					//nota,mid_nota_sonando_duracion[canal]);
+				}
+				else {
+					
+					//printf ("nota diferente canal %d. anterior [%s] duracion %d\n",canal_final,mid_nota_sonando[canal_final],mid_nota_sonando_duracion[canal_final]);
+
+
+					//printf ("nota diferente canal %d. nueva [%s]\n",canal_final,nota);
+
+					//Metemos nota
+					mid_export_put_note(canal_final,mid_nota_sonando[canal_final],mid_nota_sonando_duracion[canal_final]);
+
+
+					mid_nota_sonando_duracion[canal_final]=1;
+					strcpy(mid_nota_sonando[canal_final],nota);
+				}
+			}
+			
+		}
+
+	}
+
+
+	
+}
+
+
+void midi_output_frame_event(void)
+{
+
+	audio_midi_output_frame_event();
+}
+
+
+
+int audio_midi_output_note_on(unsigned char channel, unsigned char note)
+{
+	#ifdef COMPILE_ALSA
+	return alsa_note_on(channel,note,ALSA_MID_VELOCITY);
+	#endif
+
+
+	#ifdef COMPILE_COREAUDIO
+	return coreaudio_note_on(channel,note,127);
+	#endif
+
+	#ifdef MINGW
+	return windows_note_on(channel,note,127);
+	#endif		
+}
+
+int audio_midi_output_note_off(unsigned char channel, unsigned char note)
+{
+	#ifdef COMPILE_ALSA
+	return alsa_note_off(channel,note,ALSA_MID_VELOCITY);
+	#endif
+
+
+	#ifdef COMPILE_COREAUDIO
+	return coreaudio_note_off(channel,note,127);
+	#endif	
+
+	#ifdef MINGW
+	return windows_note_off(channel,note,127);
+	#endif		
+}
+
+
+
+void audio_midi_output_flush_output(void)
+{
+	#ifdef COMPILE_ALSA
+	alsa_midi_output_flush_output();
+	#endif
+
+	#ifdef COMPILE_COREAUDIO
+	coreaudio_midi_output_flush_output();
+	#endif	
+
+	#ifdef MINGW
+	windows_midi_output_flush_output();
+	#endif
+}
+
+
+//Notas anteriores sonando, 3 canales
+char midi_output_nota_sonando[MAX_AY_CHIPS*3][4];
+
+//Puerto y cliente, para diferentes drivers
+int audio_midi_client=0;
+int audio_midi_port=0;
+//Client solo es usado por alsa
+//Port lo utilizan alsa y windows 
+
+
+void audio_midi_output_finish(void)
+{
+
+	//Aqui no se puede entrar desde menu, pero si al finalizar ZEsarUX, y podria intentar activarse cuando no hay dichos drivers disponibles
+	if (!audio_midi_available()) return;
+
+
+	//No hay nada que finalizar?
+	if (!audio_midi_output_initialized) return;
+
+	debug_printf (VERBOSE_DEBUG,"Closing midi output");
+
+#ifdef COMPILE_ALSA
+     
+	alsa_mid_finish_all();
+
+#endif
+
+#ifdef COMPILE_COREAUDIO
+
+	coreaudio_mid_finish_all();
+
+#endif
+
+
+#ifdef MINGW
+
+	windows_mid_finish_all();
+
+#endif	
+}
+
+//Dice si esta disponible midi, cuando es en windows, o con coreaudio compilado, o con alsa compilado
+int audio_midi_available(void)
+{
+#ifdef COMPILE_ALSA
+		return 1;
+#endif
+
+#ifdef COMPILE_COREAUDIO
+		return 1;
+#endif
+
+
+#ifdef MINGW
+		return 1;
+#endif	
+
+	//Cualquier otro caso, no disponible
+	return 0;
+
+}
+
+
+//Devuelve 1 si error
+int audio_midi_output_init(void)
+{
+
+	//Aqui no se puede entrar desde menu, pero si desde command line, y podria intentar activarse cuando no hay dichos drivers disponibles
+	if (!audio_midi_available()) return 0;
+
+
+	debug_printf (VERBOSE_DEBUG,"Initializing midi output");
+
+#ifdef COMPILE_ALSA
+     
+
+	if (alsa_mid_initialize_all()) {
+		return 1;
+	}
+
+#endif
+
+#ifdef COMPILE_COREAUDIO
+	if (coreaudio_mid_initialize_all()) {
+		return 1;
+	}
+#endif
+
+
+#ifdef MINGW
+	if (windows_mid_initialize_all()) {
+		return 1;
+	}
+#endif
+
+
+	//printf ("Inicializado midi\n");
+	audio_midi_output_initialized=1;
+
+
+
+    int total_pistas=3*MAX_AY_CHIPS;
+
+	//mid_chips_al_start=ay_retorna_numero_chips();
+
+	int canal;
+	for (canal=0;canal<total_pistas;canal++) {
+
+                                //Al principio decimos que hay un silencio sonando
+                                midi_output_nota_sonando[canal][0]=0;
+
+
+	}
+
+
+	return 0;
+
+
+
+}
+
+int audio_midi_output_initialized=0;
+
+void audio_midi_output_beeper(char *nota_a)
+{
+	   audiobuffer_stats audiostats;
+        audio_get_audiobuffer_stats(&audiostats);
+
+
+        int frecuencia=audiostats.frecuencia;
+
+		//printf ("frecuencia %d\n",frecuencia);
+
+
+
+			int freq_a=frecuencia;
+
+		//alteramos frecuencia para que no considere los 4 bits inferiores, para "redondear" un poco
+		//freq_a &=(65535-7);
+
+
+			//char nota_a[4];
+			sprintf(nota_a,"%s",get_note_name(freq_a) );
+
+			//Si no hay sonido, suele dar frecuencia 5 o menos
+			if (freq_a<=5) nota_a[0]=0;
+}
+
+int contador_nota_igual_beeper=0;
+char nota_beeper_anterior[4]="";
+
+void audio_midi_output_frame_event(void)
+{
+
+	if (audio_midi_output_initialized==0) return;
+
+
+		int chip;
+
+
+		char nota[4];
+
+
+		for (chip=0;chip<ay_retorna_numero_chips();chip++) {
+			int canal;
+			for (canal=0;canal<3;canal++) {
+
+
+				int freq=ay_retorna_frecuencia(canal,chip);
+
+
+				sprintf(nota,"%s",get_note_name(freq) );
+
+
+
+				//int reg_tono;
+				int reg_vol;
+
+				reg_vol=8+canal;
+
+				int mascara_mezclador=1|8;
+				int valor_esperado_mezclador=8; //Esperamos por defecto no ruido (bit3 a 1) y tono (bit0 a 0)
+
+				int valor_esperado_mezclador_tonoruido=0; //Canal con tono y ruido (bit3 a 0) y tono (bit0 a 0)
+
+	
+
+				/*
+				1xx1 -> no tono ni ruido
+				0xx1 -> ruido
+
+				0xx0 -> ruido+tono
+				1xx0 -> tono
+				*/
+
+
+				if (canal>0) {
+					mascara_mezclador=mascara_mezclador<<canal;
+					valor_esperado_mezclador=valor_esperado_mezclador<<canal;
+				}
+
+
+				//Si canales no suenan como tono, o volumen 0 meter cadena vacia en nota
+				int suena_nota=0;
+
+
+				if ( (ay_retorna_mixer_register(chip)&mascara_mezclador)==valor_esperado_mezclador) suena_nota=1; //Solo tono
+
+				//Se permite tono y ruido?
+				if (midi_output_record_noisetone.v) {
+					if ( (ay_retorna_mixer_register(chip)&mascara_mezclador)==valor_esperado_mezclador_tonoruido) {
+						suena_nota=1;
+						//printf ("tonoruido\n");
+					}
+				}
+
+
+				//Pero si no hay volumen, no hay nota
+				if (ay_3_8912_registros[chip][reg_vol]==0) suena_nota=0;
+
+				//if (!suena_nota) printf ("no suena\n");
+				//else printf ("suena\n");
+
+				if (!suena_nota) nota[0]=0;
+
+				int canal_final=3*chip+canal;
+
+				int nota_igual=0;
+
+				if (!strcasecmp(nota,midi_output_nota_sonando[canal_final])) nota_igual=1;
+
+
+				//temp probar beeper
+				/*
+				if (canal==0 && chip==0) {
+					audio_midi_output_beeper(nota);
+					printf ("nota %s\n",nota);
+					strcpy(nota_beeper_anterior,nota);
+
+					int canal_final=3*chip+canal;
+					if (!strcasecmp(nota,nota_beeper_anterior)) {
+						contador_nota_igual_beeper++;
+					}
+					else {
+						contador_nota_igual_beeper=0;
+					}
+
+					nota_igual=1;
+
+					if (contador_nota_igual_beeper>=5) {
+						//decir cambio de nota si es que es diferente de la que sonaba
+						if (strcasecmp(nota,midi_output_nota_sonando[canal_final])) {
+							nota_igual=0;
+							printf ("cambio nota %s %s\n",nota,midi_output_nota_sonando[canal_final]);
+							contador_nota_igual_beeper=0;
+						}
+						else {
+							printf ("misma nota que la anterior %s %s\n",nota,midi_output_nota_sonando[canal_final]);
+						}
+					}
+
+					//Guardar nota actual como la anterior
+					strcpy(midi_output_nota_sonando[canal_final],nota);
+
+						
+				}
+				//fin temp probar beeper
+				*/
+				
+
+
+
+
+				//Comparar si igual o anterior
+				if (nota_igual) {
+					//midi_output_nota_sonando_duracion[canal_final]++;
+					//printf ("nota igual [%s] duracion [%d]\n",
+					//nota,midi_output_nota_sonando_duracion[canal]);
+				}
+				else {
+
+					//printf ("nota diferente canal %d. anterior [%s] duracion %d\n",canal_final,midi_output_nota_sonando[canal_final],midi_output_nota_sonando_duracion[canal_final]);
+
+
+					//printf ("nota diferente canal %d. nueva [%s]\n",canal_final,nota);
+
+					//Metemos nota
+					//Note off de la anterior y note on de la actual
+
+					//note off si no era un silencio
+					if (midi_output_nota_sonando[canal_final][0]!=0) {
+					    int nota_numero=get_mid_number_note(midi_output_nota_sonando[canal_final]);
+
+					    if (nota_numero<0) {
+					        //Nota invalida. no se deberia llegar aqui nunca
+					        debug_printf (VERBOSE_DEBUG,"Invalid note %s",midi_output_nota_sonando[canal_final]);
+        				}	
+						else audio_midi_output_note_off(canal_final,nota_numero);
+					}
+
+
+					//note on si no es un silencio
+					if (nota[0]!=0) {
+                    	int nota_numero=get_mid_number_note(nota);
+
+                        if (nota_numero<0) {
+                            //Nota invalida. no se deberia llegar aqui nunca
+                            debug_printf (VERBOSE_DEBUG,"Invalid note %s",nota);
+                        }
+                        else audio_midi_output_note_on(canal_final,nota_numero);
+                    }
+	
+					
+
+
+					strcpy(midi_output_nota_sonando[canal_final],nota);
+				}
+			}
+
+		}
+
+
+	//Y enviar todos los eventos
+	audio_midi_output_flush_output();
+		
+
+}
+
+
+//Inicio rutinas Midi Windows. Esto quiza deberia estar en un archivo aparte, tipo "windows.c"
+#ifdef MINGW
+
+
+// Midi code derived from work of Craig Stuart Sapp:
+//
+// Programmer:    Craig Stuart Sapp <craig@ccrma.stanford.edu>
+// Creation Date: Sat Jan  1 20:29:45 PST 2005
+// Last Modified: Sat Jan  1 20:37:28 PST 2005
+// Filename:      ...midiio/doc/windowsmidi/keymidi/keymidi.c
+// URL:           http://midiio.sapp.org/doc/windowsmidi/keymidi/keymidi.c
+// Syntax:        C; Visual C/C++ 5/6
+//
+// Description:   The example program shows how to open MIDI output,
+//                send a MIDI message, and close MIDI output.
+//                When you press a key on the computer keyboard, a MIDI
+//     
+
+HMIDIOUT windows_midi_device;
+//int windows_midi_midiport=0;
+
+typedef union 
+{ 
+    DWORD word; 
+	BYTE data[4]; 
+
+    //unsigned int word; 
+	//unsigned char data[4]; 
+
+} windows_midi_message;
+
+void windows_mid_add_note(windows_midi_message mensaje)
+{
+
+	//printf ("%d\n",mensaje.word);
+   int flag = midiOutShortMsg(windows_midi_device, mensaje.word);
+            //if (flag != MMSYSERR_NOERROR) {
+            //printf("Warning: MIDI Output is not open.\n");
+        // }
+
+}
+
+
+
+void windows_midi_output_flush_output(void)
+{
+
+   //nada
+
+}
+
+
+
+int windows_mid_initialize_all(void)
+{
+// Open the MIDI output port
+   int flag = midiOutOpen(&windows_midi_device, audio_midi_port, 0, 0, CALLBACK_NULL);
+   if (flag != MMSYSERR_NOERROR) {
+      debug_printf(VERBOSE_ERR,"Error opening MIDI Output");
+      return 1;
+   }
+
+
+
+  return 0;
+}
+
+void windows_mid_finish_all(void)
+{
+   // turn any MIDI notes currently playing:
+   midiOutReset(windows_midi_device);
+
+   // Remove any data in MIDI device and close the MIDI Output port
+   midiOutClose(windows_midi_device);	
+}
+
+
+//Hacer note on de una nota inmediatamente
+int windows_note_on(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+
+  debug_printf (VERBOSE_PARANOID,"noteon event channel %d note %d velocity %d",channel,note,velocity);
+
+  windows_midi_message mensaje;
+
+  mensaje.data[0]=0x90;
+  mensaje.data[1]=note;
+  mensaje.data[2]=velocity;
+  mensaje.data[3]=0;
+
+
+  windows_mid_add_note(mensaje);
+
+  return 0;
+}
+
+int windows_note_off(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+
+  debug_printf (VERBOSE_PARANOID,"noteoff event channel %d note %d velocity %d",channel,note,velocity);
+
+  windows_midi_message mensaje;
+
+  mensaje.data[0]=0x80;
+  mensaje.data[1]=note;
+  mensaje.data[2]=velocity;
+  mensaje.data[3]=0;
+
+
+  windows_mid_add_note(mensaje);
+
+
+  return 0;  
+}
+
+
+#endif
+//Fin rutinas Midi Windows

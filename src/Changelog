@@ -1,11 +1,193 @@
-Version 7.2. 26 February 2019 - Neula edition
+Version 8.1. 07 November 2019 - xxx edition
+
+
+Added ZEsarUX Network Gaming protocol (ZENG), which allows you to play to any emulated game, using two ZEsarUX instances, 
+located each one on any part of the world or in a local network. Games doesn't have to be modified, you can use any existing game
+
+Added Pentagon 16C colour mode emulation
+Added 1024 KB RAM emulation for Spectrum & Pentagon
+Added support for .scl files: can be converted from file selector menu pressing space
+Added SNA saving support
+Added PZX tape file support
+Added ZX81 and Spectrum online game browser. You can search & play almost any game for these machines!
+Added total run time statistics 
+Added checking for updates
+Added sending anonymous statistics use
+Added setting --disablemenuandexit: it closes the emulator when the menu is going to be opened. 
+ It's the same behaviour as previous --disablemenu. Now --disablemenu only disables the menu but does not close the emulator
+Added setting to disable looking for alternate character sets from sysvar 23606/7 on ocr functions
+ 
+Added Borland Gui Style
+
+Added ZRCP commands:
+-cpu-code-coverage: working with code coverage
+-cpu-history: working with cpu history
+-extended-stack: having an internal stack for debugging stack value types
+-get-ui-io-ports: to get keyboard state and joystick
+-get-snapshot: get a ZSF snapshot from ZRCP
+-print-footer: print message on footer
+-put-snapshot: put a ZSF snapshot from ZRCP
+-send-keys-event: simulates key press/release
+-set-ui-io-ports: to change keyboard state and joystick
+-write-port: write value to a port
+
+Added internal zip decompressor: no more need to use external unzip program
+Added setting to reset configuration file to default values
+Added setting to choose cpu type
+
+Improved Debugging: 
+-added setting to dump .zsf snapshot when a cpu panic is fired
+-debug CPU window: can now resize height and have more debug lines
+-cpu transaction log: faster when opening transaction log file
+-added key 'n' for "run" on debug cpu. Does the same as closing all menus and returning back to emulation
+-debug CPU window: show interrupt routine pointer on im2 mode
+
+Improved TBBlue emulation:
+-added scroll x,y on ula layer
+-optimized ula,lores render routines: 2% less cpu on my computer
+-added 1-bit tile mode
+
+Improved Hex editor: can now copy to a different memory zone
+Improved menu: 
+-can now use PgUp,PgDn to jump menu pages
+-added setting to disable File Utilities menu
+-added more cyrillic characters support
+-disabled menu items (the ones in red) are now called as "unavailable" instead of "disabled"
+
+
+Improved accesibility: 
+-say when a selected menu item is not available
+-Mac OS speech filter doesn't fail anymore when message has "-"
+-selected item menu is called now "Selected item" (was called "Active item" before)
+
+Improved assembler: added defs command
+Improved AY Sheet: now you can select which AY Chip to show
+Improved file selector: when asking for a directory, only shows directories, not files
+Improved curses driver: symbol @ simulates ESC on menu
+Improved snapshot loading: now setting "--sna-no-change-machine" becomes "--snap-no-change-machine" and applies to .sna and .z80
+Improved curses driver: now can use utf "blocky" characters and have 64x48 resolution
+Improved accurate Z80 timing: IM mode 0 is 1 t-state shorter than IM mode 1
+Improved real tape loading: acceleration is disabled by default, added setting to save configuration
+
+Fixed error when trying to open user files on MacOS Catalina
+Fixed Pentagon border: now ukflag demo is perfect
+Fixed Spectrum 128k machines border: now ula128, scroll2017 demos are perfect
+Fixed f_seek call on esxdos handler
+Fixed segfault error when using breakpoints like peek/opcode in config file
+Fixed segfault error when failing to open a directory
+Fixed bug on zxuno changing video ram 5/7 when paging was disabled by bit DI7FFD
+Fixed average cpu statistics when footer is not enabled
+Fixed kempston mouse emulation on Next machine: wheel bits always return 0
+Fixed bug extracting PAWS words when a word is a pronoun
+Fixed undocumented opcode ED76: I had IM0 but it's IM1
+Fixed loading and saving +3 .z80 snapshots
+Fixed placing menu windows when using zx desktop and machines TSConf, TBBlue, CPC and QL
+Fixed bug loading .sna files when rom 1 paged in
+Fixed bug on return flags from tape load trap. It only affected Rocman game and enabling "any flag loading" setting
+Fixed setting a configured memory breakpoint like this "--set-mem-breakpoint 0000H 2" which was fired on startup
+Fixed opening the menu on stdout driver on the first start of ZEsarUX
+
+Fixed Accessibility bugs: 
+-now menu settings (anything between square brackets []) are played at the end of the menu line
+-now menu settings ([ ] and [X]) are played as "enabled"/"disabled"
+
+Some other minor bugfixes and improvements
+
+
+
+Version 8.0. 19 July 2019 - World Destruction edition
+
+Improved menu interface:
+-Program Window can be extended horizontally and have a right region to place menu zxvision windows (called ZX Desktop)
+-Draw engine: now it allows transparency
+-Menu windows can be placed and resized to the whole program window
+-Some windows geometry (position, size) are saved in the configuration
+-Hotkeys now show right capitalization (lowercase or uppercase)
+-Edit box now has a key to delete all input (cursor down)
+-Edit box can now move cursor left and right and write text in the middle
+-Enabling kempston mouse no longer disables mouse on menu
+-GUI color bars depend on current style
+-Added support for more cyrillic characters on menu
+-Added RetroMac Gui Style
+-Improved memory zone selector
+-Improved footer:
+--Footer now completely follows GUI Style
+--Reordered cpu use, numbers in red when cpu use > 85%
+--Now shows cpu temperature on Linux (and not only on Raspbian as before)
+
+Added Real time playback from AY Chip sound to external MIDI device
+Added menu to export AY chip music to midi (.mid) file
+Added AY Sheet: showing a sheet with the notes being played
+Added AY mixer menu
+Added ZXUno UART Bridge emulation
+Added TSConf UART Bridge emulation
+
+Added DAAD, PAWS and Quill debugger, for Spectrum and CPC (CPC only supports Daad debugger)
+Added text adventure keyboard also on CPC
+
+Added colors to ncurses driver and Chloe machine
+Added Chloe MMU to ZX-Uno
+Added Derby+ and Derby++ roms
+
+Added hdf to ide/mmc raw converter
+Added hdf support to MMC emulation
+
+Added ZRCP commands: ayplayer, cpu-transaction-log
+
+
+Improved breakpoint parser: 
+-full expression parser: parenthesis, functions, sums, multiplications, etc. Can be used as a full calculator!
+-now it's a lot more faster. Up to 7 times faster, so it uses 7 times less cpu than the old version
+
+Improved watches:
+-using new expression parser
+-up to 10 watches on screen
+-watches are saved on configuration file
+
+Improved tbblue emulation:
+-updated to the last Next Version files
+-can load .nex snapshot files from the command line or the ZEsarUX menus, without having to boot NextOS
+-added UART Bridge emulation
+-increased maximum sprites per line to 100
+-increased total sprites to 128
+-fixed full ink mode border colour
+-fallback (transparency) colour is now a 9-bit value
+
+Improved Adventure Text Extractor: now it supports Daad games too. So it supports Daad, Paws, Quill and Gac
+Improved Visualmem: now you can see all 3 different access (write, read, opcode) at once, generating a RGB color
+Improved Waveform window: now the wave adjusts automatically to the zxwindow size
+Improved Hexadecimal editor: now it resizes view to zxwindow height
+Improved TSConf layers menu: Added "reveal" setting to view which pixels are used by a layer
+Improved Scale 0.75 function: now it has antialias
+Improved Cpu Transaction Log: now logfiles can be rotated automatically
+Improved debugging: added a breakpoint action "putv" to write values on a Debug Memory Zone
+
+
+Fixed Pentagon interrupt handling: now effects on border and hi-res work almost perfect!
+Fixed interrupt bug behaviour where last opcode lasts >=32 t-states and interrupt in the middle
+Fixed "Jeff Braine" manufacturer to "New Horizons". Changed Prism machine name to "Prism 512"
+Fixed bug having more than 256 text to adventure keyboard words
+Fixed bug on CPC vertical scrolling
+Fixed segmentation fault bug when drawing CPC machine
+Fixed segmentation fault bug when displaying first aid messages
+Fixed bug redrawing zx80/81 display, with realvideo disabled, and menu char width less than 8
+Fixed bug drawing menu window boxes when char width less than 8
+Fixed zxvision left button handling: no longer sends enter when the user is dragging the window
+Fixed machine names to be completely right: for example, "Spectrum 48k" becomes "ZX Spectrum 48k", etc
+Fixed saving sprites when memory zone is not default zone
+Fixed bug when writing divmmc memory on Chloe machine and underlying RAM in space 0000-3fffh become overwritten
+Fixed bug crash when a message error was generated from ZRCP and menu had a tooltip open
+
+
+
+Version 7.2. 10 April 2019 - Neula edition
 
 
 Improved menu environment:
-* Added new menu window type: ZX Vision. GUI Windows can be moved, resized, scrolled, minimized, closed, and change the focus to the background
-* Windows can be scrolled using mouse wheel
-* Warning and Error window messages now show an animation
-* Added first-aid help windows
+-Added new menu window type: ZX Vision. GUI Windows can be moved, resized, scrolled, minimized, closed, and change the focus to the background
+-Windows can be scrolled using mouse wheel
+-Warning and Error window messages now show an animation
+-Added first-aid help windows
 
 Added Z80 assembler
 Added setting to specify configuration file
@@ -17,56 +199,62 @@ Added CPC machines support to ZSF snapshots
 Added tape to wav converter (tap, tzx, o, p to wav)
 Added text driver (curses, stdout, simpletext) for Chloe 80x24 mode
 
+
 Improved Debugger:
 -Now you can disassemble on the Step-to-step mode from the Debug cpu menu
 -Now you can assemble from the Debug cpu menu
 -Added Chloe memory Zone
 
-Improved TBBlue emulation:
--Better CPU usage:
---Use 4% less cpu time (in my machine) when only ULA and/or Tiles enabled
---Use 1% less cpu time (in my machine) when all layers enabled
--Added TBBlue Tiles video mode
--Added TBBlue "reveal" setting to view which pixels use a layer
--Resized display: now is twice bigger
--Fixed Timex hi-res mode 512x192
-
 Improved ZRCP:
 -commands smartload and snapshot-load are more intelligent now
 -running in verbose or limit mode, or cpu-step command, can now update the display inmediately (having real video setting on)
--added commands: get-cpu-frequency, get-cpu-turbo-speed, get-tstates, get-tstates-partial, reset-tstates-partial
+-added commands: assemble, get-cpu-frequency, get-cpu-turbo-speed, get-tstates, get-tstates-partial, load-binary, reset-tstates-partial
 
-Improved vu-meters: high volumes are shown in red
-Improved sprite viewer
+Improved sprite viewer:
 -you can view sprites up to 512x512
 -you can export sprites to C source code file
 
 Improved file selector:
-*now it remembers the last files used
-*Windows: now you can use up to 20000 files in the same directory
-*Windows: added drive selector (press shift-u)
-
-Improved audio: silence detector is disabled by default. That should fix some Windows audio problems. Check Settings->Audio->Silence detector if you have configuration autosaving enabled
+-now it remembers the last files used
+-Windows: now you can use up to 20000 files in the same directory
+-added drive selector (press shift-d). On Windows, allows you to change drive unit. On Linux and Mac, changes to /media or /Volumes folder
 
 Improved disassemble window: 
-*now you can export the disassemble to text file
-*you can now see the full opcode when debugging Sinclair QL
-*you can now show/hide hexadecimal dump of every opcode
+-now you can export the disassemble to text file
+-you can now see the full opcode when debugging Sinclair QL
+-you can now show/hide hexadecimal dump of every opcode
 
 Improved hexadecimal editor:
-*now showing subzones information
+-now showing subzones information
 
+Improved audio: silence detector is disabled by default. That should fix some Windows audio problems. Check Settings->Audio->Silence detector if you have configuration autosaving enabled
+Improved vu-meters: high volumes are shown in red
 Improved MMC emulation: allow non-standard mmc file sizes
+Improved compiled Mac version: default version is faster than before (uses O2 optimization)
 
-Fixed visual glitches in some menus when Pentagon machine and real video: audio wave, visualmem, ay piano, wave piano, view sprites
-Fixed timex hires mode 512x192 on tbblue
-Fixed visual glitches in some menus when interlaced enabled: audio wave, visualmem, ay piano, wave piano, view sprites
-Fixed audio bug: sending a sample to the DAC by using Next registers, it wasn't reseting the silence detection counter, so sound would probably be frozen (and repeated again, and again...)
-Fixed autoload on tbblue (on normal and also fast boot mode)
-Fixed error managing TBBlue Layer 2 vertical scroll
+
+Fixed visual glitches in some menus when Pentagon machine and real video, or when enabling interlaced: audio wave, visualmem, ay piano, wave piano, view sprites
 Fixed triggering "opcode" condition breakpoint
 Fixed emulating Inves interrupt bug
 Fixed segmentation fault when showing electron on debug
+
+
+Changes in TBBlue emulation:
+-Added Tiles video mode
+-Added "reveal" setting to view which pixels are used by a layer
+-Added setting to change machine id
+-Improved CPU usage:
+--Use 4% less cpu time (in my machine) when only ULA and/or Tiles enabled
+--Use 1% less cpu time (in my machine) when all layers enabled
+-Improved display emulation: now is twice bigger
+-Fixed Timex hi-res mode 512x192
+-Fixed autoload on tbblue (on normal and also fast boot mode)
+-Fixed error managing Layer 2 vertical scroll
+-Fixed audio bug: sending a sample to the DAC by using Next registers, it wasn't reseting the silence detection counter, so sound would probably be frozen (and repeated again, and again...)
+
+
+Some other minor bugfixes and improvements
+
 
 
 Version 7.1. 24 September 2018 - 5th Anniversary edition

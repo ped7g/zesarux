@@ -138,6 +138,14 @@ modificado_border.v=1;
 
 }
 
+void scrcaca_putpixel_final_rgb(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color_rgb GCC_UNUSED)
+{
+}
+
+void scrcaca_putpixel_final(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color GCC_UNUSED)
+{
+}
+
 
 
 void scrcaca_putpixel(int x,int y,unsigned int color)
@@ -216,6 +224,15 @@ void scrcaca_refresca_pantalla_solo_driver(void)
 
 void scrcaca_refresca_pantalla(void)
 {
+
+
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
+
+        sem_screen_refresh_reallocate_layers=1;
 
 
         if (MACHINE_IS_ZX8081) {
@@ -297,13 +314,14 @@ if (caca_last_message_shown_timer) {
 	if (menu_overlay_activo) menu_overlay_function();
 
         //Escribir footer
-        draw_footer();
+        draw_middle_footer();
 
 
 
 	/* Refresh display */
 	caca_refresh_display(dp);
 
+sem_screen_refresh_reallocate_layers=0;
 
 }
 
@@ -641,6 +659,23 @@ void scrcaca_detectedchar_print(z80_byte caracter)
 
 }
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrcaca_get_menu_width(void)
+{
+        return 32;
+}
+
+
+int scrcaca_get_menu_height(void)
+{
+        return 24;
+}
+
+int scrcaca_driver_can_ext_desktop (void)
+{
+        return 0;
+}
+
 
 int scrcaca_init (void)
 {
@@ -659,6 +694,8 @@ debug_printf (VERBOSE_INFO,"Init cacalib Video Driver");
     //cucul_putstr(cv, 0, 0, "This is a message");
 
 scr_putpixel=scrcaca_putpixel;
+scr_putpixel_final=scrcaca_putpixel_final;
+scr_putpixel_final_rgb=scrcaca_putpixel_final_rgb;
 scr_putchar_zx8081=scrcaca_putchar_zx8081;
 scrcaca_get_image_params();
 
@@ -666,6 +703,10 @@ scr_debug_registers=scrcaca_debug_registers;
 scr_messages_debug=scrcaca_messages_debug;
 scr_putchar_menu=scrcaca_putchar_menu;
 scr_putchar_footer=scrcaca_putchar_footer;
+
+        scr_get_menu_width=scrcaca_get_menu_width;
+        scr_get_menu_height=scrcaca_get_menu_height;
+scr_driver_can_ext_desktop=scrcaca_driver_can_ext_desktop;
 
 scr_set_fullscreen=scrcaca_set_fullscreen;
 scr_reset_fullscreen=scrcaca_reset_fullscreen;

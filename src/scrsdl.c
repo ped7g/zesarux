@@ -75,16 +75,22 @@ int scrsdl_crea_ventana(void)
 		flags |=SDL_FULLSCREEN;
 	}
 
+        int ancho=screen_get_window_size_width_zoom_border_en();
 
-	debug_printf (VERBOSE_DEBUG,"Creating window %d X %d",screen_get_window_size_width_zoom_border_en(),screen_get_window_size_height_zoom_border_en() );
+        ancho +=screen_get_ext_desktop_width_zoom();
 
-        sdl_screen = SDL_SetVideoMode(screen_get_window_size_width_zoom_border_en(),
-                                      screen_get_window_size_height_zoom_border_en(),
+        int alto=screen_get_window_size_height_zoom_border_en();
+
+	debug_printf (VERBOSE_DEBUG,"Creating window %d X %d",ancho,alto );
+
+        sdl_screen = SDL_SetVideoMode(ancho,
+                                      alto,
                                         32, flags);
         if ( sdl_screen == NULL ) {
                 return 1;
         }
 
+        scr_reallocate_layers_menu(ancho,alto);
 
         //establecer titulo ventana
         SDL_WM_SetCaption("ZEsarUX " EMULATOR_VERSION , "ZEsarUX");
@@ -103,23 +109,46 @@ int scrsdl_crea_ventana(void)
 
 }
 
+void scrsdl_putpixel_final_rgb(int x,int y,unsigned int color_rgb)
+{
+        Uint8 *p = (Uint8 *)sdl_screen->pixels + y * sdl_screen->pitch + x * 4;
 
+
+        //escribir de golpe los 32 bits.
+                
+        //agregar alpha
+        color_rgb |=0xFF000000;
+        //y escribir
+
+        *(Uint32 *)p = color_rgb;
+}
+
+
+void scrsdl_putpixel_final(int x,int y,unsigned int color)
+{
+
+        unsigned int color32=spectrum_colortable[color];
+
+        //y escribir
+        scrsdl_putpixel_final_rgb(x,y,color32);                
+
+
+}
 
 void scrsdl_putpixel(int x,int y,unsigned int color)
 {
+        if (menu_overlay_activo==0) {
+                //Putpixel con menu cerrado
+                scrsdl_putpixel_final(x,y,color);
+                return;
+        }          
 
-		Uint8 *p = (Uint8 *)sdl_screen->pixels + y * sdl_screen->pitch + x * 4;
+        //Metemos pixel en layer adecuado
+	buffer_layer_machine[y*ancho_layer_menu_machine+x]=color;        
 
-
-                //escribir de golpe los 32 bits.
-                unsigned int color32=spectrum_colortable[color];
-                //agregar alpha
-                color32 |=0xFF000000;
-                //y escribir
-
-		*(Uint32 *)p = color32;
+        //Putpixel haciendo mix  
+        screen_putpixel_mix_layers(x,y);   
 }
-
 
 void scrsdl_putchar_zx8081(int x,int y, z80_byte caracter)
 {
@@ -147,14 +176,14 @@ void scrsdl_messages_debug(char *s)
 void scrsdl_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
 {
 
-        z80_bit inverse,f;
+        z80_bit inverse;
 
         inverse.v=0;
-        f.v=0;
+
         //128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-        //scr_putsprite_comun     (&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f);
-        scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,menu_gui_zoom);
+
+        scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,menu_gui_zoom);
 
 }
 
@@ -167,14 +196,15 @@ void scrsdl_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byt
 
         //scr_putchar_menu(x,yorigen+y,caracter,tinta,papel);
         y +=yorigen;
-        z80_bit inverse,f;
+        z80_bit inverse;
 
         inverse.v=0;
-        f.v=0;
+
         //128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
 
-        scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,1);
+        //scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,1);
+        scr_putchar_footer_comun_zoom(caracter,x,y,inverse,tinta,papel);
 }
 
 
@@ -213,7 +243,10 @@ void scrsdl_refresca_border(void)
 
 void scrsdl_refresca_pantalla_solo_driver(void)
 {
-        SDL_UpdateRect(sdl_screen, 0, 0, screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en() );
+        int ancho=screen_get_window_size_width_zoom_border_en();
+        ancho +=screen_get_ext_desktop_width_zoom();
+
+        SDL_UpdateRect(sdl_screen, 0, 0, ancho, screen_get_window_size_height_zoom_border_en() );
 
 
         /* UnLock the screen for direct access to the pixels */
@@ -237,6 +270,13 @@ void scrsdl_refresca_pantalla(void)
                 }
         }
 
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
+
+        sem_screen_refresh_reallocate_layers=1;
 
 
 
@@ -323,9 +363,12 @@ void scrsdl_refresca_pantalla(void)
 
 
         //Escribir footer
-        draw_footer();
+        draw_middle_footer();
 
 	scrsdl_refresca_pantalla_solo_driver();
+
+
+        sem_screen_refresh_reallocate_layers=0;        
 
 }
 
@@ -1222,8 +1265,12 @@ void scrsdl_resize(int width,int height)
 
         debug_printf (VERBOSE_INFO,"width: %d get_window_width: %d height: %d get_window_height: %d",width,screen_get_window_size_width_no_zoom_border_en(),height,screen_get_window_size_height_no_zoom_border_en());
 
+        //printf ("allocate layers menu\n");
+        scr_reallocate_layers_menu(width,height);    
 
-	zoom_x_calculado=width/screen_get_window_size_width_no_zoom_border_en();
+
+	//zoom_x_calculado=width/screen_get_window_size_width_no_zoom_border_en();
+        zoom_x_calculado=width/(screen_get_window_size_width_no_zoom_border_en()+screen_get_ext_desktop_width_no_zoom() );
 	zoom_y_calculado=height/screen_get_window_size_height_no_zoom_border_en();
 
 
@@ -1240,8 +1287,6 @@ void scrsdl_resize(int width,int height)
                 zoom_y=zoom_y_calculado;
                 set_putpixel_zoom();
 
-                //width=screen_get_window_size_width_zoom_border_en();
-                //height=screen_get_window_size_height_zoom_border_en();
 
 
         }
@@ -1420,6 +1465,41 @@ void scrsdl_detectedchar_print(z80_byte caracter)
 }
 
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrsdl_get_menu_width(void)
+{
+        
+        int max=screen_get_emulated_display_width_no_zoom_border_en();
+
+        max +=screen_get_ext_desktop_width_no_zoom();
+
+        max=max/menu_char_width/menu_gui_zoom;
+
+
+        if (max>OVERLAY_SCREEN_MAX_WIDTH) max=OVERLAY_SCREEN_MAX_WIDTH;
+
+                //printf ("max x: %d %d\n",max,screen_get_emulated_display_width_no_zoom_border_en());
+
+        return max;
+}
+
+
+int scrsdl_get_menu_height(void)
+{
+        int max=screen_get_emulated_display_height_no_zoom_border_en()/8/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_HEIGTH) max=OVERLAY_SCREEN_MAX_HEIGTH;
+
+                //printf ("max y: %d %d\n",max,screen_get_emulated_display_height_no_zoom_border_en());
+        return max;
+}
+
+
+int scrsdl_driver_can_ext_desktop (void)
+{
+        return 1;
+}
+
+
 
 int scrsdl_init (void) {
 
@@ -1428,6 +1508,14 @@ int scrsdl_init (void) {
 
         //Inicializaciones necesarias
         scr_putpixel=scrsdl_putpixel;
+        scr_putpixel_final=scrsdl_putpixel_final;
+        scr_putpixel_final_rgb=scrsdl_putpixel_final_rgb;
+
+        scr_get_menu_width=scrsdl_get_menu_width;
+        scr_get_menu_height=scrsdl_get_menu_height;        
+	scr_driver_can_ext_desktop=scrsdl_driver_can_ext_desktop;
+
+
         scr_putchar_zx8081=scrsdl_putchar_zx8081;
         scr_debug_registers=scrsdl_debug_registers;
         scr_messages_debug=scrsdl_messages_debug;

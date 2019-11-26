@@ -23,14 +23,19 @@
 - port 0x24D5: 1st read = return hardware number (below), 2nd read = return firmware version number (first nibble.second nibble) e.g. 0x12 = 1.02
  
 hardware numbers
-1 = DE-1 (old)
-2 = DE-2 (old)
-3 = DE-2 (new)
-4 = DE-1 (new)
-5 = FBLabs
-6 = VTrucco
-7 = ZX Spectrum Next
-8 = Emulators
+
+
+#define HWID_DE1A               1               /* DE-1 */
+#define HWID_DE2A               2               /* DE-2  */
+//#define HWID_DE2N             3               /* DE-2 (new) */
+//#define HWID_DE1N             4               /* DE-1 (new) */
+#define HWID_FBLABS             5               /* FBLabs */
+#define HWID_VTRUCCO    6               /* VTrucco */
+#define HWID_WXEDA              7               /* WXEDA */
+#define HWID_EMULATORS  8               /* Emulators */
+#define HWID_ZXNEXT             10              /* ZX Spectrum Next */
+#define HWID_MC                 11              /* Multicore */
+#define HWID_ZXNEXT_AB  250             /* ZX Spectrum Next Anti-brick */
  
  
 - port 0x24D9: write to bit 0 – soft reset, bit 1 hard reset

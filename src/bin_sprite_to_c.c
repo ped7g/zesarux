@@ -32,7 +32,7 @@ int main(int argc,char *argv[])
 
 	sprintf (file_orig,"%s",argv[1]);
 
-	ancho=atoi(argv[2]);
+	ancho=atoi(argv[2]);  
 	alto=atoi(argv[3]);
 
 

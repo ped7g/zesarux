@@ -65,6 +65,8 @@
 #include "snap_zsf.h"
 #include "snap_spg.h"
 #include "settings.h"
+#include "tbblue.h"
+#include "esxdos_handler.h"
 
 
 #include "autoselectoptions.h"
@@ -1971,9 +1973,13 @@ void load_sna_snapshot_common_registers(z80_byte *header)
 	//valor fuera de rango
 	if (im_mode==3) im_mode=2;
 
-	//printf ("header 19: %d\n",header[19]);
-	if (header[19] & 4) iff1.v=iff2.v=1;
-	else iff1.v=iff2.v=0;
+	//19       1      byte   Interrupt (bit 2 contains IFF2, 1=EI/0=DI)
+	if (header[19] & 4) iff2.v=1;
+	else iff2.v=0;
+
+	if (header[19] & 1) iff1.v=1;
+	else iff1.v=0;	
+
 
 
 }
@@ -2012,11 +2018,11 @@ int load_sna_snapshot_must_change_machine(void)
 void load_sna_snapshot(char *archivo)
 {
 
-        #define SNA_48K_HEADER_SIZE 27
+        
         //Cabeceras
         z80_byte sna_48k_header[SNA_48K_HEADER_SIZE];
 
-	#define SNA_128K_HEADER_SIZE 4
+	
 	//cabecera adicional para 128k
         z80_byte sna_128k_header[SNA_128K_HEADER_SIZE];
 
@@ -2113,52 +2119,61 @@ The 128K version of the .sna format is the same as above, with extensions to inc
    ------------------------------------------------------------------------
    Total: 131103 or 147487 bytes
 
-The third RAM bank saved is always the one currently paged, even if this is page 5 or 2 - in this case, the bank is actually included twice. The remaining RAM banks are saved in ascending order - e.g. if RAM bank 4 is paged in, the snapshot is made up of banks 5, 2 and 4 to start with, and banks 0, 1, 3, 6 and 7 afterwards. If RAM bank 5 is paged in, the snapshot is made up of banks 5, 2 and 5 again, followed by banks 0, 1, 3, 4, 6 and 7.
+The third RAM bank saved is always the one currently paged, even if this is page 5 or 2 - in this case, the bank is actually included twice. 
+The remaining RAM banks are saved in ascending order - e.g. if RAM bank 4 is paged in, 
+the snapshot is made up of banks 5, 2 and 4 to start with, and banks 0, 1, 3, 6 and 7 afterwards. 
+If RAM bank 5 is paged in, the snapshot is made up of banks 5, 2 and 5 again, followed by banks 0, 1, 3, 4, 6 and 7.
 */
 
 				case 131103:
 				case 147487:
-                                        //Archivo de 128k
-                                        debug_printf (VERBOSE_INFO,".SNA 128k file");
+					//Archivo de 128k
+					debug_printf (VERBOSE_INFO,".SNA 128k file");
 
-                                        //leer datos
-                                        buffer_lectura=malloc(16384);
-                                        if (buffer_lectura==NULL) cpu_panic("Cannot allocate memory when loading .sna file");
+					//TODO: Fuse carga esto como maquina Pentagon. Normal?
+
+					//leer datos
+					buffer_lectura=malloc(16384);
+					if (buffer_lectura==NULL) cpu_panic("Cannot allocate memory when loading .sna file");
 
 
-                                        //Load File
-                                        ptr_snafile=fopen(archivo,"rb");
-                                        if (ptr_snafile==NULL) {
-                                                debug_printf(VERBOSE_ERR,"Error opening %s",archivo);
-                                                return;
-                                        }
+					//Load File
+					ptr_snafile=fopen(archivo,"rb");
+					if (ptr_snafile==NULL) {
+							debug_printf(VERBOSE_ERR,"Error opening %s",archivo);
+							return;
+					}
 
-                                        leidos=fread(sna_48k_header,1,SNA_48K_HEADER_SIZE,ptr_snafile);
-                                        if (leidos!=SNA_48K_HEADER_SIZE) {
-                                                debug_printf(VERBOSE_ERR,"Error reading %d bytes of header",SNA_48K_HEADER_SIZE);
-                                                return;
-                                        }
+					leidos=fread(sna_48k_header,1,SNA_48K_HEADER_SIZE,ptr_snafile);
+					if (leidos!=SNA_48K_HEADER_SIZE) {
+							debug_printf(VERBOSE_ERR,"Error reading %d bytes of header",SNA_48K_HEADER_SIZE);
+							return;
+					}
 
-                                        if (load_sna_snapshot_must_change_machine() ) {
-                                            //maquina Spectrum 128k
-                                            current_machine_type=6;
+					if (load_sna_snapshot_must_change_machine() ) {
+						//maquina Spectrum 128k
+						current_machine_type=6;
 
-                                            set_machine(NULL);
-                                        }
-                                        reset_cpu();
+						set_machine(NULL);
+					}
+					reset_cpu();
 
-                                        load_sna_snapshot_common_registers(sna_48k_header);
+					load_sna_snapshot_common_registers(sna_48k_header);
+
+					//Suponemos primero pagina 0, para habilitar paginacion, por si estuviera deshabilitada
+					puerto_32765=0;
+
 					z80_byte valor_puerto_32765;
 
-                                        //cargar datos
+					//cargar datos
 					//leemos ram 5
-                                        leidos=fread(buffer_lectura,1,16384,ptr_snafile);
+					leidos=fread(buffer_lectura,1,16384,ptr_snafile);
 					load_sna_snapshot_bytes_128k(buffer_lectura,5);
 
-                                        //cargar datos
-                                        //leemos ram 2
-                                        leidos=fread(buffer_lectura,1,16384,ptr_snafile);
-                                        load_sna_snapshot_bytes_128k(buffer_lectura,2);
+					//cargar datos
+					//leemos ram 2
+					leidos=fread(buffer_lectura,1,16384,ptr_snafile);
+					load_sna_snapshot_bytes_128k(buffer_lectura,2);
 
 					//leer ram N. luego veremos a donde corresponde
 					leidos=fread(buffer_lectura,1,16384,ptr_snafile);
@@ -2175,6 +2190,8 @@ The third RAM bank saved is always the one currently paged, even if this is page
 					valor_puerto_32765=sna_128k_header[2];
 					z80_byte ram_paged=valor_puerto_32765&7;
 
+					//TODO: usar el byte de TR-DOS rom paged (1) or not (0)
+
 					//cargar esa pagina
 					load_sna_snapshot_bytes_128k(buffer_lectura,ram_paged);
 
@@ -2190,13 +2207,13 @@ The third RAM bank saved is always the one currently paged, even if this is page
 					}
 
 					//Y dejar pagina RAM normal
-					valor_puerto_32765=(puerto_32765&(255-7));
-					out_port_spectrum_no_time(32765,valor_puerto_32765 | ram_paged);
+					//valor_puerto_32765=(puerto_32765&(255-7));
+					out_port_spectrum_no_time(32765,valor_puerto_32765);
 
-                                        fclose(ptr_snafile);
+					fclose(ptr_snafile);
 
 					free(buffer_lectura);
-                                        return;
+					return;
 
 
 				break;
@@ -2205,7 +2222,7 @@ The third RAM bank saved is always the one currently paged, even if this is page
 					debug_printf(VERBOSE_ERR,".SNA file corrupt");
 				break;
 			}
-                }
+		}
 
 
 }
@@ -2457,15 +2474,41 @@ void save_z80_snapshot(char *filename)
 		break;
 
 		//Amstrad +2A (ROM v4.0)
-		case 11:
+		case MACHINE_ID_SPECTRUM_P2A_40:
 			maquina_header=13;
 		break;
 
-                //Amstrad +2A (ROM v4.1)
-                case 12:
-                        maquina_header=13;
+        //Amstrad +2A (ROM v4.1)
+        case MACHINE_ID_SPECTRUM_P2A_41:
+            maquina_header=13;
 			debug_printf (VERBOSE_ERR,"Saved Amstrad +2A (ROM v4.1) as Z80 snapshot. It will be loaded as Amstrad +2A (ROM v4.0), so it may fail");
-                break;
+    	break;
+
+		//Amstrad +2A (Spanish ROM)
+		case MACHINE_ID_SPECTRUM_P2A_SPA:
+				maquina_header=13;
+				debug_printf (VERBOSE_ERR,"Saved Amstrad +2A (Spanish ROM) as Z80 snapshot. It will be loaded as Amstrad +2A (ROM v4.0), so it may fail");
+		break;				
+
+
+
+		//Amstrad +3 (ROM v4.0)
+		case MACHINE_ID_SPECTRUM_P3_40:
+			maquina_header=7;
+		break;
+
+        //Amstrad +3 (ROM v4.1)
+        case MACHINE_ID_SPECTRUM_P3_41:
+            maquina_header=7;
+			debug_printf (VERBOSE_ERR,"Saved Amstrad +3 (ROM v4.1) as Z80 snapshot. It will be loaded as Amstrad +3 (ROM v4.0), so it may fail");
+    	break;
+
+		//Amstrad +3 (Spanish ROM)
+		case MACHINE_ID_SPECTRUM_P3_SPA:
+				maquina_header=7;
+				debug_printf (VERBOSE_ERR,"Saved Amstrad +3 (Spanish ROM) as Z80 snapshot. It will be loaded as Amstrad +3 (ROM v4.0), so it may fail");
+		break;			
+
 
 		//Pentagon 128
 		case 21:
@@ -2940,104 +2983,116 @@ void load_z80_snapshot(char *archivo)
 
 			debug_printf(VERBOSE_DEBUG,"Header machine type: %d Modify hardware flag: %d",maquina_leida,modify_hardware);
 
-			switch (maquina_leida) {
-				//If bit 7 of byte 37 is set, the hardware types are modified slightly: any 48K machine becomes a 16K machine, any 128K machines becomes a +2 and any +3 machine becomes a +2A.
+			if (load_sna_snapshot_must_change_machine() ) {
 
-				case 0:
-				case 1:
-					//48k
-					current_machine_type=1;
-					if (modify_hardware) current_machine_type=0;
+				switch (maquina_leida) {
+					//If bit 7 of byte 37 is set, the hardware types are modified slightly: any 48K machine becomes a 16K machine, any 128K machines becomes a +2 and any +3 machine becomes a +2A.
 
-				break;
+					case 0:
+					case 1:
+						//48k
+						current_machine_type=1;
+						if (modify_hardware) current_machine_type=0;
 
-				case 3:
-					if (z80_version==2) {
-						//En v2, 128k
-	                                        current_machine_type=6;
-        	                                if (modify_hardware) current_machine_type=8;
+					break;
 
-					}
+					case 3:
+						if (z80_version==2) {
+							//En v2, 128k
+							current_machine_type=6;
+							if (modify_hardware) current_machine_type=8;
 
-					if (z80_version==3) {
-						debug_printf (VERBOSE_WARN,"Setting 48k machine but header says 48k + M.G.T.");
-						//En v3, 48k + M.G.T.
-	                                        current_machine_type=1;
-        	                                if (modify_hardware) current_machine_type=0;
-					}
-				break;
-				case 4:
-					//128k
-					current_machine_type=6;
-					if (modify_hardware) current_machine_type=8;
-				break;
+						}
 
-				case 5:
-					//128k + If.1
-					current_machine_type=6;
-                                        debug_printf (VERBOSE_WARN,"128k + If.1 is not emulated yet. Setting to Spectrum 128k");
-                                break;
+						if (z80_version==3) {
+							debug_printf (VERBOSE_WARN,"Setting 48k machine but header says 48k + M.G.T.");
+							//En v3, 48k + M.G.T.
+							current_machine_type=1;
+							if (modify_hardware) current_machine_type=0;
+						}
+					break;
+					case 4:
+						//128k
+						current_machine_type=6;
+						if (modify_hardware) current_machine_type=8;
+					break;
 
-				case 6:
-					//128k + M.G.T.
-					current_machine_type=6;
-                                        debug_printf (VERBOSE_WARN,"128k + M.G.T. is not emulated yet. Setting to Spectrum 128k");
-                                break;
+					case 5:
+						//128k + If.1
+						current_machine_type=6;
+						debug_printf (VERBOSE_ERR,"128k + If.1 is not emulated yet. Setting to Spectrum 128k");
+					break;
 
-                                case 7:
-                                        //+3
-                                        current_machine_type=11;
-                                        debug_printf (VERBOSE_WARN,"Spectrum +3 is not emulated yet. Setting to Spectrum +2A");
-                                break;
+					case 6:
+						//128k + M.G.T.
+						current_machine_type=6;
+						debug_printf (VERBOSE_ERR,"128k + M.G.T. is not emulated yet. Setting to Spectrum 128k");
+					break;
 
+					case 7:
+						//+3
+						current_machine_type=MACHINE_ID_SPECTRUM_P3_40;
+					break;
 
-				case 9:
-					//Pentagon 128k
-					current_machine_type=21;
-					//debug_printf (VERBOSE_WARN,"Pentagon 128k is not emulated yet. Setting to Spectrum 128k");
-				break;
+					case 8:
+						//[mistakenly used by some versions of XZX-Pro to indicate a +3]
+						current_machine_type=MACHINE_ID_SPECTRUM_P3_40;
+					break;
 
-                                case 10:
-                                        //Scorpion 256k
-                                        current_machine_type=6;
-                                        debug_printf (VERBOSE_WARN,"Scorpion 256k is not emulated yet. Setting to Spectrum 128k");
-                                break;
+					case 9:
+						//Pentagon 128k
+						current_machine_type=21;
+					break;
 
-                                case 11:
-                                        //Didaktik-Kompakt
-                                        current_machine_type=6;
-                                        debug_printf (VERBOSE_WARN,"Didaktik-Kompakt is not emulated yet. Setting to Spectrum 128k");
-                                break;
+					case 10:
+						//Scorpion 256k
+						current_machine_type=6;
+						debug_printf (VERBOSE_ERR,"Scorpion 256k is not emulated yet. Setting to Spectrum 128k");
+					break;
 
+					case 11:
+						//Didaktik-Kompakt
+						current_machine_type=6;
+						debug_printf (VERBOSE_ERR,"Didaktik-Kompakt is not emulated yet. Setting to Spectrum 128k");
+					break;
 
-				case 12:
-					//+2
-					current_machine_type=8;
-				break;
+					case 12:
+						//+2
+						current_machine_type=MACHINE_ID_SPECTRUM_P2;
+					break;
 
-				case 13:
-					//+2A
-					current_machine_type=11;
-				break;
+					case 13:
+						//+2A
+						current_machine_type=MACHINE_ID_SPECTRUM_P2A_40;
+					break;
 
-				default:
-					debug_printf(VERBOSE_ERR,"Unknown machine type %d",maquina_leida);
-					return;
-				break;
+					case 14:
+					case 15:
+						//TC2048
+						debug_printf(VERBOSE_ERR,"Unsupported machine type TC2048");
+						return;
+					break;			
+
+					case 128:
+						//TS2068
+						debug_printf(VERBOSE_ERR,"Unsupported machine type TS2068");
+						return;
+					break;									
+
+					default:
+						debug_printf(VERBOSE_ERR,"Unknown machine type %d",maquina_leida);
+						return;
+					break;
+				}
+
+            
+				set_machine(NULL);
 			}
 
-                        set_machine(NULL);
-                        reset_cpu();
+            reset_cpu();
 
 			reg_pc=value_8_to_16(z80_header_adicional[3],z80_header_adicional[2]);
 			load_z80_snapshot_common_registers(z80_header);
-
-
-
-//        char buffer[1024];
-
-//        print_registers(buffer);
-//        printf ("%s\n\n",buffer);
 
 
 
@@ -3055,16 +3110,16 @@ void load_z80_snapshot(char *archivo)
 			ay_3_8912_registro_sel[0]=z80_header_adicional[8];
 
 
-                        //AY CHIP
-                        if ( (z80_header_adicional[7] &4) ) {
-                                debug_printf(VERBOSE_DEBUG,"AY Chip enabled on z80 snapshot");
-                                ay_chip_present.v=1;
-                        }
+			//AY CHIP
+			if ( (z80_header_adicional[7] &4) ) {
+					debug_printf(VERBOSE_DEBUG,"AY Chip enabled on z80 snapshot");
+					ay_chip_present.v=1;
+			}
 
-                        else {
-                                debug_printf(VERBOSE_DEBUG,"AY Chip disabled on z80 snapshot");
-                                ay_chip_present.v=0;
-                        }
+			else {
+					debug_printf(VERBOSE_DEBUG,"AY Chip disabled on z80 snapshot");
+					ay_chip_present.v=0;
+			}
 
 /* Esto no lo uso
 if (long_cabecera_adicional>25) {
@@ -4427,6 +4482,238 @@ void save_sp_snapshot(char *filename)
 
 }
 
+
+//Comun para grabar registros en formato SNA 48k y 128k
+void save_sna_snapshot_registers(z80_byte *header)
+{
+
+/*
+   Offset   Size   Description
+   ------------------------------------------------------------------------
+   0        1      byte   I
+   1        8      word   HL',DE',BC',AF'
+   9        10     word   HL,DE,BC,IY,IX
+   19       1      byte   Interrupt (bit 2 contains IFF2, 1=EI/0=DI)
+   20       1      byte   R
+   21       4      words  AF,SP
+   25       1      byte   IntMode (0=IM0/1=IM1/2=IM2)
+   26       1      byte   BorderColor (0..7, not used by Spectrum 1.7)
+   27       49152  bytes  RAM dump 16384..65535
+   ------------------------------------------------------------------------
+   Total: 49179 bytes
+*/
+
+	header[0]=reg_i;
+	header[1]=reg_l_shadow;
+	header[2]=reg_h_shadow;	
+	header[3]=reg_e_shadow;
+	header[4]=reg_d_shadow;		
+	header[5]=reg_c_shadow;
+	header[6]=reg_b_shadow;
+	header[7]=get_flags_shadow();
+	header[8]=reg_a_shadow;
+
+	header[9]=reg_l;
+	header[10]=reg_h;
+	header[11]=reg_e;
+	header[12]=reg_d;		
+	header[13]=reg_c;
+	header[14]=reg_b;
+	header[15]=value_16_to_8l(reg_iy);
+	header[16]=value_16_to_8h(reg_iy);
+	header[17]=value_16_to_8l(reg_ix);
+	header[18]=value_16_to_8h(reg_ix);
+
+	//   19       1      byte   Interrupt (bit 2 contains IFF2, 1=EI/0=DI)
+	z80_byte bits_estado=(iff1.v) | (iff2.v ? 4 : 0);
+	header[19]=bits_estado;
+
+	header[20]=(reg_r&127) | (reg_r_bit7&128);
+
+	header[21]=get_flags();
+	header[22]=reg_a;
+
+	header[23]=value_16_to_8l(reg_sp);
+	header[24]=value_16_to_8h(reg_sp);
+
+	header[25]=im_mode;
+	header[26]=out_254  & 7;
+
+
+}
+
+void save_sna_snapshot_bytes_128k(FILE *ptr_sna_file,z80_byte pagina_entra)
+{
+
+	debug_printf (VERBOSE_INFO,"Writing 16Kb block from RAM page %d",pagina_entra);
+
+	z80_byte valor_puerto_32765=(puerto_32765&(255-7));
+
+	//Esto es una solucion un tanto fea pero funciona,
+	//asi no tengo que andar mirando si es maquina 128k, plus2 o plus3, o zxuno, etc
+
+	out_port_spectrum_no_time(32765,valor_puerto_32765 | pagina_entra);
+
+	z80_int direccion_origen=49152;
+	int l;
+	z80_byte byte_leido;
+	for (l=0;l<16384;l++) {
+		byte_leido=peek_byte_no_time(direccion_origen++);
+		fwrite(&byte_leido, 1, 1, ptr_sna_file);
+	}
+}
+
+
+//Grabar Snapshot SNA
+void save_sna_snapshot(char *filename)
+{
+/*
+   Offset   Size   Description
+   ------------------------------------------------------------------------
+   0        1      byte   I
+   1        8      word   HL',DE',BC',AF'
+   9        10     word   HL,DE,BC,IY,IX
+   19       1      byte   Interrupt (bit 2 contains IFF2, 1=EI/0=DI)
+   20       1      byte   R
+   21       4      words  AF,SP
+   25       1      byte   IntMode (0=IM0/1=IM1/2=IM2)
+   26       1      byte   BorderColor (0..7, not used by Spectrum 1.7)
+   27       49152  bytes  RAM dump 16384..65535
+   ------------------------------------------------------------------------
+   Total: 49179 bytes
+*/
+
+
+    z80_byte header[SNA_48K_HEADER_SIZE];
+
+	if (!MACHINE_IS_SPECTRUM) {
+		debug_printf(VERBOSE_ERR,"SNA snapshots are only allowed on Spectrum machines");
+		//Aqui se soporta 16kb,48kb, inves y modelos tk
+		return;
+	}
+
+
+	FILE *ptr_spfile;
+
+
+	if (MACHINE_IS_SPECTRUM_16_48) {
+		//Meter PC en stack
+		//Indicar como si fuera non_maskable_interrupt, pues originalmente los .sna venian en no-se-que interfaz
+		//y se generaba snapshot al pulsar boton nmi
+		push_valor(reg_pc,PUSH_VALUE_TYPE_NON_MASKABLE_INTERRUPT);
+	}
+
+    save_sna_snapshot_registers(header);
+
+
+	//Save header 
+	ptr_spfile=fopen(filename,"wb");
+	if (!ptr_spfile) {
+		debug_printf (VERBOSE_ERR,"Error writing snapshot file %s",filename);
+		return;
+	}
+
+	fwrite(header, 1, SNA_48K_HEADER_SIZE, ptr_spfile);
+
+    //Escritura de datos
+	if (MACHINE_IS_SPECTRUM_16_48) {
+		debug_printf (VERBOSE_INFO,"Saving 48kb block");
+		fwrite(&memoria_spectrum[16384],1,49152,ptr_spfile);
+	}
+
+
+	else {
+		//En 128k guardar mas cosas
+		/*
+		The 128K version of the .sna format is the same as above, with extensions to include the extra memory banks of the 128K/+2 machines, and fixes the problem with the PC being pushed onto the stack - now it is located in an extra variable in the file (and is not pushed onto the stack at all). The first 49179 bytes of the snapshot are otherwise exactly as described above, so the full description is:
+
+		Offset   Size   Description
+		------------------------------------------------------------------------
+		0        27     bytes  SNA header (see above)
+		27       16Kb   bytes  RAM bank 5 \
+		16411    16Kb   bytes  RAM bank 2  } - as standard 48Kb SNA file
+		32795    16Kb   bytes  RAM bank n / (currently paged bank)
+		49179    2      word   PC
+		49181    1      byte   port 0x7ffd setting
+		49182    1      byte   TR-DOS rom paged (1) or not (0)
+		49183    16Kb   bytes  remaining RAM banks in ascending order
+		...
+		------------------------------------------------------------------------
+		Total: 131103 or 147487 bytes
+
+		The third RAM bank saved is always the one currently paged, even if this is page 5 or 2 - in this case, the bank is actually included twice. The remaining RAM banks are saved in ascending order - e.g. if RAM bank 4 is paged in, the snapshot is made up of banks 5, 2 and 4 to start with, and banks 0, 1, 3, 6 and 7 afterwards. If RAM bank 5 is paged in, the snapshot is made up of banks 5, 2 and 5 again, followed by banks 0, 1, 3, 4, 6 and 7.
+		*/
+
+
+		//Fuse por ejemplo carga snapshots de 128kb como Pentagon 128k.... a saber...
+		z80_byte puerto_32765_antes=puerto_32765;
+
+
+		//Preparamos antes la cabecera pues hay que meter el puerto_32765 original
+		/*
+			49179    2      word   PC
+			49181    1      byte   port 0x7ffd setting
+			49182    1      byte   TR-DOS rom paged (1) or not (0)
+			49183    16Kb   bytes  remaining RAM banks in ascending order
+		*/		
+		z80_byte header128[SNA_128K_HEADER_SIZE];
+		header128[0]=value_16_to_8l(reg_pc);
+		header128[1]=value_16_to_8h(reg_pc);
+		header128[2]=puerto_32765_antes;
+		header128[3]=0;		
+		//TODO: usar el byte de TR-DOS rom paged (1) or not (0)
+
+		//Suponemos primero pagina 0, para habilitar paginacion, por si estuviera deshabilitada
+		puerto_32765=0;
+
+
+		//grabar datos
+		//grabar ram 5. 
+		save_sna_snapshot_bytes_128k(ptr_spfile,5);
+
+		//grabar ram 2. 
+		save_sna_snapshot_bytes_128k(ptr_spfile,2);	
+
+		//grabar ram N. luego la excluimos de la lista restante
+		z80_byte ram_paginada=puerto_32765_antes & 7;
+		save_sna_snapshot_bytes_128k(ptr_spfile,ram_paginada);
+
+
+		fwrite(header128, 1, SNA_128K_HEADER_SIZE, ptr_spfile);					
+				
+
+		//Grabar RAMS 0,1,3,4,6,7. Si ram_paged es alguna de esas, no grabarla
+		z80_byte paginas[6]={0,1,3,4,6,7};
+		int i;
+		for (i=0;i<6;i++) {
+			z80_byte pagina_entra=paginas[i];
+			if (pagina_entra!=ram_paginada) {
+				save_sna_snapshot_bytes_128k(ptr_spfile,pagina_entra);
+			}
+		}
+
+		//dejamos las paginas como estaban. Esto es una solucion un tanto fea pero funciona,
+		//asi no tengo que andar mirando si es maquina 128k, plus2 o plus3, o zxuno, etc
+		//printf ("puerto antes: %d\n",puerto_32765_antes);
+		out_port_spectrum_no_time(32765,puerto_32765_antes);
+
+	}
+
+
+    fclose(ptr_spfile);
+
+	if (MACHINE_IS_SPECTRUM_16_48) {
+		//Sacar PC del stack
+		reg_pc=pop_valor();
+	}
+
+	//Aviso de posible grabacion con error
+	if (!MACHINE_IS_SPECTRUM_16_48 && !MACHINE_IS_SPECTRUM_128_P2) {
+		menu_warn_message("SNA snapshot only work well on 48k and 128k/+2 models");
+	}
+
+}
+
 void save_ace_snapshot_store_header(void)
 {
 	//Meter cabecera archivo .ace en direcciones de memoria ram del ace 2000H-21FFH
@@ -4822,6 +5109,11 @@ void snapshot_save(char *filename)
                 save_sp_snapshot(filename);
         }
 
+	else if (!util_compare_file_extension(filename,"sna") ) {
+                debug_printf(VERBOSE_INFO,"Saving SNA snapshot %s",filename);
+                save_sna_snapshot(filename);
+        }		
+
         else if (!util_compare_file_extension(filename,"zsf") ) {
                       debug_printf(VERBOSE_INFO,"Saving ZSF snapshot %s",filename);
                       save_zsf_snapshot(filename);
@@ -4921,6 +5213,13 @@ void snapshot_load_name(char *nombre)
                         load_zsf_snapshot(nombre);
                 }
 
+
+                else if (!util_compare_file_extension(nombre,"nex") ) {
+			set_snap_file_options(nombre);
+                        load_nex_snapshot(nombre);
+                }
+
+
                 else if (!util_compare_file_extension(nombre,"spg") ) {
       set_snap_file_options(nombre);
                         load_spg_snapshot(nombre);
@@ -4968,14 +5267,11 @@ void snapshot_load(void)
 	snapshot_load_name(snapfile);
 }
 
-
-//Realiza quicksave y retorna nombre en char nombre, siempre que no sea NULL
-void snapshot_quick_save(char *nombre)
+//Retorna texto %Y-%m-%d-%H-%M-%S, usado en quicksave y en dump zsf on panic
+//texto tiene que tener tamanyo 40, aunque cabe con menos, pero mejor asi  .   char time_string[40];
+void snapshot_get_date_time_string_common(char *texto,int todos_guiones)
 {
-  char final_name[PATH_MAX];
-
-
-  struct timeval tv;
+struct timeval tv;
   struct tm* ptm;
   //long microseconds;
 
@@ -4990,9 +5286,41 @@ void snapshot_quick_save(char *nombre)
   /* Format the date and time, down to a single second. */
   char time_string[40];
 
-  strftime (time_string, sizeof(time_string), "%Y-%m-%d-%H-%M-%S", ptm);
+  //buffer temporal para poderle indicar el sizeof
+  if (todos_guiones) strftime (time_string, sizeof(time_string), "%Y-%m-%d-%H-%M-%S", ptm);
+  else strftime (time_string, sizeof(time_string), "%Y/%m/%d %H:%M:%S", ptm);
 
-  if (snapshot_autosave_interval_quicksave_directory[0]==0) sprintf (final_name,"%s-%s.zx",snapshot_autosave_interval_quicksave_name,time_string);
+  //copiar a texto final
+  strcpy(texto,time_string);
+
+  //printf ("texto fecha: %s\n",texto);
+}
+
+
+void snapshot_get_date_time_string(char *texto)
+{
+	//Para formatos de quicksave y dump zsf en panic. Todo guiones
+	snapshot_get_date_time_string_common(texto,1);
+}
+
+void snapshot_get_date_time_string_human(char *texto)
+{
+	//Para formatos de texto incluidos por ejemplo en cabecera pzx
+	snapshot_get_date_time_string_common(texto,0);
+}
+
+//Realiza quicksave y retorna nombre en char nombre, siempre que no sea NULL
+void snapshot_quick_save(char *nombre)
+{
+  char final_name[PATH_MAX];
+
+
+  
+  char time_string[40];
+
+  snapshot_get_date_time_string(time_string);
+
+  if (snapshot_autosave_interval_quicksave_directory[0]==0) sprintf (final_name,"%s-%s.zsf",snapshot_autosave_interval_quicksave_name,time_string);
 
   else sprintf (final_name,"%s/%s-%s.zsf",snapshot_autosave_interval_quicksave_directory,snapshot_autosave_interval_quicksave_name,time_string);
 
@@ -5012,4 +5340,479 @@ void autosave_snapshot_at_fixed_interval(void)
     snapshot_quick_save(NULL);
 
   }
+}
+
+//Devuelve el offset al bloque de memoria, teniendo en cuenta que los primeros 6 estan desordenados:
+//5,2,0,1,3,4,6,7,8,9,10,...,111
+/*int load_nex_snapshot_get_ram_offset(int block)
+{
+	switch (block) {
+		default:
+			return block*16384;
+		break;
+	}
+}*/
+
+//funcion derivada y reducida de esxdos_handler_call_f_open
+//Retorna file handle. Si <0, error
+int load_nex_snapshot_open_esxdos(char *nombre_archivo)
+{
+	/*
+	;                                                                       // Open file. A=drive. HL=Pointer to null-
+;                                                                       // terminated string containg path and/or
+;                                                                       // filename. B=file access mode. DE=Pointer
+;                                                                       // to BASIC header data/buffer to be filled
+;                                                                       // with 8 byte PLUS3DOS BASIC header. If you
+;                                                                       // open a headerless file, the BASIC type is
+;                                                                       // $ff. Only used when specified in B.
+;                                                                       // On return without error, A=file handle.
+*/
+
+	//Abrir para lectura
+	char *fopen_mode="rb";
+
+	//z80_byte modo_abrir=reg_b;
+
+
+	//Ver si no se han abierto el maximo de archivos y obtener handle libre
+	int free_handle=esxdos_find_free_fopen();
+	if (free_handle==-1) {
+		//esxdos_handler_error_carry(ESXDOS_ERROR_ENFILE);
+		//esxdos_handler_old_return_call();
+		return -1;
+	}
+
+	
+	char fullpath[PATH_MAX];
+	
+
+	esxdos_fopen_files[free_handle].tiene_plus3dos_header.v=0;
+
+
+	//esxdos_handler_pre_fileopen(nombre_archivo,fullpath);
+	char directorio_actual[PATH_MAX];
+	getcwd(directorio_actual,PATH_MAX);
+
+	//TODO: si archivo a cargar .nex esta fuera del esxdos root dir, deberia dar error
+	//Si empieza por /, es ruta absoluta
+	if (nombre_archivo[0]=='/' || nombre_archivo[0]=='\\') strcpy (fullpath,nombre_archivo);
+	else sprintf (fullpath,"%s/%s",directorio_actual,nombre_archivo);
+
+	printf ("ESXDOS handler: fullpath file: %s\n",fullpath);
+
+
+
+	//Abrir el archivo.
+	esxdos_fopen_files[free_handle].esxdos_last_open_file_handler_unix=fopen(fullpath,fopen_mode);
+
+
+	if (esxdos_fopen_files[free_handle].esxdos_last_open_file_handler_unix==NULL) {
+		//esxdos_handler_error_carry(ESXDOS_ERROR_ENOENT);
+		printf ("ESXDOS handler: Error from esxdos_handler_call_f_open file: %s\n",fullpath);
+		//esxdos_handler_old_return_call();
+		return -1;
+	}
+	else {
+		
+
+
+		//reg_a=free_handle;
+		//esxdos_handler_no_error_uncarry();
+		printf ("ESXDOS handler: Successfully esxdos_handler_call_f_open file: %s\n",fullpath);
+
+
+		if (stat(fullpath, &esxdos_fopen_files[free_handle].last_file_buf_stat)!=0) {
+						printf ("ESXDOS handler: Unable to get status of file %s\n",fullpath);
+		}
+
+		
+		esxdos_handler_call_f_open_post(free_handle,nombre_archivo,fullpath);
+
+
+	}
+
+	return free_handle;
+
+
+}
+
+
+
+//Cargar snapshot nex
+void load_nex_snapshot(char *archivo)
+{
+
+	debug_printf(VERBOSE_DEBUG,"Loading .nex snapshot %s",archivo);
+
+
+#define NEX_HEADER_SIZE 512
+	//buffer para la cabecera
+	z80_byte nex_header[NEX_HEADER_SIZE];
+
+
+        FILE *ptr_nexfile;
+
+
+        int leidos;
+
+        //Load File
+        ptr_nexfile=fopen(archivo,"rb");
+        if (ptr_nexfile==NULL) {
+                debug_printf(VERBOSE_ERR,"Error opening %s",archivo);
+                return;
+        }
+
+        leidos=fread(nex_header,1,NEX_HEADER_SIZE,ptr_nexfile);
+        if (leidos!=NEX_HEADER_SIZE) {
+                        debug_printf(VERBOSE_ERR,"Error reading %d bytes of header",NEX_HEADER_SIZE);
+                        return;
+        }
+        
+
+        //Ver si signatura correcta
+        if (nex_header[0]!='N' || nex_header[1]!='e' || nex_header[2]!='x' || nex_header[3]!='t') {
+                        debug_printf(VERBOSE_ERR,"Unknown NEX signature: 0x%x 0x%x 0x%x 0x%x",nex_header[0],nex_header[1],nex_header[2],nex_header[3]);
+                        return;
+        }
+
+
+	//cambio a maquina tbblue, siempre 
+	//if (!MACHINE_IS_TBBLUE) {
+		
+        current_machine_type=MACHINE_ID_TBBLUE;
+
+		//temporalmente ponemos tbblue fast boot mode y luego restauramos valor anterior
+		z80_bit antes_tbblue_fast_boot_mode;
+		antes_tbblue_fast_boot_mode.v=tbblue_fast_boot_mode.v;
+		tbblue_fast_boot_mode.v=1;
+
+        set_machine(NULL);
+        reset_cpu();
+
+		tbblue_fast_boot_mode.v=antes_tbblue_fast_boot_mode.v;
+	//}
+
+
+	//Al cargar .nex lo pone en turbo x 4
+	debug_printf(VERBOSE_DEBUG,"Setting turbo x 4 because it's the usual speed when loading .nex files from NextOS");
+
+	z80_byte reg7=tbblue_registers[7];
+	
+	reg7 &=(255-3); //Quitar los dos bits bajos
+
+	reg7 |=2;
+	//(R/W)	07 => Turbo mode
+	//bit 1-0 = Turbo (00 = 3.5MHz, 01 = 7MHz, 10 = 14MHz)
+
+	tbblue_registers[7]=reg7;
+	tbblue_set_emulator_setting_turbo();
+
+
+
+
+	//desactivamos interrupciones. No esta en el formato pero supongo que es asi
+	iff1.v=iff2.v=0;
+
+
+	//check version. Permitir 1.0, 1.1 y 1.2 y avisar si mayor de 1.2
+
+	char snap_version[5];
+	//4	4	string with NEX file version, currently "V1.0", "V1.1" or "V1.2"
+	snap_version[0]=nex_header[4];
+	snap_version[1]=nex_header[5];
+	snap_version[2]=nex_header[6];
+	snap_version[3]=nex_header[7];
+	snap_version[4]=0;
+
+	//no imprimirlo por si no es una string normal 
+	//printf ("Snapshot version: %s\n",snap_version);
+
+	if (
+		! 
+		(
+		!strcmp(snap_version,"V1.0") ||
+		!strcmp(snap_version,"V1.1") ||
+		!strcmp(snap_version,"V1.2") 
+		)
+	) {
+
+		debug_printf (VERBOSE_ERR,"Unsupported snapshot version. Loading it anyway");
+	}
+
+
+	//8	1	RAM required: 0 = 768k, 1 = 1792k
+	//En ZEsarUX, si activo los 2048 kb, es 1792 KB para el sistema. 
+	//En ZEsarUX, si activo los 1024 kb, es 768 KB para el sistema. 
+	//tbblue_extra_512kb_blocks 1 o 3
+	if (nex_header[8]) {
+		debug_printf(VERBOSE_DEBUG,"Uses 1792 kb");
+		tbblue_extra_512kb_blocks=3;
+	}
+	else {
+		debug_printf(VERBOSE_DEBUG,"Uses 768k kb");
+		tbblue_extra_512kb_blocks=1;
+	}
+	
+	//Ofset 8: Number of 16k Banks to Load: 0-112 (see also the byte array at offset 18, which must yield this count)
+	//Que sentido tiene si ya hay un array en el offset 18?? Pasamos de esto
+
+	//border
+    out_254=nex_header[11] & 7;
+    modificado_border.v=1;	
+
+	//SP
+	reg_sp=value_8_to_16(nex_header[13],nex_header[12]);
+
+	//PC
+	z80_int possible_pc=value_8_to_16(nex_header[15],nex_header[14]);
+
+	if (possible_pc!=0) {
+		reg_pc=possible_pc;
+		debug_printf(VERBOSE_DEBUG,"Register PC: %04XH",reg_pc);
+	}
+
+	//modo timex
+	set_timex_port_ff(nex_header[138]);
+	debug_printf(VERBOSE_DEBUG,"Timex mode: %02XH",timex_port_ff);
+
+
+	debug_printf(VERBOSE_DEBUG,"Mapping ram %d at C000H",nex_header[139]);
+	tbblue_out_port_32765(nex_header[139]);
+
+	//file handler address
+	z80_int nex_file_handler=value_8_to_16(nex_header[141],nex_header[140]);
+	debug_printf(VERBOSE_DEBUG,"File handler: %d",nex_file_handler);
+
+	
+
+	int cargar_paleta=0;
+	z80_byte load_screen_blocks=nex_header[10];
+
+
+	// Only Layer2 and Lo-Res screens expect the palette block (unless +128 flag set
+	if ( (load_screen_blocks & 1) || (load_screen_blocks & 4) ) {
+		cargar_paleta=1;
+	}
+
+	if (load_screen_blocks & 128) cargar_paleta=0;
+
+	//Cargar paleta optional palette (for Layer2 or LoRes screen)
+	if (cargar_paleta) {
+		debug_printf(VERBOSE_DEBUG,"Loading palette");
+		leidos=fread(tbblue_palette_layer2_second,1,512,ptr_nexfile);
+	}
+
+	//Cargar Layer2 loading screen
+	if (load_screen_blocks & 1) {
+		debug_printf(VERBOSE_DEBUG,"Loading Layer2 loading screen");
+		int tbblue_layer2_offset=tbblue_get_offset_start_layer2();
+		leidos=fread(&memoria_spectrum[tbblue_layer2_offset],1,49152,ptr_nexfile);
+		//Asumimos que esta activo modo layer2 entonces
+		//tbblue_out_port_layer2_value(1);
+		//tbblue_registers[0x15]=4; //Layer priority L S U
+	}	
+
+	//classic ULA loading screen
+	if (load_screen_blocks & 2) {
+		debug_printf(VERBOSE_DEBUG,"Loading classic ULA loading screen");
+		z80_byte *pant;
+		pant=get_base_mem_pantalla();
+		leidos=fread(pant,1,6912,ptr_nexfile);
+	}		
+
+	//LoRes loading screen
+	if (load_screen_blocks & 4) {
+		debug_printf(VERBOSE_DEBUG,"Loading LoRes loading screen");
+		z80_byte *pant;
+		pant=get_lores_pointer(0);
+		leidos=fread(pant,1,12288,ptr_nexfile);
+
+		//Asumimos modo lores
+		//tbblue_registers[0x15]=128;
+	}		
+
+
+	//Timex HiRes (512x192) loading screen
+	if (load_screen_blocks & 8) {
+		debug_printf(VERBOSE_DEBUG,"Loading Timex HiRes loading screen");
+		z80_byte *pant;
+		pant=tbblue_ram_memory_pages[5*2];
+
+		//primer bloque
+		leidos=fread(pant,1,6144,ptr_nexfile);
+
+		pant +=0x2000;
+
+		//segundo bloque
+		leidos=fread(pant,1,6144,ptr_nexfile);		
+	}			
+
+	//Timex HiCol (8x1) loading screen
+	if (load_screen_blocks & 16) {
+		debug_printf(VERBOSE_DEBUG,"Timex HiCol (8x1) loading screen");
+		z80_byte *pant;
+		pant=tbblue_ram_memory_pages[5*2];
+
+		//primer bloque
+		leidos=fread(pant,1,6144,ptr_nexfile);
+
+		pant +=0x2000;
+
+		//segundo bloque
+		leidos=fread(pant,1,6144,ptr_nexfile);	
+	}		
+
+	//TODO: que modo activo de video esta? aparte del timex, no se puede saber si esta lores, o layer2, o ula normal
+	//pruebo a activar el modo de la pantalla que carga pero no parece que ningun snapshot tenga una pantalla valida
+
+
+	//16kiB raw memory bank data in predefined order: 5,2,0,1,3,4,6,7,8,9,10,...,111 (particular bank may be omitted completely)
+	//Vamos a cargar los posibles 112 bloques en ram
+	//Aunque no vayan a existir esos bloques, los cargamos todos y luego ya vemos
+#define NEX_RAM_BLOCKS 112
+
+
+	//Gestionar los primeros 6 bloques desordenados
+
+	int array_bloques[6]={5,2,0,1,3,4};
+
+	int i;
+	for (i=0;i<6;i++) {
+		//int offset_bloque;
+		int bloque_cargar=array_bloques[i];
+		z80_byte esta_presente=nex_header[18+bloque_cargar];
+		if (esta_presente) {
+			debug_printf(VERBOSE_DEBUG,"Loading ram block %d",bloque_cargar);
+			z80_byte *destino=tbblue_ram_memory_pages[bloque_cargar*2];
+			leidos=fread(destino,1,16384,ptr_nexfile);	
+		}
+	}
+
+	//Leer el resto de bloques
+	for (i=6;i<112;i++) {
+		//int offset_bloque;
+		int bloque_cargar=i;
+		z80_byte esta_presente=nex_header[18+bloque_cargar];
+		if (esta_presente) {
+			debug_printf(VERBOSE_DEBUG,"Loading ram block %d",bloque_cargar);
+			z80_byte *destino=tbblue_ram_memory_pages[bloque_cargar*2];
+			leidos=fread(destino,1,16384,ptr_nexfile);	
+		}
+	}	
+
+	//Gestionar file handler
+	/*
+	-.nex format. file handler:
+“File handle address: 0 = NEX file is closed by the loader, 1..0x3FFF values (1 recommended) = NEX loader keeps NEX file open and does 
+pass the file handle in BC register, 0x4000..0xFFFF values (for 0xC000..0xFFFF see also "Entry bank") = NEX loader 
+keeps NEX file open and the file handle is written into memory at the desired address.”
+
+If the word at offset is 0, I just simply close the file and I don’t do anything else. Set bc=255
+
+If the value is between 1...0x3fff value, I keep the file open and the file handler number is copied to register BC
+
+If the value is between 0x4000 and ffff, I write the file handler number at the address that poitnts this offset 140. Set bc to 255 
+
+Y esto hacerlo después de marear toda la ram y cargar los bloques de memoria, lógicamente 
+
+-Parámetro config de tipo background ZX desktop. Más tipos?
+y parámetro de color del tipo de fondo sólido
+	 */
+	
+	//por defecto hacemos que registro bc=255, error
+	BC=255;
+
+	if (nex_file_handler>0) {
+		
+
+		debug_printf(VERBOSE_DEBUG,"Uses NextOS file handler");
+		
+		//De momento asumimos error y escribimos 255 en la memoria tambien (en caso que nex_file_handler esta entre 0x4000 y ffff)
+		//Asi le daremos un file handler erroneo si pasase cualquier cosa
+		if (nex_file_handler>=0x4000 && nex_file_handler<0xffff) {
+			poke_byte_no_time(nex_file_handler,255);
+		}
+
+		//Si no esta esxdos handler habilitado, avisar y no hacer nada mas
+		if (esxdos_handler_enabled.v) {
+			//Obtener offset actual sobre archivo snapshot abierto
+			long initial_offset=ftell(ptr_nexfile);
+			debug_printf(VERBOSE_DEBUG,"Current offset of .nex file after loading it: %ld",initial_offset);
+
+			//Abrir este mismo archivo desde esxdos handler. Luego hacer seek hasta el offset que tenemos
+
+			//Cerrarlo antes, por problemas de bloqueo en sistema operativo al tenerlo dos veces (en windows?)
+			fclose(ptr_nexfile);
+
+
+			int esx_file_handler=load_nex_snapshot_open_esxdos(archivo);
+			debug_printf(VERBOSE_DEBUG,"file handle of esxdos open file: %d",esx_file_handler);
+
+			if (esx_file_handler>=0) {
+				//Hacer fseek
+				if (fseek (esxdos_fopen_files[esx_file_handler].esxdos_last_open_file_handler_unix, initial_offset, SEEK_CUR)!=0) {
+					debug_printf (VERBOSE_ERR,"ESXDOS handler: Error running fseek system call");
+				}
+
+				//Retornar BCDE
+				long cur_offset=ftell(esxdos_fopen_files[esx_file_handler].esxdos_last_open_file_handler_unix);
+
+				debug_printf(VERBOSE_DEBUG,"ESXDOS handler: offset is now at %ld",cur_offset);
+
+
+				//If the value is between 1...0x3fff value, I keep the file open and the file handler number is copied to register BC
+
+				//If the value is between 0x4000 and ffff, I write the file handler number at the address that poitnts this offset 140. Set bc to 255 
+				if (nex_file_handler<=0x3fff) {
+					BC=esx_file_handler;
+					debug_printf(VERBOSE_DEBUG,"Setting BC register to value %04XH",BC);
+				}
+				else {
+					//copiar handler en memoria
+					debug_printf(VERBOSE_DEBUG,"Writing file handler to memory, address %04XH",nex_file_handler);
+					poke_byte_no_time(nex_file_handler,esx_file_handler);
+				}
+
+			}
+
+		}
+		else {
+			debug_printf (VERBOSE_ERR,"Snapshot uses NextOS file handler. You should enable esxdos handler before loading it");
+			fclose(ptr_nexfile);
+		}
+	}
+	else {
+		fclose(ptr_nexfile);
+	}
+
+}
+
+//Volcar snapshot cuando hay cpu panic
+void snap_dump_zsf_on_cpu_panic(void)
+{
+
+	//Si volcar snapshot zsf cuando hay cpu_panic
+	if (debug_dump_zsf_on_cpu_panic.v==0) return;
+
+	//printf ("Intentando volcado zsf on panic\n");
+
+	//Si ya se ha volcado snapshot zsf cuando hay cpu_panic, para evitar un segundo volcado (y siguientes) si se genera otro panic al hacer el snapshot
+	if (dumped_debug_dump_zsf_on_cpu_panic.v) return;
+
+	//printf ("Volcando zsf on panic\n");
+	 dumped_debug_dump_zsf_on_cpu_panic.v=1;
+
+
+
+
+
+ 
+	 char time_string[40];
+
+  snapshot_get_date_time_string(time_string);
+
+  sprintf (dump_snapshot_panic_name,"cpu_panic-%s.zsf",time_string);
+
+  snapshot_save(dump_snapshot_panic_name);
+
 }

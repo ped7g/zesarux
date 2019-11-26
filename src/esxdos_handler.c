@@ -327,7 +327,7 @@ int esxdos_handler_get_attr_etc(char *nombre,z80_int puntero,z80_byte *atributo)
 
 	z80_long_int l=longitud_total;
 
-	debug_printf (VERBOSE_DEBUG,"ESXDOS handler: lenght file: %d",l);
+	debug_printf (VERBOSE_DEBUG,"ESXDOS handler: length file: %d",l);
 	esxdos_handler_fill_size_struct(puntero+4,l);
 
 	return 0;
@@ -484,6 +484,19 @@ void esxdos_handler_call_f_stat(void)
 
 }
 
+
+void esxdos_handler_call_f_open_post(int handle,char *nombre_archivo,char *fullpath)
+{
+
+		//Indicar handle ocupado
+		esxdos_fopen_files[handle].open_file.v=1;
+
+		esxdos_fopen_files[handle].is_a_directory.v=0;
+
+		//Y poner nombres para debug
+		strcpy(esxdos_fopen_files[handle].debug_name,nombre_archivo);
+		strcpy(esxdos_fopen_files[handle].debug_fullpath,fullpath);
+}
 
 
 void esxdos_handler_call_f_open(void)
@@ -657,13 +670,13 @@ Esto se usa en NextDaw, es open+truncate
 			//como workaround, hacemos que el que realmente no tenga cabecera (no empieza por "plus3dos"), no se le lea cabecera
 			//Si no, la pantalla de ayuda se veria desplazada estos 128 bytes
 			/*
-        Bytes 0...7     - +3DOS signature - 'PLUS3DOS'
-        Byte 8          - 1Ah (26) Soft-EOF (end of file)
-        Byte 9          - Issue number
-        Byte 10         - Version number
-        Bytes 11...14   - Length of the file in bytes, 32 bit number,
+        	Bytes 0...7     - +3DOS signature - 'PLUS3DOS'
+        	Byte 8          - 1Ah (26) Soft-EOF (end of file)
+        	Byte 9          - Issue number
+        	Byte 10         - Version number
+        	Bytes 11...14   - Length of the file in bytes, 32 bit number,
                             least significant byte in lowest address
-        Bytes 15...22   - +3 BASIC header data			
+        	Bytes 15...22   - +3 BASIC header data			
 			*/
 
 			//Leer los primeros 8 bytes
@@ -715,14 +728,10 @@ Esto se usa en NextDaw, es open+truncate
 						debug_printf (VERBOSE_DEBUG,"ESXDOS handler: Unable to get status of file %s",fullpath);
 		}
 
-		//Indicar handle ocupado
-		esxdos_fopen_files[free_handle].open_file.v=1;
+		
+		esxdos_handler_call_f_open_post(free_handle,nombre_archivo,fullpath);
 
-		esxdos_fopen_files[free_handle].is_a_directory.v=0;
 
-		//Y poner nombres para debug
-		strcpy(esxdos_fopen_files[free_handle].debug_name,nombre_archivo);
-		strcpy(esxdos_fopen_files[free_handle].debug_fullpath,fullpath);
 	}
 
 
@@ -803,12 +812,12 @@ void esxdos_handler_call_f_seek(void)
 
 	long initial_offset=ftell(esxdos_fopen_files[file_handler].esxdos_last_open_file_handler_unix);
 
-	debug_printf (VERBOSE_DEBUG,"ESXDOS handler: offset was before at now at %ld",initial_offset);
+	debug_printf (VERBOSE_DEBUG,"ESXDOS handler: offset was at %ld",initial_offset);
 
 /*
 F_SEEK: Seek BCDE bytes. A=handle
 
-L=mode (0 from start of file, 1 fwd from current pos, 2 bak from current pos).
+IXL / L=mode (0 from start of file, 1 fwd from current pos, 2 bak from current pos).
 
 On return BCDE=current file pointer. FIXME-Should return bytes actually seeked
 */
@@ -819,7 +828,16 @@ On return BCDE=current file pointer. FIXME-Should return bytes actually seeked
 
 	int whence;
 
-	switch (reg_l) {
+	//Usar reg_l o IX_L
+
+	z80_byte f_seek_mode;
+
+	//f_seek_mode=(z80_byte) *registro_parametros_hl_ix;
+
+	//Mas elegante asi:
+	f_seek_mode=(z80_byte) ((*registro_parametros_hl_ix) & 0xff);
+
+	switch (f_seek_mode) {
 		case 0:
 			whence=SEEK_SET;
 		break;
@@ -834,7 +852,7 @@ On return BCDE=current file pointer. FIXME-Should return bytes actually seeked
 		break;
 
 		default:
-			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: Error from esxdos_handler_call_f_seek. Unsupported mode %d",reg_l);
+			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: Error from esxdos_handler_call_f_seek. Unsupported mode %d",f_seek_mode);
 			esxdos_handler_error_carry(ESXDOS_ERROR_EIO);
 			esxdos_handler_old_return_call();
 			return;
@@ -1259,7 +1277,7 @@ int esxdos_handler_string_to_msdos(char *fullname,z80_int puntero)
 	poke_byte_no_time(puntero+i,0);
 	i++;
 
-	debug_printf (VERBOSE_DEBUG,"ESXDOS handler: lenght name: %d",i);
+	debug_printf (VERBOSE_DEBUG,"ESXDOS handler: length name: %d",i);
 	//if (i<11) poke_byte_no_time(puntero+i,0);
 
 	//return 12;
@@ -1837,6 +1855,8 @@ void esxdos_handler_begin_handling_commands(void)
 	char buffer_fichero[256];
 	char buffer_fichero2[256];
 
+	z80_byte f_seek_mode;
+
 	switch (funcion)
 	{
 
@@ -1932,7 +1952,12 @@ void esxdos_handler_begin_handling_commands(void)
 		break;
 
 		case ESXDOS_RST8_F_SEEK:
-			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: ESXDOS_RST8_F_SEEK. Move %04X%04XH bytes mode %d from file handle %d",reg_bc,reg_de,reg_l,reg_a);
+			//f_seek_mode=(z80_byte) *registro_parametros_hl_ix;
+
+			//Mas elegante asi:
+			f_seek_mode=(z80_byte) ((*registro_parametros_hl_ix) & 0xff);
+
+			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: ESXDOS_RST8_F_SEEK. Move %04X%04XH bytes mode %d from file handle %d",reg_bc,reg_de,f_seek_mode,reg_a);
 			esxdos_handler_call_f_seek();
 			esxdos_handler_new_return_call();
 		break;

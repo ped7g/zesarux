@@ -60,6 +60,8 @@ extern z80_byte *baseconf_ram_mem_table[];
 extern void baseconf_reset_cpu(void);
 extern void baseconf_hard_reset(void);
 
+extern void lee_byte_evo_aux(z80_int direccion);
+
 extern z80_byte baseconf_memory_segments[];
 extern z80_byte baseconf_memory_segments_type[];
 
@@ -69,6 +71,13 @@ extern int baseconf_sd_enabled;
 
 extern int baseconf_sd_cs;
 
+extern z80_byte baseconf_last_port_bf;
+
 extern int baseconf_shadow_ports_available(void);
+
+
+
+
+
 
 #endif

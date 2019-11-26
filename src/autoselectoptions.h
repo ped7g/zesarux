@@ -37,14 +37,19 @@ extern char *mostrar_footer_game_name;
 extern void autoselect_options_put_footer(void);
 extern char *mostrar_footer_second_message;
 
-extern char mostrar_footer_first_message[255];
-extern char mostrar_footer_first_message_mostrado[255];
+extern char mostrar_footer_first_message[];
+extern char mostrar_footer_first_message_mostrado[];
 
 extern int indice_first_message_mostrado;
 
 extern int indice_second_message_mostrado;
 
 extern void tape_options_corta_a_32(char *s);
+extern void put_footer_first_message(char *mensaje);
+
+
+#define AUTOSELECTOPTIONS_MAX_FOOTER_LENGTH 255
+
 
 
 

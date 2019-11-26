@@ -132,6 +132,14 @@ int mmc_card_selected=0;
 z80_bit mmc_write_protection={0};
 
 
+//Si archivo mmc insertado es de tipo hdf
+z80_bit mmc_file_inserted_hdf={0};
+
+//Tamaño cabecera hdf
+z80_int mmc_file_header_hdf_size;
+
+//Puntero a cabecera hdf
+z80_byte *mmc_file_header_hdf_pointer=NULL;
 
 //Si cambios en escritura se hace flush a disco
 z80_bit mmc_persistent_writes={1};
@@ -180,7 +188,18 @@ void mmc_flush_flash_to_disk(void)
         size=mmc_size;
 
 
+
+
+
         if (ptr_mmcfile!=NULL) {
+
+		//Si tiene cabecera hdf, grabarla
+		if (mmc_file_inserted_hdf.v) {
+			debug_printf (VERBOSE_DEBUG,"Writing hdf header");
+			fwrite(mmc_file_header_hdf_pointer,1,mmc_file_header_hdf_size,ptr_mmcfile);
+			debug_printf (VERBOSE_DEBUG,"Writing hdf data");
+		}
+
                 z80_byte *puntero;
                 puntero=mmc_memory_pointer;
 
@@ -219,9 +238,22 @@ int mmc_read_file_to_memory(void)
   ptr_mmcfile=fopen(mmc_file_name,"rb");
 
 
+  unsigned int bytes_a_leer=mmc_size;
+
+
+  //mmc_file_inserted_hdf.v=1;
+
+
   if (ptr_mmcfile!=NULL) {
-          leidos=fread(mmc_memory_pointer,1,mmc_size,ptr_mmcfile);
-          fclose(ptr_mmcfile);
+
+	//Si tiene cabecera hdf, ignorarla
+	if (mmc_file_inserted_hdf.v) {
+		fseek(ptr_mmcfile,mmc_file_header_hdf_size,SEEK_SET);
+	}
+
+
+        leidos=fread(mmc_memory_pointer,1,bytes_a_leer,ptr_mmcfile);
+        fclose(ptr_mmcfile);
   }
 
   if (ptr_mmcfile==NULL) {
@@ -229,8 +261,8 @@ int mmc_read_file_to_memory(void)
   return 1;
   }
 
-  if (leidos!=mmc_size) {
-  debug_printf (VERBOSE_ERR,"Error reading mmc. Asked: %ld Read: %d",mmc_size,leidos);
+  if (leidos!=bytes_a_leer) {
+  debug_printf (VERBOSE_ERR,"Error reading mmc. Asked: %ld Read: %d",bytes_a_leer,leidos);
   return 1;
   }
 
@@ -291,6 +323,69 @@ void mmc_get_cmult(int *valor, z80_byte *valor_8_bits)
 	debug_printf (VERBOSE_DEBUG,"mmc_size: %ld cmult: %d (%d)",mmc_size,*valor_8_bits,*valor);
 }
 
+int mmc_read_hdf_header(void)
+{
+	unsigned char buffer_lectura[1024];
+
+
+        FILE *ptr_inputfile;
+        ptr_inputfile=fopen(mmc_file_name,"rb");
+
+        if (ptr_inputfile==NULL) {
+                debug_printf (VERBOSE_ERR,"Error opening %s",mmc_file_name);
+                return 1;
+        }
+
+
+
+	// Leer offset a datos raw del byte de cabecera:
+	//0x09 DOFS WORD Image data offset This is the absolute offset in the HDF file where the actual hard-disk data dump starts.
+	//In HDF version 1.1 this is 0x216.
+
+	//Leemos 10 bytes de la cabecera
+        fread(buffer_lectura,1,10,ptr_inputfile);
+
+	mmc_file_header_hdf_size=buffer_lectura[9]+256*buffer_lectura[10];
+
+	//printf ("Offset to raw data: %d\n",offset_raw);
+
+
+	//Leer desde el principio al buffer
+	fseek(ptr_inputfile,0,SEEK_SET);
+
+
+
+	//Si habia memoria asignada, desasignar
+	if (mmc_file_header_hdf_pointer!=NULL) free (mmc_file_header_hdf_pointer);
+	mmc_file_header_hdf_pointer=NULL;
+
+
+        mmc_file_header_hdf_pointer=malloc(mmc_file_header_hdf_size);
+        if (mmc_file_header_hdf_pointer==NULL) {
+                cpu_panic ("No enough memory for mmc emulation");
+        }
+
+   
+	unsigned int leidos=0;
+	debug_printf (VERBOSE_DEBUG,"Reading %d bytes of hdf header",mmc_file_header_hdf_size);
+
+          leidos=fread(mmc_file_header_hdf_pointer,1,mmc_file_header_hdf_size,ptr_inputfile);
+          fclose(ptr_inputfile);
+
+  if (leidos!=mmc_file_header_hdf_size) {
+  debug_printf (VERBOSE_ERR,"Error reading mmc header. Asked: %ld Read: %d",mmc_file_header_hdf_size,leidos);
+  return 1;
+  }
+
+  return 0;
+
+}
+
+
+
+
+
+
 void mmc_insert(void)
 {
 
@@ -309,6 +404,22 @@ void mmc_insert(void)
 
 	mmc_size=get_file_size(mmc_file_name);
 	debug_printf (VERBOSE_DEBUG,"mmc file size: %ld",mmc_size);
+
+	//Gestionar si archivo es tipo hdf
+	if (!util_compare_file_extension(mmc_file_name,"hdf")) {
+		debug_printf (VERBOSE_INFO,"File has hdf header");
+		if (mmc_read_hdf_header()) {
+			mmc_disable();
+                	return;	
+		}
+		mmc_size -=mmc_file_header_hdf_size;
+		mmc_file_inserted_hdf.v=1;
+	}
+
+	else {
+		mmc_file_inserted_hdf.v=0;
+	}
+
 
 	int sector_size;
 	z80_byte sector_size_8_bits;

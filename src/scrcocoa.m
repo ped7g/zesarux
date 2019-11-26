@@ -498,10 +498,10 @@ int pendiente_z88_draw_lower=0;
 
         int zoom_x_calculado,zoom_y_calculado;
 
-        debug_printf (VERBOSE_INFO,"width: %d get_window_width: %d height: %d get_window_height: %d",width,screen_get_window_size_width_no_zoom_border_en(),height,screen_get_window_size_height_no_zoom_border_en());
+        debug_printf (VERBOSE_INFO,"zoom_x %d zoom_y %d width: %d get_window_width: %d height: %d get_window_height: %d",zoom_x,zoom_y,width,screen_get_window_size_width_no_zoom_border_en(),height,screen_get_window_size_height_no_zoom_border_en());
 
 
-        zoom_x_calculado=width/screen_get_window_size_width_no_zoom_border_en();
+        zoom_x_calculado=width/(screen_get_window_size_width_no_zoom_border_en()+screen_get_ext_desktop_width_no_zoom() );
         zoom_y_calculado=height/screen_get_window_size_height_no_zoom_border_en();
 
 
@@ -520,6 +520,8 @@ int pendiente_z88_draw_lower=0;
         }
 
     pixel_screen_width = screen_get_window_size_width_zoom_border_en();
+    pixel_screen_width += screen_get_ext_desktop_width_zoom();
+
     pixel_screen_height = screen_get_window_size_height_zoom_border_en();
 
     NSInteger dataLength = pixel_screen_width * pixel_screen_height * 4;
@@ -545,6 +547,8 @@ int pendiente_z88_draw_lower=0;
 
         [elview setFrame:NSMakeRect(0, 0, pixel_screen_width, pixel_screen_height)];
    [ [ laventana contentView ] resizeContentToWidth:(int)(pixel_screen_width) height:(int)(pixel_screen_height) ];
+
+   //printf ("resize: %d X %d\n",width,height);
 
 }
 
@@ -841,7 +845,7 @@ if ((NSDragOperationGeneric & [sender draggingSourceOperationMask])
 
 - (void)scrollWheel:(NSEvent *)event
 {
-	debug_printf (VERBOSE_DEBUG,"Scroll wheel scrolled %f horizontally and %f vertically", [event deltaX], [event deltaY]);
+	debug_printf (VERBOSE_PARANOID,"Scroll wheel scrolled %f horizontally and %f vertically", [event deltaX], [event deltaY]);
         mouse_wheel_horizontal=[event deltaX];
         mouse_wheel_vertical=[event deltaY];
 }
@@ -995,61 +999,7 @@ CGImageRef imageRef;
 
 
 
-//Prueba otra funcion redibujar ventana
-//Tambien falla. ademas a veces da segmentation fault al redimensionar ventana
-//Lo curioso es que cuando deja de redibujar la pantalla, se sigue llamando a aqui
 
-
-/*
-- (void) newdrawRect:(NSRect) rect
-						{
-
-
-						if (pendingresize) {
-										debug_printf (VERBOSE_DEBUG,"drawRect with pendingresize active");
-						return;
-						}
-
-if (dataProviderRef) {
-	//printf ("Redibujando\n");
-//http://stackoverflow.com/questions/4356441/mac-os-cocoa-draw-a-simple-pixel-on-a-canvas
-
-							// Create a CGImage with the pixel data
-	//CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, dataProviderRef, dataLength, NULL);
-	CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
-	CGImageRef image = CGImageCreate(
-screen_get_window_size_width_zoom_border_en(),screen_get_window_size_height_zoom_border_en(),
-
-			screen.bitsPerComponent,
-			screen.bitsPerPixel,
-
-
-			(screen_get_window_size_width_zoom_border_en() * (screen.bitsPerComponent/2)), //bytesPerRow
-
-			CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
-			kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
-			dataProviderRef, //provider
-			NULL, //decode
-			0, //interpolate
-			kCGRenderingIntentDefault //intent
-	);
-
-
-	CGContextRef ctx = [[NSGraphicsContext currentContext] graphicsPort];
-
-	CGContextDrawImage(ctx,
-			CGRectMake(0.0, 0.0, screen_get_window_size_width_zoom_border_en(),screen_get_window_size_height_zoom_border_en()),
-			image);
-
-	//Clean up
-	CGColorSpaceRelease(colorspace);
-	CGImageRelease (image);
-	//CGDataProviderRelease(provider);
-						}
-
-}
-
-*/
 
 //Redibujar ventana. No usado en OpenGL
 - (void) drawRect:(NSRect) rect
@@ -1141,11 +1091,11 @@ screen_get_window_size_width_zoom_border_en(),screen_get_window_size_height_zoom
                         );
                         CGContextDrawImage (viewContextRef, cgrect(rectList[0]), clipImageRef);
                         CGImageRelease (clipImageRef);
-												//CFRelease (clipImageRef);
+												
         }
 #endif
         CGImageRelease (imageRef);
-				//CFRelease (imageRef);
+				
     }
 }
 
@@ -1208,9 +1158,33 @@ screen_get_window_size_width_zoom_border_en(),screen_get_window_size_height_zoom
 {
 	debug_printf (VERBOSE_INFO,"resizeContentToWidth %d X %d",w,h);
 
+        int timeout=100;
+
+        if (sem_screen_refresh_reallocate_layers) {
+                debug_printf (VERBOSE_DEBUG,"About to run resizeContentToWidth in the middle of a screen refresh. Wait until finish refreshing");
+        }
+
+        while (sem_screen_refresh_reallocate_layers && timeout) {
+                //printf ("Se va a hacer resizeContentToWidth en medio de refresco. Esperar\n");
+
+                //esto parece que solo sucede al inicio del programa? y solo en Cocoa?
+                //este tipo de cosas parece que solo sucede en cocoa pues el driver de video va con un thread aparte a su bola
+                //cuando genera error aqui entra por un resize de un evento "automatico" de cocoa
+                //esto es independiente de ZX Desktop, ya este habilitado o no, puede suceder esto
+                //si no controlase esto, acaba generando segmentation fault (pero parece que el segmentation fault solo cuando esta habilitado ZX Desktop)
+
+                usleep(10000); //0.01 segundo
+
+                timeout--;
+        }
+
+        //Si ha saltado el timeout despues de 100 intentos (100*0.01=1 segundo) y sigue reallocating, que pase lo que pase, pero que salga de ahi
+
+        scr_reallocate_layers_menu(w,h);      
+
     // update screenBuffer
-    if (dataProviderRef)
-        CGDataProviderRelease(dataProviderRef);
+    if (dataProviderRef) CGDataProviderRelease(dataProviderRef);
+
 
     //sync host window color space with guests
 	screen.bitsPerPixel = 32;
@@ -1248,6 +1222,9 @@ screen_get_window_size_width_zoom_border_en(),screen_get_window_size_height_zoom
 #ifdef COCOA_OPENGL
 	[self createTexture];
 #endif
+
+
+
 }
 
 
@@ -1332,7 +1309,6 @@ screen_get_window_size_width_zoom_border_en(),screen_get_window_size_height_zoom
 }
 
 
-int temp_cocoa_contador=0;
 
 
 //Teclas de Z88 asociadas a cada tecla del teclado fisico
@@ -1479,13 +1455,17 @@ int scrcocoa_keymap_z88_cpc_leftz; //Tecla a la izquierda de la Z. Solo usada en
                                 util_set_reset_key(UTIL_KEY_UP,pressrelease);
                         break;
 
-                    case COCOA_KEY_LEFT:
+                        case COCOA_KEY_LEFT:
                                 util_set_reset_key(UTIL_KEY_LEFT,pressrelease);
                         break;
 
                         case COCOA_KEY_RIGHT:
                                 util_set_reset_key(UTIL_KEY_RIGHT,pressrelease);
                         break;
+
+                        case COCOA_KEY_HOME:
+				util_set_reset_key(UTIL_KEY_HOME,pressrelease);
+                        break;                        
 
 
                         case ' ':
@@ -1525,9 +1505,7 @@ int scrcocoa_keymap_z88_cpc_leftz; //Tecla a la izquierda de la Z. Solo usada en
 
 
 
-                        case COCOA_KEY_HOME:
-				util_set_reset_key(UTIL_KEY_HOME,pressrelease);
-                        break;
+
 
 			/* Estos parece que no existen en mac
                         case COCOA_KEY_KP_Left:
@@ -2087,7 +2065,6 @@ int scrcocoa_antespulsadoctrl=0,scrcocoa_antespulsadoalt=0,scrcocoa_antespulsado
 
 /*- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
 {
-	printf ("adios\n");
 	end_emulator();
 	return NSTerminateCancel;
 }*/
@@ -2319,53 +2296,83 @@ if (!GetCurrentProcess(&psn))
 #pragma mark zesarux
 
 
+	
 
-void scrcocoa_putpixel(int x,int y,unsigned int color)
+//Funcion de poner pixel en pantalla de driver, teniendo como entrada el color en RGB
+void scrcocoa_putpixel_final_rgb(int x,int y,unsigned int color_rgb)
+{
+
+
+                int index = 4*(x+y*pixel_screen_width);
+		unsigned int *p;
+		p=(unsigned int *) &pixel_screen_data[index];
+
+		//agregar alpha
+		color_rgb |=0xFF000000;  
+                //Escribir de golpe los 32 bits                 
+		*p=color_rgb;
+}
+
+//Funcion de poner pixel en pantalla de driver, teniendo como entrada el color indexado de tabla de colores
+void scrcocoa_putpixel_final(int x,int y,unsigned int color)
 {
 
 	if (pendingresize) {
 		//debug_printf (VERBOSE_DEBUG,"putpixel with pendingresize active");
 		return;
 	}
+                
 
-		unsigned char red,green,blue,alpha;
-		alpha=255;
+        //Tabla con los colores reales del Spectrum. Formato RGB
+        unsigned int color32=spectrum_colortable[color];
 
-            int index = 4*(x+y*pixel_screen_width);
-
-		//Tabla con los colores reales del Spectrum. Formato RGB
-
-		/*
-		// Escribir los 4 bytes por separado
-	    //no hace falta mascara &255 dado que son variables unsigned char
-	    int rgbcolor=spectrum_colortable[color];
-	    red=(rgbcolor>>16); //&255;
-	    green=(rgbcolor>>8); //&255;
-	    blue=(rgbcolor); //&255;
-
-
-            pixel_screen_data[index++]  =blue;
-            pixel_screen_data[index++]=green;
-            pixel_screen_data[index++]=red;
-            pixel_screen_data[index]=alpha;
-		*/
-
-
-		//prueba a escribir de golpe los 32 bits. no va mas rapido que con el metodo anterior
-		unsigned int color32=spectrum_colortable[color];
-		//agregar alpha
-		color32 |=0xFF000000;
-		//y escribir
-		unsigned int *p;
-		p=(unsigned int *) &pixel_screen_data[index];
-		*p=color32;
-
-    //    }
-    //}
-
+        //y escribir
+        scrcocoa_putpixel_final_rgb(x,y,color32);
+               
 
 }
 
+int mostrado_trace=0;
+
+extern int running_realloc;
+
+void scrcocoa_putpixel(int x,int y,unsigned int color)
+{
+
+
+        if (menu_overlay_activo==0) {
+                //Putpixel con menu cerrado
+                scrcocoa_putpixel_final(x,y,color);
+                return;
+        }          
+
+/*if (buffer_layer_machine==NULL) {
+        printf ("----buffer_layer_machine null running_realloc %d\n",running_realloc);
+        debug_exec_show_backtrace();
+        exit(1);
+}*/
+
+
+//temporal
+/*if (x>=ancho_layer_menu_machine || y>=alto_layer_menu_machine)  {
+        if (!mostrado_trace) {
+                printf ("out of range scrcocoa_putpixel x %d y %d limit %d %d\n",x,y,ancho_layer_menu_machine,alto_layer_menu_machine);
+                debug_exec_show_backtrace();
+                mostrado_trace=1;
+                sleep(1);
+        }
+        return;
+}*/
+
+
+
+        //Metemos pixel en layer adecuado
+	buffer_layer_machine[y*ancho_layer_menu_machine+x]=color;   
+   
+
+        //Putpixel haciendo mix  
+        screen_putpixel_mix_layers(x,y);   
+}
 
 void scrcocoa_putchar_zx8081(int x,int y, z80_byte caracter)
 {
@@ -2390,13 +2397,13 @@ void scrcocoa_messages_debug(char *s)
 void scrcocoa_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
 {
 
-        z80_bit inverse,f;
+        z80_bit inverse;
 
         inverse.v=0;
-        f.v=0;
+
         //128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-        scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,menu_gui_zoom);
+        scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,menu_gui_zoom);
 
 }
 
@@ -2412,13 +2419,16 @@ void scrcocoa_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_b
         //scr_putchar_menu(x,yorigen+y,caracter,tinta,papel);
 	y +=yorigen;
 	//printf ("y: %d\n",y); entre 31,32 y 33 normalmente
-	z80_bit inverse,f;
+	z80_bit inverse;
 
 	inverse.v=0;
-	f.v=0;
+
 	//128 y 129 corresponden a franja de menu y a letra enye minuscula
 	if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-	scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,1);
+	//scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,1);
+
+
+        scr_putchar_footer_comun_zoom(caracter,x,y,inverse,tinta,papel);
 
 }
 
@@ -2479,8 +2489,19 @@ void scrcocoa_refresca_pantalla_solo_driver(void)
 // Prueba para cuando se redimensiona ventana desde el easter egg
 //if (pendingresize) scrcocoa_refresca_pantalla();
 #ifdef COCOA_OPENGL
+        //Con OpenGL
 	[cocoaView render];
 #else
+
+        //Sin OpenGL
+
+        /*
+             //Esto tiene que llamarlo desde el thread principal:
+        dispatch_async(dispatch_get_main_queue(), ^{
+   [cocoaView display ];
+        });
+        */
+
 	[cocoaView display];
 #endif
 
@@ -2506,6 +2527,13 @@ void scrcocoa_refresca_pantalla(void)
 		pendingresize=0;
 	}*/
 
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
+
+        sem_screen_refresh_reallocate_layers=1;
 
 
 
@@ -2587,13 +2615,14 @@ void scrcocoa_refresca_pantalla(void)
 
 
     //Escribir footer
-    draw_footer();
+    draw_middle_footer();
 
 
 	scrcocoa_refresca_pantalla_solo_driver();
 
 
 
+sem_screen_refresh_reallocate_layers=0;
 
 
 }
@@ -2701,6 +2730,37 @@ void scrcocoa_detectedchar_print(z80_byte caracter)
         fflush(stdout);
 }
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrcocoa_get_menu_width(void)
+{
+        int max=screen_get_emulated_display_width_no_zoom_border_en();
+
+        max +=screen_get_ext_desktop_width_no_zoom();
+
+        max=max/menu_char_width/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_WIDTH) max=OVERLAY_SCREEN_MAX_WIDTH;
+
+                //printf ("max x: %d %d\n",max,screen_get_emulated_display_width_no_zoom_border_en());
+
+        return max;
+}
+
+
+int scrcocoa_get_menu_height(void)
+{
+        int max=screen_get_emulated_display_height_no_zoom_border_en()/8/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_HEIGTH) max=OVERLAY_SCREEN_MAX_HEIGTH;
+
+                //printf ("max y: %d %d\n",max,screen_get_emulated_display_height_no_zoom_border_en());
+        return max;
+}
+
+
+int scrcocoa_driver_can_ext_desktop (void)
+{
+        return 1;
+}
+
 
 int scrcocoa_init (void) {
 
@@ -2709,6 +2769,8 @@ int scrcocoa_init (void) {
 #else
 	debug_printf (VERBOSE_INFO,"Init COCOA Video Driver");
 #endif
+
+        //printf ("scrcocoa_init\n");
 
         int soyelmainthread;
 
@@ -2726,6 +2788,13 @@ int scrcocoa_init (void) {
 
         //Inicializaciones necesarias
         scr_putpixel=scrcocoa_putpixel;
+        scr_putpixel_final=scrcocoa_putpixel_final;
+        scr_putpixel_final_rgb=scrcocoa_putpixel_final_rgb;
+
+        scr_get_menu_width=scrcocoa_get_menu_width;
+        scr_get_menu_height=scrcocoa_get_menu_height;
+        scr_driver_can_ext_desktop=scrcocoa_driver_can_ext_desktop;
+
         scr_putchar_zx8081=scrcocoa_putchar_zx8081;
         scr_debug_registers=scrcocoa_debug_registers;
         scr_messages_debug=scrcocoa_messages_debug;
@@ -2747,8 +2816,10 @@ int scrcocoa_init (void) {
 
 
 
-    pixel_screen_width = screen_get_window_size_width_zoom_border_en();
+    pixel_screen_width = screen_get_window_size_width_zoom_border_en()+screen_get_ext_desktop_width_zoom();
     pixel_screen_height = screen_get_window_size_height_zoom_border_en();
+
+   
 
 //screen_get_window_size_width_zoom_border_en(), screen_get_window_size_height_zoom_border_en()
 
@@ -2756,6 +2827,7 @@ int scrcocoa_init (void) {
     //UInt8 *pixel_screen_data = (UInt8*)malloc(dataLength * sizeof(UInt8));
     pixel_screen_data = (UInt8*)malloc(dataLength * sizeof(UInt8));
 
+    scr_reallocate_layers_menu(pixel_screen_width,pixel_screen_height);     
 
         //Esto tiene que llamarlo desde el thread principal:
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -2771,3 +2843,4 @@ int scrcocoa_init (void) {
 
 	return 0;
 }
+

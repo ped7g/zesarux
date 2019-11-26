@@ -62,11 +62,11 @@ D3 Ruido en el canal A
 D2 Tono en el canal C
 D1 Tono en el canal B
 DO Tono en el canal A
-Seccion 30. Informaci~n de referencia
+Seccion 30. Informacion de referencia
 309
-Este registro controla la mezcla de ruido y tono para cada canal y la direc i~n
-puerta de E/S de o~ho bits. Un cero en un bit de mezcla indica que la funci~n
-a~tivada.
+Este registro controla la mezcla de ruido y tono para cada canal y la direccion
+puerta de E/S de ocho bits. Un cero en un bit de mezcla indica que la funcion
+activada.
 
 R8 � Control de amplitud del ca~al A
 R9 � Control de amplitud del canal B
@@ -421,8 +421,8 @@ COMMENT !
 
 //	printf ("ultimo_valor_tono: %d\n",ultimo_valor_tono);
 
-	tone.v=!(ay_3_8912_registros[chip][7] & mascara & 7);
-	noise.v=!(ay_3_8912_registros[chip][7] & mascara & (8+16+32));
+	tone.v=!(ay_retorna_mixer_register(chip) & mascara & 7);
+	noise.v=!(ay_retorna_mixer_register(chip) & mascara & (8+16+32));
 
 	if (tone.v==1 && noise.v==0)  {
 		valor=ultimo_valor_tono;
@@ -1237,4 +1237,66 @@ int ay_retorna_frecuencia(int registro,int chip)
         freq_tono=FRECUENCIA_AY/freq_temp;
 
 	return freq_tono;
+}
+
+/*
+
+Filtros de salida ay chip
+por chip(0...2) y canal (0..2)
+
+tono si/no
+ruido si/no
+desactivado del todo si/no
+
+
+R7 � Control del mezclador y de E/S
+D7 No utilizado
+D6 1=puerta de entrada, 0=puerta de salida
+D5 Ruido en el canal C
+D4 Ruido en el canal B
+D3 Ruido en el canal A
+D2 Tono en el canal C
+D1 Tono en el canal B
+DO Tono en el canal A
+
+a 1 para desactivar eso
+Canal A todo activado: mascara xxxx0xx0 -> mascara or
+Canal A sin ruido: xxxx1xx0
+Canal A sin tono: xxxx0xx1
+Canal A sin nada: xxxx1xx1
+
+
+Canal B todo activado: mascara xxx0xx0x -> mascara or
+Canal B sin ruido: xxx1xx0x
+Canal B sin tono: xxx0xx1x
+Canal B sin nada: xxx1xx1x
+
+Canal C todo activado: mascara xx0xx0xx -> mascara or
+Canal C sin ruido: xx1xx0xx
+Canal C sin tono: xx0xx1xx
+Canal C sin nada: xx1xx1xx
+
+ */
+
+//A 0 todos para normal
+z80_byte ay_filtros[MAX_AY_CHIPS];
+
+void ay_init_filters(void)
+{
+	int i;
+	for (i=0;i<MAX_AY_CHIPS;i++) {
+		ay_filtros[i]=0;
+	}
+}
+
+//Retorna el registro del mezclador, pero aplicando filtro de canal activado/no, ruido si/no, tono si/no
+//Usado en mid export, direct midi
+z80_byte ay_retorna_mixer_register(int chip)
+{
+	z80_byte valor=ay_3_8912_registros[chip][7];
+
+	//Aplicar filtro
+	valor |=ay_filtros[chip];
+
+	return valor;
 }

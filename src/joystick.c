@@ -28,6 +28,7 @@
 #include "debug.h"
 #include "screen.h"
 #include "menu.h"
+#include "zeng.h"
 
 #ifdef COMPILE_CURSES
         #include "scrcurses.h"
@@ -136,72 +137,94 @@ void joystick_cycle_next_type(void)
 }
 
 
-void joystick_set_right(void)
+
+
+void joystick_set_right(int si_enviar_zeng_event)
 {
         //z80_byte puerto_especial_joystick=0; //Fire Up Down Left Right
         puerto_especial_joystick |=1;
 	debug_printf(VERBOSE_DEBUG,"joystick_set_right");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_RIGHT,1);
 }
 
-void joystick_release_right(void)
+void joystick_release_right(int si_enviar_zeng_event)
 {
         puerto_especial_joystick &=255-1;
 	debug_printf(VERBOSE_DEBUG,"joystick_release_right");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_RIGHT,0);
 }
 
 
-void joystick_set_left(void)
+void joystick_set_left(int si_enviar_zeng_event)
 {
         //z80_byte puerto_especial_joystick=0; //Fire Up Down Left Right
         puerto_especial_joystick |=2;
 	debug_printf(VERBOSE_DEBUG,"joystick_set_left");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_LEFT,1);
 }
 
-void joystick_release_left(void)
+void joystick_release_left(int si_enviar_zeng_event)
 {
         puerto_especial_joystick &=255-2;
 	debug_printf(VERBOSE_DEBUG,"joystick_release_left");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_LEFT,0);
 }
 
 
 
-void joystick_set_down(void)
+void joystick_set_down(int si_enviar_zeng_event)
 {
         //z80_byte puerto_especial_joystick=0; //Fire Up Down Left Right
         puerto_especial_joystick |=4;
 	debug_printf(VERBOSE_DEBUG,"joystick_set_down");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_DOWN,1);
 }
 
-void joystick_release_down(void)
+void joystick_release_down(int si_enviar_zeng_event)
 {
         puerto_especial_joystick &=255-4;
 	debug_printf(VERBOSE_DEBUG,"joystick_release_down");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_DOWN,0);
 }
 
-void joystick_set_up(void)
+void joystick_set_up(int si_enviar_zeng_event)
 {
         //z80_byte puerto_especial_joystick=0; //Fire Up Down Left Right
         puerto_especial_joystick |=8;
 	debug_printf(VERBOSE_DEBUG,"joystick_set_up");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_UP,1);
 }
 
-void joystick_release_up(void)
+void joystick_release_up(int si_enviar_zeng_event)
 {
         puerto_especial_joystick &=255-8;
 	debug_printf(VERBOSE_DEBUG,"joystick_release_up");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_UP,0);
 }
 
-void joystick_set_fire(void)
+void joystick_set_fire(int si_enviar_zeng_event)
 {
         //z80_byte puerto_especial_joystick=0; //Fire Up Down Left Right
         puerto_especial_joystick |=16;
 	debug_printf(VERBOSE_DEBUG,"joystick_set_fire");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_FIRE,1);
 }
 
-void joystick_release_fire(void)
+void joystick_release_fire(int si_enviar_zeng_event)
 {
         puerto_especial_joystick &=255-16;
 	debug_printf(VERBOSE_DEBUG,"joystick_release_fire");
+
+	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_FIRE,0);
 }
 
 

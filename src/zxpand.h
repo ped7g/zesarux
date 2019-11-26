@@ -52,7 +52,7 @@ extern void zxpand_write(z80_byte puerto_h,z80_byte value);
 extern z80_byte *zxpand_memory_pointer;
 extern z80_bit zxpand_overlay_rom;
 
-extern int zxpand_operating_counter;
+//extern int zxpand_operating_counter;
 
 extern z80_bit zxpand_overlay_rom;
 

@@ -1684,7 +1684,7 @@ void instruccion_197()
 {
 //PUSH BC
 	contend_read_no_mreq( IR, 1 );
-	push_valor(  BC );
+	push_valor(  BC , PUSH_VALUE_TYPE_PUSH);
 }
 
 void instruccion_198()
@@ -1982,7 +1982,7 @@ void instruccion_213()
 {
 //PUSH DE
 	contend_read_no_mreq( IR, 1 );
-	push_valor(  DE );
+	push_valor(  DE , PUSH_VALUE_TYPE_PUSH);
 }
 
 void instruccion_214()
@@ -2227,7 +2227,7 @@ void instruccion_229()
 {
 //PUSH HL
 	contend_read_no_mreq( IR, 1 );
-	push_valor(  HL );
+	push_valor(  HL , PUSH_VALUE_TYPE_PUSH);
 
 }
 
@@ -2457,7 +2457,7 @@ void instruccion_245()
 
 	valor=value_8_to_16(reg_a,flags);
 
-	push_valor(valor);
+	push_valor(valor,PUSH_VALUE_TYPE_PUSH);
 }
 
 void instruccion_246()

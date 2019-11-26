@@ -3,8 +3,8 @@ A brief description about how this started...
 In 1996 I started my first Spectrum emulator, the ZXSpectr (https://github.com/chernandezba/zxspectr)
 It was written entirely on Assembler for PC x86.
 
-While I was working on ZXSpectr, I thought many times on porting ZXSpectr to Linux. 
-I was (and I am still) a big fan of Linux and I wanted my emulator to run on it. 
+While I was working on ZXSpectr, I thought many times on porting ZXSpectr to GNU/Linux. 
+I was (and I am still) a big fan of GNU/Linux and I wanted my emulator to run on it. 
 But I didn't have the knowledge of some developing facts on Unix, like XWindows.
 
 One day, on September 2013, I uploaded a new version of ZXSpectr; it was not a big release, only some minor fixes. 

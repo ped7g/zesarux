@@ -5,7 +5,7 @@ Created by Cesar Hernandez Bano
 https://github.com/chernandezba/zesarux
 
 
-It's a ZX Machines Emulator for Unix, including all the Sinclair computers:
+It's a ZX Machines Emulator for UNIX based operating systems (and Windows), including all the Sinclair computers:
 
 * MK14
 * ZX80
@@ -43,10 +43,4 @@ You can open them from the help menu or from an external viewer.
 
 ZEsarUX distributed under GNU GENERAL PUBLIC LICENSE v3. You may read it on the LICENSE file.
 
-ZEsarUX includes Musashi 3.4 - A portable Motorola M680x0 processor emulation engine.
-Copyright 1998-2002 Karl Stenerud. All rights reserved. Distributed under MIT License, you may read it on the LICENSE_MOTOROLA_CORE file
-
-ZEsarUX includes National Semiconductor SC/MP CPU Emulator
-Copyright 2017 Miodrag Milanovic. Distributed under BSD-3 License, you may read it on the LICENSE_SCMP_CORE
-
-
+Please read the other licenses used in ZEsarUX, from the menu Help->Licenses or just open files from folder licenses/

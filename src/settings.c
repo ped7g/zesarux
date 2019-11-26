@@ -89,6 +89,7 @@
 #include "esxdos_handler.h"
 #include "tsconf.h"
 #include "kartusho.h"
+#include "ifrom.h"
 #include "spritefinder.h"
 #include "snap_spg.h"
 #include "betadisk.h"
@@ -205,3 +206,8 @@ int adventure_keyboard_send_final_spc=0;
 
 //Tiempo que dura la tecla total (mitad de esto pulsada, mitad no pulsada). En 1/50 de segundo
 int adventure_keyboard_key_length=DEFAULT_ADV_KEYBOARD_KEY_LENGTH;
+
+
+//Usar caracteres extendidos de cursesw. La opcion se puede usar aunque no este compilado cursesw
+//(se cargará y grabará de config aunque no tenga ningún efecto)
+z80_bit use_scrcursesw={0};

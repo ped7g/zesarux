@@ -19,9 +19,9 @@ tener en cuenta de sacar de esta lista los casos que retornan hacia rst8 (con fu
 * generar README.md mediante ./generate_readme_md.sh > ../README.md
 
 nombres ediciones:
-Star raiders 2, toi acid, sabre wulf, turbo esprit, great escape, target renegade, cliff hanger,  Night Shift, Saint Dragon, silent service, bubble bobble, dynamite Dan 2, rygar, frank n stein, match day, Hysteria, Bruce lee, El zorro , Exploding fist, Three weeks in Paradise, Exolon, Koronis Rift, Fox Fights back, Gauntlet, world destruction, Pheenix, Death Wish 3
+Star raiders 2, toi acid, sabre wulf, turbo esprit, great escape, target renegade, cliff hanger,  Night Shift, Saint Dragon, silent service, bubble bobble, dynamite Dan 2, rygar, frank n stein, match day, Hysteria, Bruce lee, El zorro , Exploding fist, Three weeks in Paradise, Exolon, Koronis Rift, Fox Fights back, Gauntlet, Pheenix, Death Wish 3
 
-*rainbow islands, *jetpac, *hard drivin', *lemmings, *sir fred, *rick, *agent dan, *id, *rainbow, *rainbow+, *saint george, *chase hq, *Rescue on Fractalus, *gunfright, *xeno, *Neula
+*rainbow islands, *jetpac, *hard drivin', *lemmings, *sir fred, *rick, *agent dan, *id, *rainbow, *rainbow+, *saint george, *chase hq, *Rescue on Fractalus, *gunfright, *xeno, *Neula, *world destruction
 
 *: usado
 
@@ -42,6 +42,33 @@ curl -s https://api.github.com/repos/chernandezba/zesarux/releases | egrep '"nam
 
 --------------
 
+Para que el cpu_panic muestre backtrace si hay un error, compilar con -g -rdynamic (en Linux) o -g (en Mac)
+
+--------------
+
+Diferencias en el uso del menu de:
+menu_generic_message
+y
+menu_generic_message_splash
+
+en el caso de mostrar un OK de alguna operación realizada
+
+
+* menu_generic_message_splash: suele mostrar un OK de alguna operación realizada, en que no es muy importante que el usuario 
+lea detenidamente el mensaje. Ejemplo:
+
+menu_generic_message_splash("Clear CPU statistics","OK. Statistics cleared");
+menu_generic_message_splash("Reload MMC","OK. MMC file reloaded");
+
+
+* menu_generic_message: en el caso de mensajes con OK, interesa que el usuario pueda leer detenidamente el mensaje. Ejemplo:
+
+menu_generic_message("Change DIVMMC ROM","OK. Remember to enable DIVMMC paging to load the firmware");
+menu_generic_message("Rename file","OK. File renamed");
+
+
+--------------
+
 
 * source a generar
 
@@ -58,31 +85,25 @@ make sourcetargz
 
 * Binarios a generar. Generarlos partiendo del codigo fuente generado antes
 
-Codigos de letras segun modulos habilitados (de momento esto solo es una idea, no se implementa aun):
-A-> aalib
-C-> curses
-D-> dsp
-K-> cacalib
-L-> alsa
-M-> memptr
-P-> pulse
-S-> stdout
-X-> xwindows
-
-De todos los archivos generados y subidos a sourceforge, crear suma MD5SUM en local de cada archivo y luego subirlo en archivo MD5SUM
+De todos los archivos generados y subidos a github, crear suma MD5SUM en local de cada archivo y luego subirlo en archivo MD5SUM
 con todos los archivos subidos comprimidos y README (y excluyendo este mismo MD5SUM)
+
+Generar en servidor ZEsarUX, en ruta
+STATS_URL_UPDATE_STABLE_VERSION
+con contenido numero de version, ejemplo:
+"8.1"
 
 
 ** Extra files
 
 make extra_files
-Y subir el zip a sourceforge
-
+Y subir el zip a github
+Y
 
 ** Linux 
 Generar estos dos binarios de Linux:
-ZEsarUX_linux-version-debian9_x32.tar.gz 
-ZEsarUX_linux-version-debian9_x64.tar.gz 
+ZEsarUX_linux-version-debian10_x32.tar.gz 
+ZEsarUX_linux-version-debian10_x64.tar.gz 
 con comandos:
 export CFLAGS=-O2
 export LDFLAGS=-O2
@@ -99,7 +120,7 @@ ZEsarUX_rpi-version-raspbian9.tar.gz
 con comandos:
 export CFLAGS=-O2
 export LDFLAGS=-O2
-./configure --enable-raspberry --spectrum-fast-core --disable-xwindows --disable-caca --disable-aa --disable-pulse --disable-simpletext --disable-stdout --prefix /usr
+./configure --enable-raspberry --spectrum-reduced-core --disable-xwindows --disable-caca --disable-aa --disable-pulse --disable-simpletext --disable-stdout --prefix /usr
 
 La salida debe ser similar a:
  Enabled Video output drivers: curses sdl fbdev null
@@ -129,23 +150,32 @@ make bintargz
 (Con O2, tarda 06:30 en compilar con 800MHz)
 
 ** Mac
-Generar versión Mac sin optimización, porque si no hay Mac donde no va (Daniel Leon)
+
+Generar versión opengl por defecto con optimización
 Generar dos binarios de Mac:
-ZEsarUX_macos_no_opengl-version.dmg.gz 
+ZEsarUX_macos_legacy-version.dmg.gz 
 con comandos:
+Versión sin optimizaciones:
+
+export CFLAGS=
+export LDFLAGS=
 
 ./configure --enable-memptr --enable-visualmem --enable-cpustats --disable-xwindows --disable-sdl --disable-fbdev --disable-caca --disable-aa --disable-curses --disable-sndfile 
-(Habilita drivers video: cocoa, stdout, simpletext y drivers audio: coreaudio. )
+(Habilita drivers video: cocoa(GL), stdout, simpletext y drivers audio: coreaudio. )
 make clean
 make
 make macapp
 
 Y
 
-ZEsarUX_macos_opengl-version.dmg.gz
+ZEsarUX_macos_version.dmg.gz
 con comandos:
+Versión con optimizaciones:
 
-./configure --enable-memptr --enable-visualmem --enable-cpustats --disable-xwindows --disable-sdl --disable-fbdev --disable-caca --disable-aa --disable-curses --disable-sndfile --enable-cocoa-opengl
+export CFLAGS=-O2
+export LDFLAGS=-O2
+
+./configure --enable-memptr --enable-visualmem --enable-cpustats --disable-xwindows --disable-sdl --disable-fbdev --disable-caca --disable-aa --disable-curses --disable-sndfile 
 (Habilita drivers video: cocoa(GL), stdout, simpletext y drivers audio: coreaudio. )
 make clean
 make
@@ -155,9 +185,9 @@ make macapp
 
 **Windows
 Generar este binario de Windows, mingw:
-ZEsarUX_win-no-pthreads-version.zip
+ZEsarUX_win-version.zip  (version no pthreads)
 y
-ZEsarUX_win-pthreads-version.zip
+ZEsarUX_win-debug-ZRCP-version.zip (version con pthreads)
 
 Ver documento INSTALLWINDOWS, Native Windows (with mingw)
 

@@ -23,18 +23,19 @@
 #define DEBUG_H
 
 #include "cpu.h"
-
-//#define DEBUG_STRING_FLAGS         ( Z80_FLAGS & FLAG_S ? 'S' : '-'), ( Z80_FLAGS & FLAG_Z ? 'Z' : '-'), ( Z80_FLAGS & FLAG_5 ? '5' : '-'), ( Z80_FLAGS & FLAG_PV ? 'P' : '-'), ( Z80_FLAGS & FLAG_3 ? '3' : '-'), ( Z80_FLAGS & FLAG_H ? 'H' : '-'), ( Z80_FLAGS & FLAG_N ? 'N' : '-'), ( Z80_FLAGS & FLAG_C ? 'C' : '-')
+#include "expression_parser.h"
 
 
 #define DEBUG_STRING_FLAGS         ( Z80_FLAGS & FLAG_S ? 'S' : '-'), ( Z80_FLAGS & FLAG_Z ? 'Z' : '-'), ( Z80_FLAGS & FLAG_5 ? '5' : '-'), ( Z80_FLAGS & FLAG_H ? 'H' : '-'),  ( Z80_FLAGS & FLAG_3 ? '3' : '-'), ( Z80_FLAGS & FLAG_PV ? 'P' : '-'), ( Z80_FLAGS & FLAG_N ? 'N' : '-'), ( Z80_FLAGS & FLAG_C ? 'C' : '-')
 
-//#define DEBUG_STRING_FLAGS_SHADOW         ( Z80_FLAGS_SHADOW & FLAG_S ? 'S' : '-'), ( Z80_FLAGS_SHADOW & FLAG_Z ? 'Z' : '-'), ( Z80_FLAGS_SHADOW & FLAG_5 ? '5' : '-'), ( Z80_FLAGS_SHADOW & FLAG_PV ? 'P' : '-'), ( Z80_FLAGS_SHADOW & FLAG_3 ? '3' : '-'), ( Z80_FLAGS_SHADOW & FLAG_H ? 'H' : '-'), ( Z80_FLAGS_SHADOW & FLAG_N ? 'N' : '-'), ( Z80_FLAGS_SHADOW & FLAG_C ? 'C' : '-')
-
-
 #define DEBUG_STRING_FLAGS_SHADOW         ( Z80_FLAGS_SHADOW & FLAG_S ? 'S' : '-'), ( Z80_FLAGS_SHADOW & FLAG_Z ? 'Z' : '-'), ( Z80_FLAGS_SHADOW & FLAG_5 ? '5' : '-'), ( Z80_FLAGS_SHADOW & FLAG_H ? 'H' : '-'),  ( Z80_FLAGS_SHADOW & FLAG_3 ? '3' : '-'), ( Z80_FLAGS_SHADOW & FLAG_PV ? 'P' : '-'),( Z80_FLAGS_SHADOW & FLAG_N ? 'N' : '-'), ( Z80_FLAGS_SHADOW & FLAG_C ? 'C' : '-')
 
+#define DEBUG_STRING_FLAGS_PARAM(x)         ( x & FLAG_S ? 'S' : '-'), ( x & FLAG_Z ? 'Z' : '-'), ( x & FLAG_5 ? '5' : '-'), ( x & FLAG_H ? 'H' : '-'),  ( x & FLAG_3 ? '3' : '-'), ( x & FLAG_PV ? 'P' : '-'), ( x & FLAG_N ? 'N' : '-'), ( x & FLAG_C ? 'C' : '-')
+
 #define DEBUG_STRING_IFF12 ( iff1.v ? '1' : '-') , ( iff2.v ? '2' : '-')
+
+//bit 0: iff1. bit 1: iff2
+#define DEBUG_STRING_IFF12_PARAM(x) ( x&1 ? '1' : '-') , ( x&2 ? '2' : '-')
 
 extern void print_registers(char *buffer);
 
@@ -62,7 +63,13 @@ extern void init_breakpoints_table(void);
 #define MAX_BREAKPOINT_CONDITION_LENGTH 256
 
 #define MAX_BREAKPOINTS_CONDITIONS 100
-extern char debug_breakpoints_conditions_array[MAX_BREAKPOINTS_CONDITIONS][MAX_BREAKPOINT_CONDITION_LENGTH];
+//extern char debug_breakpoints_conditions_array[MAX_BREAKPOINTS_CONDITIONS][MAX_BREAKPOINT_CONDITION_LENGTH];
+extern token_parser debug_breakpoints_conditions_array_tokens[MAX_BREAKPOINTS_CONDITIONS][MAX_PARSER_TOKENS_NUM];
+
+extern void debug_breakpoints_conditions_toggle(int indice);
+
+extern void debug_breakpoints_conditions_enable(int indice);
+extern void debug_breakpoints_conditions_disable(int indice);
 
 #define MAX_MEM_BREAKPOINT_TYPES 4
 extern char *mem_breakpoint_types_strings[];
@@ -146,6 +153,11 @@ extern z80_bit cpu_transaction_log_enabled;
 extern void set_cpu_core_transaction_log(void);
 extern void reset_cpu_core_transaction_log(void);
 extern char transaction_log_filename[];
+extern void transaction_log_truncate(void);
+extern void transaction_log_close_file(void);
+extern int transaction_log_open_file(void);
+
+
 
 extern z80_bit cpu_transaction_log_store_datetime;
 extern z80_bit cpu_transaction_log_store_address;
@@ -153,19 +165,34 @@ extern z80_bit cpu_transaction_log_store_tstates;
 extern z80_bit cpu_transaction_log_store_opcode;
 extern z80_bit cpu_transaction_log_store_registers;
 
+extern z80_bit cpu_transaction_log_rotate_enabled;
+extern int cpu_transaction_log_rotated_files;
+extern int cpu_transaction_log_rotate_size;
+extern int cpu_transaction_log_rotate_lines;
+
+extern z80_bit cpu_trans_log_ignore_repeated_halt;
+
+extern int transaction_log_set_rotate_number(int numero);
+extern int transaction_log_set_rotate_size(int numero);
+extern int transaction_log_set_rotate_lines(int numero);
+
 extern char *spectrum_rom_tokens[];
 extern char *zx81_rom_tokens[];
 extern char *zx80_rom_tokens[];
 
-extern int debug_breakpoint_condition_loop(char *texto,int debug);
+//extern int debug_breakpoint_condition_loop(char *texto,int debug);
 
-extern char debug_watches_text_to_watch[];
+#define DEBUG_MAX_WATCHES 10
+extern token_parser debug_watches_array[DEBUG_MAX_WATCHES][MAX_PARSER_TOKENS_NUM];
+extern void debug_set_watch(int watch_index,char *condicion);
+extern void init_watches_table(void);
 
-extern void debug_watches_loop(char *texto,char *texto_destino);
+//extern char debug_watches_text_to_watch[];
 
-extern char debug_watches_texto_destino[];
 
-extern z80_byte debug_watches_y_position;
+//extern char debug_watches_texto_destino[];
+
+//extern z80_byte debug_watches_y_position;
 
 extern void debug_get_t_stados_parcial_post(void);
 extern void debug_get_t_stados_parcial_pre(void);
@@ -184,6 +211,7 @@ extern void debug_anota_retorno_step_maskable(void);
 
 #define MAX_DEBUG_FUNCTION_NAME 255
 
+//Funcion anidada siempre sera funcion que retorna un z80_byte, y tiene parametros de direccion (z80_int) y valor (z80_byte)
 typedef z80_byte (*debug_nested_function)(z80_int dir, z80_byte value);
 
 struct s_debug_nested_function_element {
@@ -217,6 +245,7 @@ extern void debug_nested_cores_pokepeek_init(void);
 extern int debug_nested_poke_byte_add(debug_nested_function funcion,char *nombre);
 extern void debug_nested_poke_byte_del(int id);
 extern void debug_nested_poke_byte_call_previous(int id,z80_int dir,z80_byte value);
+
 extern int debug_nested_poke_byte_no_time_add(debug_nested_function funcion,char *nombre);
 extern void debug_nested_poke_byte_no_time_del(int id);
 extern void debug_nested_poke_byte_no_time_call_previous(int id,z80_int dir,z80_byte value);
@@ -224,9 +253,16 @@ extern void debug_nested_poke_byte_no_time_call_previous(int id,z80_int dir,z80_
 extern int debug_nested_peek_byte_add(debug_nested_function funcion,char *nombre);
 extern void debug_nested_peek_byte_del(int id);
 extern z80_byte debug_nested_peek_byte_call_previous(int id,z80_int dir);
+
 extern int debug_nested_peek_byte_no_time_add(debug_nested_function funcion,char *nombre);
 extern void debug_nested_peek_byte_no_time_del(int id);
 extern z80_byte debug_nested_peek_byte_no_time_call_previous(int id,z80_int dir);
+
+
+extern int debug_nested_push_valor_add(debug_nested_function funcion,char *nombre);
+extern void debug_nested_push_valor_del(int id);
+extern void debug_nested_push_valor_call_previous(int id,z80_int valor,z80_byte tipo);
+
 
 
 extern debug_nested_function_element *debug_nested_find_id(debug_nested_function_element *e,int id);
@@ -242,11 +278,30 @@ extern debug_nested_function_element *nested_list_core;
 
 extern void debug_dump_nested_functions(char *result);
 
+//Estructura de cada item de extended stack
+struct s_extended_stack_item {
+	z80_byte valor;
+	z80_byte tipo;
+};
+
+//Array con todo el extended stack
+extern struct s_extended_stack_item extended_stack_array_items[];
+
+extern z80_bit extended_stack_enabled;
+extern void set_extended_stack(void);
+extern void reset_extended_stack(void);
+extern char *extended_stack_get_string_type(z80_byte tipo);
+
+
 extern int debug_change_register(char *texto);
 
-extern void debug_set_breakpoint(int breakpoint_index,char *condicion);
+extern int debug_set_breakpoint(int breakpoint_index,char *condicion);
 
 extern void debug_set_breakpoint_action(int breakpoint_index,char *accion);
+
+extern void debug_delete_all_repeated_breakpoint(char *texto);
+
+extern void debug_add_breakpoint_ifnot_exists(char *breakpoint_add);
 
 extern void debug_view_basic(char *results_buffer);
 
@@ -316,6 +371,10 @@ extern int debug_fired_in;
 extern int debug_fired_interrupt;
 
 
+extern int debug_enterrom;
+extern int debug_exitrom;
+
+
 #define OPTIMIZED_BRK_TYPE_NINGUNA 0
 #define OPTIMIZED_BRK_TYPE_PC 1
 #define OPTIMIZED_BRK_TYPE_MWA 2
@@ -337,5 +396,76 @@ extern optimized_breakpoint optimized_breakpoint_array[];
 
 extern void debug_get_t_estados_parcial(char *buffer_estadosparcial);
 
+extern void debug_get_daad_breakpoint_string(char *texto);
+
+extern int debug_find_breakpoint(char *to_find);
+
+extern int debug_find_breakpoint_activeornot(char *to_find);
+
+extern void debug_get_daad_step_breakpoint_string(char *texto);
+
+extern void debug_get_daad_runto_parse_string(char *texto);
+
+extern void debug_exec_show_backtrace(void);
+
+extern void transaction_log_truncate_rotated(void);
+
+extern unsigned int debug_mmu_mrv;
+extern unsigned int debug_mmu_mwv;
+extern unsigned int debug_mmu_prv;
+extern unsigned int debug_mmu_pwv;
+
+extern unsigned int debug_mmu_pra;
+extern unsigned int debug_mmu_pwa;
+
+extern unsigned int debug_mmu_mra;
+extern unsigned int debug_mmu_mwa;
+
+extern unsigned int anterior_debug_mmu_mra;
+extern unsigned int anterior_debug_mmu_mwa;
+
+//4 MB maximo
+#define MEMORY_ZONE_DEBUG_MAX_SIZE 4194304
+
+
+extern z80_byte *memory_zone_debug_ptr;
+
+extern int memory_zone_current_size;
+
+extern void debug_memory_zone_debug_reset(void);
+
+extern void debug_memory_zone_debug_write_value(z80_byte valor);
+
+extern z80_bit debug_dump_zsf_on_cpu_panic;
+extern z80_bit dumped_debug_dump_zsf_on_cpu_panic;
+extern char dump_snapshot_panic_name[];
+extern void debug_printf_sem_init(void);
+
+extern z80_bit debug_always_show_messages_in_console;
+
+extern int debug_get_timestamp(char *destino);
+
+extern z80_byte cpu_code_coverage_array[];
+extern void set_cpu_core_code_coverage(void);
+extern void reset_cpu_core_code_coverage(void);
+extern void cpu_code_coverage_clear(void);
+extern z80_bit cpu_code_coverage_enabled;
+
+
+extern z80_bit cpu_history_enabled;
+extern z80_bit cpu_history_started;
+
+
+#define CPU_HISTORY_MAX_ALLOWED_ELEMENTS 10000000
+//10 millones
+
+extern void cpu_history_get_registers_element(int indice,char *string_destino);
+extern int cpu_history_get_total_elements(void);
+extern int cpu_history_get_max_size(void);
+extern void reset_cpu_core_history(void);
+extern void set_cpu_core_history(void);
+extern int cpu_history_set_max_size(int total);
+extern void cpu_history_init_buffer(void);
+extern void cpu_history_get_pc_register_element(int indice,char *string_destino);
 
 #endif

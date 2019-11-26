@@ -323,17 +323,17 @@ void scrfbdev_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byt
 {
 
 
-	z80_bit inverse,f;
+	z80_bit inverse;
 
 	//caracter=da_codigo81(caracter,&inverse);
 	//printf ("%c",caracter);
 
 	inverse.v=0;
-	f.v=0;
+
         //128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-	//scr_putsprite_comun     (&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f);
-        scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,menu_gui_zoom);
+
+        scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,menu_gui_zoom);
 
 
 }
@@ -350,13 +350,14 @@ void scrfbdev_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_b
 
 	//scr_putchar_menu(x,yorigen+y,caracter,tinta,papel);
         y +=yorigen;
-        z80_bit inverse,f;
+        z80_bit inverse;
 
         inverse.v=0;
-        f.v=0;
+
         //128 y 129 corresponden a franja de menu y a letra enye minuscula
         if (caracter<32 || caracter>MAX_CHARSET_GRAPHIC) caracter='?';
-        scr_putsprite_comun_zoom(&char_set[(caracter-32)*8],x,y,inverse,tinta,papel,f,1);
+        //scr_putchar_menu_comun_zoom(caracter,x,y,inverse,tinta,papel,1);
+		scr_putchar_footer_comun_zoom(caracter,x,y,inverse,tinta,papel);
 
 }
 
@@ -380,6 +381,14 @@ void scrfbdev_refresca_pantalla_solo_driver(void)
 void scrfbdev_refresca_pantalla(void)
 {
 
+
+        if (sem_screen_refresh_reallocate_layers) {
+                //printf ("--Screen layers are being reallocated. return\n");
+                //debug_exec_show_backtrace();
+                return;
+        }
+
+        sem_screen_refresh_reallocate_layers=1;
 
 
 	if (MACHINE_IS_ZX8081) {
@@ -460,7 +469,10 @@ void scrfbdev_refresca_pantalla(void)
 
 
         //Escribir footer
-        draw_footer();
+        draw_middle_footer();
+
+
+	sem_screen_refresh_reallocate_layers=0;
 
 
 }
@@ -1511,23 +1523,46 @@ void putpixel_fbdev_lowlevel_16bpp(int x,int y,z80_byte r,z80_byte g,z80_byte b)
 
 }
 
+void scrfbdev_putpixel_final_rgb(int x,int y,unsigned int color_rgb)
+{
+	z80_byte r,g,b;
 
-void scrfbdev_putpixel(int x,int y,unsigned int color)
+	b=color_rgb;
+	color_rgb=color_rgb>>8;
+
+	g=color_rgb;
+	color_rgb=color_rgb>>8;
+
+	r=color_rgb;
+
+	putpixel_fbdev_lowlevel(x,y,r,g,b);	
+}
+
+
+void scrfbdev_putpixel_final(int x,int y,unsigned int color)
 {
 
-	z80_byte r,g,b;
 	int c;
 	c=spectrum_colortable[color];
 
-	b=c;
-	c=c>>8;
+	scrfbdev_putpixel_final_rgb(x,y,c);
 
-	g=c;
-	c=c>>8;
+}
 
-	r=c;
 
-	putpixel_fbdev_lowlevel(x,y,r,g,b);
+void scrfbdev_putpixel(int x,int y,unsigned int color)
+{
+    if (menu_overlay_activo==0) {
+                //Putpixel con menu cerrado
+                scrfbdev_putpixel_final(x,y,color);
+                return;
+        }          
+
+        //Metemos pixel en layer adecuado
+	buffer_layer_machine[y*ancho_layer_menu_machine+x]=color;        
+
+        //Putpixel haciendo mix  
+        screen_putpixel_mix_layers(x,y);   
 }
 
 void scrfbdev_special_scale_putpixel(int x,int y,unsigned int color)
@@ -1730,6 +1765,33 @@ void scrfbdev_detectedchar_print(z80_byte caracter)
 
 }
 
+//Estos valores no deben ser mayores de OVERLAY_SCREEN_MAX_WIDTH y OVERLAY_SCREEN_MAX_HEIGTH
+int scrfbdev_get_menu_width(void)
+{
+        int max=screen_get_emulated_display_width_no_zoom_border_en()/menu_char_width/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_WIDTH) max=OVERLAY_SCREEN_MAX_WIDTH;
+
+                //printf ("max x: %d %d\n",max,screen_get_emulated_display_width_no_zoom_border_en());
+
+        return max;
+}
+
+
+int scrfbdev_get_menu_height(void)
+{
+        int max=screen_get_emulated_display_height_no_zoom_border_en()/8/menu_gui_zoom;
+        if (max>OVERLAY_SCREEN_MAX_HEIGTH) max=OVERLAY_SCREEN_MAX_HEIGTH;
+
+                //printf ("max y: %d %d\n",max,screen_get_emulated_display_height_no_zoom_border_en());
+        return max;
+}
+
+int scrfbdev_driver_can_ext_desktop (void)
+{
+        return 0;
+}
+
+
 //Fbdev video drivers
 int scrfbdev_init (void){
 
@@ -1740,6 +1802,10 @@ int scrfbdev_init (void){
 
 	scr_putchar_menu=scrfbdev_putchar_menu;
 	scr_putchar_footer=scrfbdev_putchar_footer;
+
+        scr_get_menu_width=scrfbdev_get_menu_width;
+        scr_get_menu_height=scrfbdev_get_menu_height;	
+	scr_driver_can_ext_desktop=scrfbdev_driver_can_ext_desktop;
 
 
 	scr_set_fullscreen=scrfbdev_set_fullscreen;
@@ -1779,7 +1845,10 @@ int scrfbdev_init (void){
 
 	// Get fixed screen information
 	if (ioctl(fbdev_filedescriptor, FBIOGET_FSCREENINFO, &fixinfo)) {
-		debug_printf(VERBOSE_ERR,"fbdev: Error reading fixed information.");
+	//ponemos este mensaje en debug y no en error para que no se active menu y 
+	//salga error cuando hace autodeteccion de driver de video. es especialmente molesto si el driver es stdout
+	//mensaje de abajo de variable information tambien seria susceptible de cambiar a debug
+		debug_printf(VERBOSE_DEBUG,"fbdev: Error reading fixed information.");
 		return 1;
 	}
 
@@ -1875,6 +1944,9 @@ int scrfbdev_init (void){
 	//sin zoom escalado especial, y luego en raspberry (y/o con opcion adicional) cambiar previamente la resolucion a la similar a spectrum
 	scr_putpixel=scrfbdev_putpixel;
 
+    scr_putpixel_final=scrfbdev_putpixel_final;
+    scr_putpixel_final_rgb=scrfbdev_putpixel_final_rgb;	
+
 	if (ventana_fullscreen && fbdev_decimal_full_scale_fbdev) {
 
 
@@ -1939,10 +2011,10 @@ int scrfbdev_init (void){
 	}
 
 	//Obtener Orden componentes R G B Alpha
-	debug_printf (VERBOSE_DEBUG,"Framebuffer: Red: Offset: %d Lenght: %d",varinfo.red.offset,varinfo.red.length);
-	debug_printf (VERBOSE_DEBUG,"Framebuffer: Green: Offset: %d Lenght: %d",varinfo.green.offset,varinfo.green.length);
-	debug_printf (VERBOSE_DEBUG,"Framebuffer: Blue: Offset: %d Lenght: %d",varinfo.blue.offset,varinfo.blue.length);
-	debug_printf (VERBOSE_DEBUG,"Framebuffer: Alpha: Offset: %d Lenght: %d",varinfo.transp.offset,varinfo.transp.length);
+	debug_printf (VERBOSE_DEBUG,"Framebuffer: Red: Offset: %d Length: %d",varinfo.red.offset,varinfo.red.length);
+	debug_printf (VERBOSE_DEBUG,"Framebuffer: Green: Offset: %d Length: %d",varinfo.green.offset,varinfo.green.length);
+	debug_printf (VERBOSE_DEBUG,"Framebuffer: Blue: Offset: %d Length: %d",varinfo.blue.offset,varinfo.blue.length);
+	debug_printf (VERBOSE_DEBUG,"Framebuffer: Alpha: Offset: %d Length: %d",varinfo.transp.offset,varinfo.transp.length);
 
 	/*
 	 *
@@ -2033,6 +2105,8 @@ int scrfbdev_init (void){
 	scr_driver_name="fbdev";
 
 	scr_z88_cpc_load_keymap();
+
+    scr_reallocate_layers_menu(fbdev_ancho,fbdev_alto);    	
 
 	return 0;
 

@@ -40,6 +40,8 @@ extern z80_bit ula_late_timings;
 
 extern z80_bit pentagon_timing;
 
+extern z80_byte puerto_eff7;
+
 extern void ula_disable_pentagon_timing(void);
 extern void ula_enable_pentagon_timing(void);
 

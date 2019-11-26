@@ -1102,8 +1102,8 @@ void ql_out_port(unsigned int Address, unsigned char Data)
 					0 = 4 colour (mode 4) =512x256
 				  1 = 8 colour (mode 8) =256x256
 				*/
-				if (video_mode==0) screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Setting mode 4 512x256");
-				else screen_print_splash_text(10,ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Setting mode 8 256x256");
+				if (video_mode==0) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Setting mode 4 512x256");
+				else screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Setting mode 8 256x256");
 			}
 
 		break;
@@ -1801,7 +1801,7 @@ void core_ql_trap_three(void)
     break;
 
     case 0x48:
-      debug_printf (VERBOSE_PARANOID,"Trap 3: FS.LOAD. Lenght: %d Channel: %d Address: %05XH"
+      debug_printf (VERBOSE_PARANOID,"Trap 3: FS.LOAD. Length: %d Channel: %d Address: %05XH"
           ,m68k_get_reg(NULL,M68K_REG_D2),m68k_get_reg(NULL,M68K_REG_A0),m68k_get_reg(NULL,M68K_REG_A1)  );
       //D2.L length of file. A0 channellD. A1 base address for load
 
@@ -2187,7 +2187,7 @@ PC: 032B4 SP: 2846E USP: 3FFC0 SR: 2000 :  S         A0: 0003FDEE A1: 0003EE00 A
       int reg_a0=m68k_get_reg(NULL,M68K_REG_A0);
       int longitud_nombre=peek_byte_z80_moto(reg_a0)*256+peek_byte_z80_moto(reg_a0+1);
       reg_a0 +=2;
-      debug_printf (VERBOSE_PARANOID,"Lenght channel name: %d",longitud_nombre);
+      debug_printf (VERBOSE_PARANOID,"Length channel name: %d",longitud_nombre);
 
       char c;
       int i=0;
@@ -2782,7 +2782,7 @@ A0: 00000D88 A1: 00000D88 A2: 00006906 A3: 00000668 A4: 00000012 A5: 00000670 A6
 
           	while (longitud) {
           		byte_leido=ql_readbyte(puntero_origen);
-          		if (byte_leido>=32 && byte_leido<=127) {
+          		if (byte_leido>=32 && byte_leido<=126) {
           			buffer_mensaje[i]=byte_leido;
           			i++;
           		}
@@ -2845,7 +2845,7 @@ A0: 00000D88 A1: 00000D88 A2: 00006906 A3: 00000668 A4: 00000012 A5: 00000670 A6
           unsigned int longitud=m68k_get_reg(NULL,M68K_REG_D2);
 
 
-            debug_printf (VERBOSE_PARANOID,"Loading file at address %05XH with lenght: %d",m68k_get_reg(NULL,M68K_REG_A1),longitud);
+            debug_printf (VERBOSE_PARANOID,"Loading file at address %05XH with length: %d",m68k_get_reg(NULL,M68K_REG_A1),longitud);
             //void load_binary_file(char *binary_file_load,int valor_leido_direccion,int valor_leido_longitud)
 
              //Indicar actividad en md flp

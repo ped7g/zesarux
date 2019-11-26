@@ -45,7 +45,7 @@ z80_bit zxpand_enabled={0};
 
 z80_byte *zxpand_memory_pointer;
 
-int zxpand_operating_counter=0;
+//int zxpand_operating_counter=0;
 
 //Si rom zxpand esta activa (1) o no (0)
 z80_bit zxpand_overlay_rom={0};
@@ -200,33 +200,20 @@ void zxpand_alloc_mem(void)
 
 void zxpand_footer_print_zxpand_operating(void)
 {
-	if (zxpand_operating_counter) {
-		//color inverso
-		menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_ZXPAND,1," ZXPAND ",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
-	}
+
+	generic_footertext_print_operating("ZXPAND");
 }
 
 void zxpand_footer_zxpand_operating(void)
 {
 
-	//Si ya esta activo, no volver a escribirlo. Porque ademas el menu_putstring_footer consumiria mucha cpu
-	if (!zxpand_operating_counter) {
-		zxpand_operating_counter=2;
 		zxpand_footer_print_zxpand_operating();
 
-	}
-	zxpand_operating_counter=2;
 }
 
 
 
 
-void delete_zxpand_text(void)
-{
-
-	// " ZXPAND "
-	menu_putstring_footer(WINDOW_FOOTER_ELEMENT_X_ZXPAND,1,"        ",WINDOW_FOOTER_INK,WINDOW_FOOTER_PAPER);
-}
 
 
 //0 si ok
