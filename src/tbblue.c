@@ -4177,7 +4177,7 @@ the central 256×192 display. The X coordinates are internally doubled to cover 
 
 
 	int clipwindow_min_x=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][0]*2;
-	int clipwindow_max_x=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][1]*2+1;
+	int clipwindow_max_x=(clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][1]+1)*2;
 
 
 
@@ -4437,7 +4437,7 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 			//Pixel izquierdo
 			pixel_izq=tbblue_get_pixel_tile_xy(sx,sy,puntero_this_tiledef);
 
-			if (destino_x_pixel>=clipwindow_min_x && destino_x_pixel<=clipwindow_max_x) {
+			if (destino_x_pixel>=clipwindow_min_x && destino_x_pixel<clipwindow_max_x) {
 				tbblue_do_tile_putpixel(pixel_izq,transparent_colour,tpal,puntero_a_layer,ula_over_tilemap);
 				if (tilemap_width==40) tbblue_do_tile_putpixel(pixel_izq,transparent_colour,tpal,puntero_a_layer+1,ula_over_tilemap);
 			}
@@ -4461,7 +4461,7 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 			//Pixel derecho
 			pixel_der=tbblue_get_pixel_tile_xy(sx,sy,puntero_this_tiledef);
 
-			if (destino_x_pixel>=clipwindow_min_x && destino_x_pixel<=clipwindow_max_x) {
+			if (destino_x_pixel>=clipwindow_min_x && destino_x_pixel<clipwindow_max_x) {
 				tbblue_do_tile_putpixel(pixel_der,transparent_colour,tpal,puntero_a_layer,ula_over_tilemap);
 				if (tilemap_width==40) tbblue_do_tile_putpixel(pixel_der,transparent_colour,tpal,puntero_a_layer+1,ula_over_tilemap);
 			}
