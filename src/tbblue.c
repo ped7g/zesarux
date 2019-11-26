@@ -583,6 +583,7 @@ z80_int tbblue_palette_sprite_second[256];
 z80_int tbblue_palette_tilemap_first[256];
 z80_int tbblue_palette_tilemap_second[256];
 
+
 //Diferentes layers a componer la imagen final
 /*
 (R/W) 0x15 (21) => Sprite and Layers system
@@ -3474,6 +3475,7 @@ z80_byte tbblue_get_value_port_register(z80_byte registro)
 	(R) 0x01 (01) => Version (Nibble most significant = Major, Nibble less significant = Minor)
 	*/
 
+	
 
 	switch(registro)
 	{
