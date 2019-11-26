@@ -4216,6 +4216,9 @@ the central 256×192 display. The X coordinates are internally doubled to cover 
 
 	int ula_over_tilemap;
 
+	// 0 when tilemap-over-ULA is enforced, 1 when attribute ULA-over-tilemap bit should be used
+	int ula_over_tilemap_mask = (tbblue_tilemap_control&1)^1;
+
 	//tilemap_width=40;
 /*
 (R/W) 0x4C (76) => Transparency index for the tilemap
@@ -4241,6 +4244,8 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 		if (tbblue_bytes_per_tile==2) {
 			byte_second=*puntero_tilemap;
 			puntero_tilemap++;
+		} else {
+			byte_second = tbblue_default_tilemap_attr;
 		}
                                         
 		int tnum=byte_first;
@@ -4250,73 +4255,32 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
   bit     11 : x mirror
   bit     10 : y mirror
   bit      9 : rotate
-  bit      8 : ULA over tilemap (if the ula is disabled, bit 8 of tile number)
+  bit      8 : ULA over tilemap OR bit 8 of tile number (512 tile mode)
   bits   7-0 : tile number
   */                                      
 
-
-		if (tbblue_bytes_per_tile==1) {
-                                        
-/*
-                                                (R/W) 0x6C (108) => Default Tilemap Attribute
-  bits 7-4 = Palette Offset
-  bit 3    = X mirror
-  bit 2    = Y mirror
-  bit 1    = Rotate
-  bit 0    = ULA over tilemap
-             (bit 8 of tile id if the ULA is disabled)
-  */                                              
-			tpal=(tbblue_default_tilemap_attr)&0xF0;
-
-			xmirror=(tbblue_default_tilemap_attr>>3)&1;
-			ymirror=(tbblue_default_tilemap_attr>>2)&1;
-			rotate=(tbblue_default_tilemap_attr>>1)&1;
-
-			if (tbblue_if_ula_is_enabled() ) {
-    
-/*                                            
-                                                108
-                                                  bit 0    = ULA over tilemap
-             (bit 8 of tile id if the ULA is disabled)*/
-                                                
-				ula_over_tilemap=tbblue_default_tilemap_attr &1;
-			}
-
-			else {
-				tnum |=(tbblue_default_tilemap_attr&1)<<8; // bit      8 : ULA over tilemap (if the ula is disabled, bit 8 of tile number)
-			}
-
-		}
-
-		else {
-																				
-                                                
-/*
-                                         bits 15-12 : palette offset
-  bit     11 : x mirror
-  bit     10 : y mirror
-  bit      9 : rotate
-  bit      8 : ULA over tilemap (if the ula is disabled, bit 8 of tile number)
-  */                                      
+		if (tbblue_tiles_are_monocrome()) {
+			tpal=(byte_second)&0xFE;
+			xmirror=0;
+			ymirror=0;
+			rotate=0;
+		} else {
 			tpal=(byte_second)&0xF0;
 			xmirror=(byte_second>>3)&1;
 			ymirror=(byte_second>>2)&1;
 			rotate=(byte_second>>1)&1;
-			//ula_over_tilemap=byte_second &1;
-
-			//printf ("Color independiente. tpal:%d byte_second: %02XH\n",tpal,byte_second);
-
-			if (tbblue_if_ula_is_enabled() ) {
-        /* 
-        bit      8 : ULA over tilemap (if the ula is disabled, bit 8 of tile number) */
-                                                
-				ula_over_tilemap=byte_second &1;
-			}
-
-			else {
-				tnum |=(byte_second&1)<<8; // bit      8 : ULA over tilemap (if the ula is disabled, bit 8 of tile number)
-			}
 		}
+
+		if (tbblue_tilemap_control&2) {
+			// 512 tile mode
+			tnum |= (byte_second&1)<<8;
+			ula_over_tilemap = ula_over_tilemap_mask;
+		} else {
+			// 256 tile mode, "ULA over tilemap" bit used from attribute (plus "force tilemap")
+			ula_over_tilemap = byte_second & ula_over_tilemap_mask;
+		}
+
+		//printf ("Color independiente. tpal:%d byte_second: %02XH\n",tpal,byte_second);
 
 		//Sacar puntero a principio tiledef. 
 		int offset_tiledef;
@@ -5191,7 +5155,7 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
 
 			int tbblue_lores=tbblue_registers[0x15] & 128;
 			if (tbblue_lores) tbblue_do_ula_lores_overlay();
-		  	else tbblue_do_ula_standard_overlay();
+		  	else if (tbblue_if_ula_is_enabled()) tbblue_do_ula_standard_overlay();
 
 		//Overlay de layer2
 							//Capa layer2
