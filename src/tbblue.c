@@ -4393,41 +4393,14 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 		}
 
 
-		for (pixel_tile=0;pixel_tile<8;pixel_tile+=2) { //Saltamos de dos en dos porque son 4bpp
+		for (pixel_tile=0;pixel_tile<8;pixel_tile++) {
 
-
-			z80_byte pixel_izq,pixel_der;
-
-			//Pixel izquierdo
-			pixel_izq=tbblue_get_pixel_tile_xy(sx,sy,puntero_this_tiledef);
+			z80_byte pixel;
+			pixel=tbblue_get_pixel_tile_xy(sx,sy,puntero_this_tiledef);
 
 			if (destino_x_pixel>=clipwindow_min_x && destino_x_pixel<clipwindow_max_x) {
-				tbblue_do_tile_putpixel(pixel_izq,transparent_colour,tpal,puntero_a_layer,ula_over_tilemap);
-				if (tilemap_width==40) tbblue_do_tile_putpixel(pixel_izq,transparent_colour,tpal,puntero_a_layer+1,ula_over_tilemap);
-			}
-			puntero_a_layer++;
-			if (tilemap_width==40) puntero_a_layer++;
-			destino_x_pixel++;
-
-
-
-			sx=sx+incx;
-			sy=sy+incy;
-
-			//Controlar si se sale por la derecha (pues hay scroll)
-			if (destino_x_pixel==max_destino_x_pixel) {
-				destino_x_pixel=0;
-				puntero_a_layer=orig_puntero_a_layer;
-			}
-
-
-
-			//Pixel derecho
-			pixel_der=tbblue_get_pixel_tile_xy(sx,sy,puntero_this_tiledef);
-
-			if (destino_x_pixel>=clipwindow_min_x && destino_x_pixel<clipwindow_max_x) {
-				tbblue_do_tile_putpixel(pixel_der,transparent_colour,tpal,puntero_a_layer,ula_over_tilemap);
-				if (tilemap_width==40) tbblue_do_tile_putpixel(pixel_der,transparent_colour,tpal,puntero_a_layer+1,ula_over_tilemap);
+				tbblue_do_tile_putpixel(pixel,transparent_colour,tpal,puntero_a_layer,ula_over_tilemap);
+				if (tilemap_width==40) tbblue_do_tile_putpixel(pixel,transparent_colour,tpal,puntero_a_layer+1,ula_over_tilemap);
 			}
 			puntero_a_layer++;
 			if (tilemap_width==40) puntero_a_layer++;
@@ -4441,7 +4414,6 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 				destino_x_pixel=0;
 				puntero_a_layer=orig_puntero_a_layer;
 			}
-
 
 		}
 
