@@ -1316,116 +1316,49 @@ void tbblue_write_palette_value_high8(z80_byte valor)
 (R/W) 0x43 (67) => Palette Control
   bit 7 = '1' to disable palette write auto-increment.
 
-
-(R/W) 0x44 (68) => Palette Value (9 bit colour)
-  Two consecutive writes are needed to write the 9 bit colour
-  1st write:
-     bits 7-0 = RRRGGGBB
-  2nd write. 
-     bit 7-1 = Reserved, must be 0
-     bit 0 = lsb B
-  After the two consecutives writes the palette index is auto-incremented.
-  The changed palette remais until a Hard Reset.
-
 */
 	z80_byte indice=tbblue_registers[0x40];
-
-	//Obtenemos valor actual y alteramos los 8 bits altos del total de 9
-	//z80_int color_actual=tbblue_get_value_palette_rw(indice);
-
-	//Conservamos bit bajo
-	//color_actual &=1;
-	//Bit bajo es el mismo que bit 1
-
-	/*z80_int valor16=valor;
-
-	//Bit bajo sale de hacer or de bit 1 y 0
-	//z80_byte bit_bajo=valor&1;
-	z80_byte bit_bajo=(valor&1)|((valor&2)>>1);
-
-	//rotamos a la izquierda para que sean los 8 bits altos
-	valor16=valor16<<1;
-
-	valor16 |=bit_bajo;*/
 
 	z80_int valor16=tbblue_get_9bit_colour(valor);
 
-	//y or del valor de 1 bit de B
-	//valor16 |=color_actual;
-
 	tbblue_set_value_palette_rw(indice,valor16);
-
-
-
-
-}
-
-
-//Escribe valor de 1 bit inferior (de total de 9) para indice de color de paleta y incrementa indice
-void tbblue_write_palette_value_low1(z80_byte valor)
-{
-/*
-(R/W) 0x40 (64) => Palette Index
-  bits 7-0 = Select the palette index to change the default colour. 
-  0 to 127 indexes are to ink colours and 128 to 255 indexes are to papers.
-  (Except full ink colour mode, that all values 0 to 255 are inks)
-  Border colours are the same as paper 0 to 7, positions 128 to 135,
-  even at full ink mode. 
-  (inks and papers concept only applies to Enhanced ULA palette. 
-  Layer 2 and Sprite palettes works as "full ink" mode)
-
-  (R/W) 0x41 (65) => Palette Value (8 bit colour)
-  bits 7-0 = Colour for the palette index selected by the register 0x40. Format is RRRGGGBB
-  Note the lower blue bit colour will be an OR between bit 1 and bit 0. 
-  After the write, the palette index is auto-incremented to the next index. 
-  The changed palette remains until a Hard Reset.
-
-
-(R/W) 0x44 (68) => Palette Value (9 bit colour)
-  Two consecutive writes are needed to write the 9 bit colour
-  1st write:
-     bits 7-0 = RRRGGGBB
-  2nd write. 
-     bit 7-1 = Reserved, must be 0
-     bit 0 = lsb B
-  After the two consecutives writes the palette index is auto-incremented.
-  The changed palette remais until a Hard Reset.
-
-*/
-	z80_byte indice=tbblue_registers[0x40];
-
-	//Bit inferior siempre cambia indice anterior
-	//indice--;
-
-	//Obtenemos valor actual y conservamos los 8 bits altos del total de 9
-	z80_int color_actual=tbblue_get_value_palette_rw(indice);
-
-	//Conservamos 8 bits altos
-	color_actual &=0x1FE;
-
-	//Y valor indicado, solo conservar 1 bit
-	valor &= 1;
-
-	color_actual |=valor;
-
-	tbblue_set_value_palette_rw(indice,color_actual);
-
-	tbblue_increment_palette_index();
-
-
 }
 
 
 //Escribe valor de paleta de registro 44H, puede que se escriba en 8 bit superiores o en 1 inferior
-void tbblue_write_palette_value_high8_low1(z80_byte valor)
+void tbblue_write_palette_value(z80_byte high8, z80_byte low1)
 {
-	if (tbblue_write_palette_state==0) {
-		tbblue_write_palette_value_high8(valor);
-		tbblue_write_palette_state++;
-	}
+/*
+0x40 (64) => Palette Index
+(R/W)
+  bits 7:0 = Select the palette index to change the associated colour. (soft reset = 0)
 
-	else tbblue_write_palette_value_low1(valor);
-	
+0x44 (68) => Palette Value (9 bit colour)
+(R/W)
+  Two consecutive writes are needed to write the 9 bit colour
+  1st write:
+    bits 7:0 = RRRGGGBB
+  2nd write:
+    bits 7:1 = Reserved, must be 0
+    bit 0 = lsb B
+    If writing to an L2 palette
+    bit 7 = 1 for L2 priority colour, 0 for normal.
+      An L2 priority colour moves L2 above all layers.  If you need the same
+      colour in both priority and normal modes, you will need to have two
+      different entries with the same colour one with and one without priority.
+  After two consecutive writes the palette index is auto-incremented if
+  auto-increment is enabled in nextreg 0x43.
+  Reads only return the 2nd byte and do not auto-increment.
+*/
+	z80_byte indice=tbblue_registers[0x40];
+
+	z80_int color9b=(z80_int)high8+high8+(low1&1);
+
+	//printf("writing full 9b color: palette_%d[%d] = %03X [from: %02X, %02X]\n",(tbblue_registers[0x43]>>4)&7,indice,color9b,high8,low1);
+
+	tbblue_set_value_palette_rw(indice,color9b);
+
+	tbblue_increment_palette_index();
 }
 
 
@@ -3175,6 +3108,20 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 		tbblue_copper_write_data_16b(tbblue_registers[99], value);	// old value + new value
 	}
 
+	if (index_position==40) {
+/*
+0x28 (40) => PS/2 Keymap Address MSB
+(R)
+  bits 7:0 = Stored palette value from nextreg 0x44
+(W)
+  bits 7:1 = Reserved, must be 0
+  bit 0 = MSB address
+*/
+		// no functionality in ZEsarUX when written to, but keep value stored by 0x44 palette reg.
+		// = return before that color value is overwritten
+		return;
+	}
+
 	tbblue_registers[index_position]=value;
 
 
@@ -3413,7 +3360,13 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 
 		
 		case 68:
-			tbblue_write_palette_value_high8_low1(value);
+			// values are set in the palette after full 16b were sent to this register, not partially
+			if (tbblue_write_palette_state == 0) {
+				tbblue_registers[40] = value;	// NextReg 0x28 (40) should read as "first-byte" of 0x44
+				tbblue_write_palette_state++;
+			} else {
+				tbblue_write_palette_value(tbblue_registers[40], value);
+			}
 		break;
 
 
