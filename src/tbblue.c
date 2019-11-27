@@ -2523,7 +2523,7 @@ void tbblue_set_emulator_setting_divmmc(void)
 
 /*
 (W)		06 => Peripheral 2 setting, only in bootrom or config mode:
-			bit 7 = Enable turbo mode (0 = disabled, 1 = enabled)
+			bit 7 = Enable turbo mode key (0 = disabled, 1 = enabled)
 			bit 6 = DAC chip mode (0 = I2S, 1 = JAP)
 			bit 5 = Enable Lightpen  (1 = enabled)
 			bit 4 = Enable DivMMC (1 = enabled) -> divmmc automatic paging. divmmc memory is supported using manual
@@ -2556,11 +2556,11 @@ void tbblue_set_emulator_setting_turbo(void)
 {
 	/*
 	(R/W)	07 => Turbo mode
-	bit 1-0 = Turbo (00 = 3.5MHz, 01 = 7MHz, 10 = 14MHz)
+	bit 1-0 = Turbo (00 = 3.5MHz, 01 = 7MHz, 10 = 14MHz, 11 = 28Mhz)
 	  (00 after a PoR or Hard-reset)
 
-	Si se establece a 11, hara 14 mhz tambien
-
+	(the 28MHz should take extra clock for each opcode SRAM read or something like that, it's
+	not full 8x, just almost => not implemented in this version of ZEsarUX)
 				*/
 
 	z80_byte t=tbblue_registers[7] & 3;
@@ -2572,12 +2572,7 @@ void tbblue_set_emulator_setting_turbo(void)
 		return;
 	}
 
-
-	if (t==0) cpu_turbo_speed=1;
-	else if (t==1) cpu_turbo_speed=2;
-	else if (t==2 || t==3) cpu_turbo_speed=4;
-
-	
+	cpu_turbo_speed = 1 << t;	//1x, 2x, 4x, 8x
 
 	cpu_set_turbo_speed();
 }
@@ -3527,6 +3522,13 @@ hardware numbers
   */
 		case 1:
 			return (TBBLUE_CORE_VERSION_MAJOR<<4 | TBBLUE_CORE_VERSION_MINOR);
+		break;
+
+		case 7:
+		{
+			z80_byte programmed_speed = tbblue_registers[registro] & 3;
+			return programmed_speed | (programmed_speed<<4);	// return programmed also as current
+		}
 		break;
 
 		case 0xE:
