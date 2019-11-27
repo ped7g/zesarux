@@ -292,16 +292,28 @@ z80_byte tbblue_copper_get_control_bits(void)
 //Si scanline y posicion actual corresponde con instruccion wait
 int tbblue_copper_wait_cond_fired(void)
 {
-	//int scanline_actual=t_scanline;
 
-
+	int current_raster=tbblue_get_current_raster_position();
 	int current_horizontal=tbblue_get_current_raster_horiz_position();
 
 	//Obtener parametros de instruccion wait
 	z80_int linea, horiz;
 	tbblue_copper_get_wait_opcode_parameters(&linea,&horiz);
 
-	int current_raster=tbblue_get_current_raster_position();
+#ifdef TBBLUE_DELAYED_COPPER_WAITS
+	// Hack to postpone any changes in the H-blank + left-border area to the next scanline,
+	// as NextReg values used to draw scanline are read when the pixel area of next line starts.
+	// (i.e. even after the left-border)
+	if (38 <= horiz) {
+		// all WAIT(line, 38..55) are converted to WAIT(line+1, 0)
+		horiz = 0;
+		++linea;
+		int max_raster = screen_indice_inicio_pant + 192 + screen_total_borde_inferior;
+		if (linea == max_raster) {
+			linea = 0;
+		}
+	}
+#endif
 
 	//printf ("Waiting until raster %d horiz %d. current %d\n",linea,horiz,current_raster);
 
