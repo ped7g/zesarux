@@ -357,7 +357,7 @@ void tbblue_copper_handle_vsync(void)
 }
 
 
-void tbblue_copper_write_control_hi_byte(z80_byte value)
+void tbblue_copper_write_control_hi_byte(z80_byte value, z80_byte old_value)
 {
 	/*
 
@@ -393,7 +393,9 @@ void tbblue_copper_write_control_hi_byte(z80_byte value)
 
 */
 
-	z80_byte action=value&(128+64);
+	const z80_byte action=value&(128+64);
+	const z80_byte old_action=old_value&(128+64);
+	if (action == old_action) return;	//action bits didn't change, do not reset CPC
 
 	switch (action) {
 		//Estos dos casos, resetean el puntero de instruccion
@@ -3134,6 +3136,22 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
             return;
     }
 
+    if (index_position==98) {
+/*
+(W) 0x62 (98) => Copper control HI bit
+   bits 7-6 = Start control
+       00 = STOP Copper (CPC is kept at current value)
+       01 = Reset CPC to 0 and START Copper
+       10 = START Copper (does resume at current CPC)
+       11 = Reset CPC to 0 and START Copper, reset CPC at each video frame at (0,0) (top left of PAPER)
+   bits 2-0 = Copper list index address MSB
+
+   When "Control mode" bits are identical with previously set ones, they are ignored - allowing for
+   index change without restarting currently running Copper program.
+*/
+		tbblue_copper_write_control_hi_byte(value, tbblue_registers[98]);
+	}
+
 	tbblue_registers[index_position]=value;
 
 
@@ -3416,24 +3434,6 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 
 		//tbblue_copper_increment_write_position();
 		//sleep(1);
-
-		break;
-
-		case 98:
-/*
-(W) 0x62 (98) => Copper control HI bit
-   bits 7-6 = Start control
-       00 = Copper fully stoped
-       01 = Copper start, execute the list, then stop at last adress
-       10 = Copper start, execute the list, then loop the list from start
-       11 = Copper start, execute the list and restart the list at each frame
-   bits 2-0 = Copper list index address MSB
-*/
-
-		//printf ("0x62 (98) => Copper control HI bit value %02XH\n",value);
-		//tbblue_copper_increment_write_position();
-		//sleep(1);
-		tbblue_copper_write_control_hi_byte(value);
 
 		break;
 
