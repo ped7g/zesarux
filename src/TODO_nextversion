@@ -1,5 +1,44 @@
 --------Para próxima versión:
 
+-Debug cpu si cambia tamaño ventana volver a crearla para que se haga efectivo el tamaño final real. Con función para copiar contenido anterior en nuevo? Quizá esto ya lo hace el menú? Al redimensionar el menú se conserva contenido anterior... y se crea nueva? Se copia anterior?
+
+-Menú debug cpu extra debug con extended debug, cpu history, code coverage etc
+
+-Joystick en windows
+
+
+SDL_API - SDL Documentation Wiki
+
+Parece que axis, hat, buttons etc cada uno se numera de 0 hasta X
+
+
+Quizá para hacerlo compatible con lo que hay hasta ahora, sacar el total de cada uno y numerarlos así:
+
+Axis 0 hasta total de axis-1
+Hat. Total de axis hasta total de axis+hats
+Button. Valor anterior + 1 hasta valor anterior+1+total buttons -1
+
+Ejemplo:
+3 axis. 5 hats y 6 buttons:
+
+0..2 axis
+3..7 hats
+8..13 buttons
+
+Si es en Linux y driver sdl, no activar los dos
+
+Quizá sdl joystick solo en windows?
+
+Mover funciones comunes de realjoystick.c a joystick.c. Posteriormente realjoystick.c pasará a llamarse linuxjoystick.c. Tipo axis , botón etc crear tipos nuevos para joystick.c
+
+-Fin joystick en windows
+
+
+-First aid de ZRCP no tiene que decir lo de Windows Thread
+Ya que todas las versiones Windows serán con pthreads 
+
+-Extended stack inicializado con ceros
+
 
 -para probar reset permisos carpetas mac:
 tccutil reset SystemPolicyDocumentsFolder com.cesarhernandez.zesarux
