@@ -3658,10 +3658,6 @@ z80_int *p_layer_third;
 
 //z80_byte (*peek_byte_no_time)(z80_int dir);
 
-int (*tbblue_fn_pixel_layer_transp_first)(z80_int color);
-int (*tbblue_fn_pixel_layer_transp_second)(z80_int color);
-int (*tbblue_fn_pixel_layer_transp_third)(z80_int color);
-
 z80_byte tbblue_get_layers_priorities(void)
 {
 	return (tbblue_registers[0x15] >> 2)&7;
@@ -3675,11 +3671,6 @@ void tbblue_set_layer_priorities(void)
 	p_layer_second=tbblue_layer_layer2;
 	p_layer_third=tbblue_layer_ula;
 
-
-
-	tbblue_fn_pixel_layer_transp_first=tbblue_si_sprite_transp_ficticio;
-	tbblue_fn_pixel_layer_transp_third=tbblue_si_sprite_transp_ficticio;
-	tbblue_fn_pixel_layer_transp_second=tbblue_si_sprite_transp_ficticio;
 
 	/*
 	(R/W) 0x15 (21) => Sprite and Layers system
@@ -4502,7 +4493,7 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	//(R/W) 0x4A (74) => Transparency colour fallback
 		//	bits 7-0 = Set the 8 bit colour.
 		//	(0 = black on reset on reset)
-	z80_int fallbackcolour = RGB9_INDEX_FIRST_COLOR + tbblue_get_9bit_colour(tbblue_registers[74]);
+	z80_int fallbackcolour = tbblue_get_9bit_colour(tbblue_registers[74]);
 
 	int y;
 	int diferencia_border_tiles=screen_indice_inicio_pant-TBBLUE_TILES_BORDER;
@@ -4544,8 +4535,6 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 
 	tbblue_set_layer_priorities();
 
-	z80_int color;
-	
 	//printf ("ancho total: %d size layers: %d\n",get_total_ancho_rainbow(),TBBLUE_LAYERS_PIXEL_WIDTH );
 
 	int i;
@@ -4558,68 +4547,41 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		//estando esas capas, cuando este en zona de border o no visible de dichas capas
 		tbblue_fast_render_ula_layer(puntero_final_rainbow,estamos_borde_supinf,final_borde_izquierdo,inicio_borde_derecho,ancho_rainbow);
 
-	}	
+	} else if (!estamos_borde_supinf) {
 
+		for (i=0;i<ancho_rainbow;i++) {
 
-
-	else {
-
-	for (i=0;i<ancho_rainbow;i++) {
-
-
-		//Primera capa
-		color=p_layer_first[i];
-		if (!tbblue_fn_pixel_layer_transp_first(color) ) {
-			*puntero_final_rainbow=RGB9_INDEX_FIRST_COLOR+color;
-			//doble de alto
-			puntero_final_rainbow[ancho_rainbow]=RGB9_INDEX_FIRST_COLOR+color;
-		}
-
-		else {
-			color=p_layer_second[i];
-			if (!tbblue_fn_pixel_layer_transp_second(color) ) {
-				*puntero_final_rainbow=RGB9_INDEX_FIRST_COLOR+color;
-				//doble de alto
-				puntero_final_rainbow[ancho_rainbow]=RGB9_INDEX_FIRST_COLOR+color;				
-			}
-
-			else {
-				color=p_layer_third[i];
-				if (!tbblue_fn_pixel_layer_transp_third(color) ) {
-					*puntero_final_rainbow=RGB9_INDEX_FIRST_COLOR+color;
-					//doble de alto
-					puntero_final_rainbow[ancho_rainbow]=RGB9_INDEX_FIRST_COLOR+color;					
-				}
-					
-				else {
-					if (estamos_borde_supinf) {
-						//Si estamos en borde inferior o superior, no hacemos nada, dibujar color borde
-					}
-
-					else {
-						//Borde izquierdo o derecho o pantalla. Ver si estamos en pantalla
+			//find non-transparent pixel
+			z80_int color;
+			color=p_layer_first[i];
+			if (tbblue_si_sprite_transp_ficticio(color)) {
+				color=p_layer_second[i];
+				if (tbblue_si_sprite_transp_ficticio(color)) {
+					color=p_layer_third[i];
+					if (tbblue_si_sprite_transp_ficticio(color)) {
 						if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
-							//Poner color indicado por "Transparency colour fallback" registro:
-							*puntero_final_rainbow=fallbackcolour;
-							//doble de alto
-							puntero_final_rainbow[ancho_rainbow]=fallbackcolour;
+							color=fallbackcolour;
 						}
-						else {
-							//Es borde. dejar ese color
-						}
-					
+						// else color is still transparent, do not modify the buffer
 					}
 				}
 			}
 
+			if (!tbblue_si_sprite_transp_ficticio(color)) {
+				*puntero_final_rainbow = RGB9_INDEX_FIRST_COLOR + color;
+			}
+
+			puntero_final_rainbow++;
+
+		}
+		//doble de alto
+		for (i=0;i<ancho_rainbow;i++) {		// just copy the previous line
+			*puntero_final_rainbow = puntero_final_rainbow[-ancho_rainbow];
+			puntero_final_rainbow++;
 		}
 
-		puntero_final_rainbow++;
-
-		
 	}
 
-	}
 }
 
 
