@@ -1,6 +1,6 @@
 --------Para próxima versión:
 
--Debug cpu si cambia tamaño ventana volver a crearla para que se haga efectivo el tamaño final real. Con función para copiar contenido anterior en nuevo? Quizá esto ya lo hace el menú? Al redimensionar el menú se conserva contenido anterior... y se crea nueva? Se copia anterior?
+-Quiza darle mas buffer a disassemble en debug cpu: motorola tiene opcodes muy largos a veces. ir por ejemplo a direccion F0H
 
 -Menú debug cpu extra debug con extended debug, cpu history, code coverage etc
 

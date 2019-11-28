@@ -11665,22 +11665,25 @@ int menu_debug_registers_print_registers(zxvision_window *w,int linea)
 	//Conservamos valor original y usamos uno de copia
 	menu_debug_memory_pointer_copia=menu_debug_memory_pointer;
 
+	char buffer_linea[MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH];	
+
+
 
 	//Por defecto
 	menu_debug_registers_print_registers_longitud_opcode=8; //Esto se hace para que en las vistas de solo hexadecimal, se mueva arriba/abajo de 8 en 8
 
 
 		if (menu_debug_registers_current_view==7) {
-		        menu_debug_print_address_memory_zone(dumpassembler,menu_debug_memory_pointer_copia);
+			menu_debug_print_address_memory_zone(dumpassembler,menu_debug_memory_pointer_copia);
 
-		        int longitud_direccion=MAX_LENGTH_ADDRESS_MEMORY_ZONE;
+			int longitud_direccion=MAX_LENGTH_ADDRESS_MEMORY_ZONE;
 
-		        //metemos espacio en 0 final
-		        dumpassembler[longitud_direccion]=' ';
+			//metemos espacio en 0 final
+			dumpassembler[longitud_direccion]=' ';
 
 
-		        //Assembler
-		        debugger_disassemble(&dumpassembler[longitud_direccion+1],17,&menu_debug_registers_print_registers_longitud_opcode,menu_debug_memory_pointer_copia);
+			//Assembler
+			debugger_disassemble(&dumpassembler[longitud_direccion+1],17,&menu_debug_registers_print_registers_longitud_opcode,menu_debug_memory_pointer_copia);
 
 
 			//debugger_disassemble(dumpassembler,32,&menu_debug_registers_print_registers_longitud_opcode,menu_debug_memory_pointer_copia );
@@ -11706,9 +11709,9 @@ int menu_debug_registers_print_registers(zxvision_window *w,int linea)
 
 			if (CPU_IS_SCMP) {
 				menu_debug_registers_dump_hex(dumpmemoria,get_pc_register(),8);
-	      sprintf (textoregistros,"PC: %04X : %s",get_pc_register(),dumpmemoria);
-	      //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+	     		sprintf (textoregistros,"PC: %04X : %s",get_pc_register(),dumpmemoria);
+	     		 //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
 				menu_debug_registers_dump_hex(dumpmemoria,scmp_m_P1.w.l,8);
 				sprintf (textoregistros,"P1: %04X : %s",scmp_m_P1.w.l,dumpmemoria);
@@ -11779,64 +11782,64 @@ int menu_debug_registers_print_registers(zxvision_window *w,int linea)
 
 			else {
 				//Z80
-			menu_debug_registers_dump_hex(dumpmemoria,get_pc_register(),8);
+				menu_debug_registers_dump_hex(dumpmemoria,get_pc_register(),8);
 
-                        sprintf (textoregistros,"PC: %04X : %s",get_pc_register(),dumpmemoria);
-                        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				sprintf (textoregistros,"PC: %04X : %s",get_pc_register(),dumpmemoria);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
 
-			menu_debug_registers_dump_hex(dumpmemoria,reg_sp,8);
-                        sprintf (textoregistros,"SP: %04X : %s",reg_sp,dumpmemoria);
-                        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				menu_debug_registers_dump_hex(dumpmemoria,reg_sp,8);
+				sprintf (textoregistros,"SP: %04X : %s",reg_sp,dumpmemoria);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
-                        sprintf (textoregistros,"A: %02X F: %c%c%c%c%c%c%c%c",reg_a,DEBUG_STRING_FLAGS);
-                        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				sprintf (textoregistros,"A: %02X F: %c%c%c%c%c%c%c%c",reg_a,DEBUG_STRING_FLAGS);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
-                        sprintf (textoregistros,"A':%02X F':%c%c%c%c%c%c%c%c",reg_a_shadow,DEBUG_STRING_FLAGS_SHADOW);
-                        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				sprintf (textoregistros,"A':%02X F':%c%c%c%c%c%c%c%c",reg_a_shadow,DEBUG_STRING_FLAGS_SHADOW);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
-                        sprintf (textoregistros,"HL: %04X DE: %04X BC: %04X",HL,DE,BC);
-                        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				sprintf (textoregistros,"HL: %04X DE: %04X BC: %04X",HL,DE,BC);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
-                        sprintf (textoregistros,"HL':%04X DE':%04X BC':%04X",(reg_h_shadow<<8)|reg_l_shadow,(reg_d_shadow<<8)|reg_e_shadow,(reg_b_shadow<<8)|reg_c_shadow);
-                        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				sprintf (textoregistros,"HL':%04X DE':%04X BC':%04X",(reg_h_shadow<<8)|reg_l_shadow,(reg_d_shadow<<8)|reg_e_shadow,(reg_b_shadow<<8)|reg_c_shadow);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
-	                        sprintf (textoregistros,"IX: %04X IY: %04X",reg_ix,reg_iy);
-                        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				sprintf (textoregistros,"IX: %04X IY: %04X",reg_ix,reg_iy);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
-			char texto_nmi[10];
-			if (MACHINE_IS_ZX81) {
-				sprintf (texto_nmi,"%s",(nmi_generator_active.v ? "NMI:On" : "NMI:Off"));
-			}
+				char texto_nmi[10];
+				if (MACHINE_IS_ZX81) {
+					sprintf (texto_nmi,"%s",(nmi_generator_active.v ? "NMI:On" : "NMI:Off"));
+				}
 
-			else {
-				texto_nmi[0]=0;
-			}
+				else {
+					texto_nmi[0]=0;
+				}
 
-                        sprintf (textoregistros,"R:%02X I:%02X IM%d IFF%c%c %s",
-				(reg_r&127)|(reg_r_bit7&128),
-				reg_i,
-				im_mode,
-				DEBUG_STRING_IFF12,
+				sprintf (textoregistros,"R:%02X I:%02X IM%d IFF%c%c %s",
+					(reg_r&127)|(reg_r_bit7&128),
+					reg_i,
+					im_mode,
+					DEBUG_STRING_IFF12,
 				
-				texto_nmi);
+					texto_nmi);
 
-			//01234567890123456789012345678901
-			// R: 84 I: 1E DI IM1 NMI: Off
-			// R: 84 I: 1E IFF1 IFF2 IM1 NMI: Off
-			// R:84 I:1E IFF1 IFF2 IM1 NMI:Off
+				//01234567890123456789012345678901
+				// R: 84 I: 1E DI IM1 NMI: Off
+				// R: 84 I: 1E IFF1 IFF2 IM1 NMI: Off
+				// R:84 I:1E IFF1 IFF2 IM1 NMI:Off
 
-			//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				//menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
-		}
+			}
 
 
 		}
@@ -11844,29 +11847,30 @@ int menu_debug_registers_print_registers(zxvision_window *w,int linea)
 		if (menu_debug_registers_current_view==4 || menu_debug_registers_current_view==3) {
 
 
-				int longitud_op;
-				
+			int longitud_op;
+			
 
-				int limite=menu_debug_get_main_list_view(w);
+			int limite=menu_debug_get_main_list_view(w);
 
-				for (i=0;i<limite;i++) {
-					menu_debug_dissassemble_una_instruccion(dumpassembler,menu_debug_memory_pointer_copia,&longitud_op);
-					//menu_escribe_linea_opcion(linea++,-1,1,dumpassembler);
-					zxvision_print_string_defaults_fillspc(w,1,linea++,dumpassembler);
-					menu_debug_memory_pointer_copia +=longitud_op;
+			for (i=0;i<limite;i++) {
+				menu_debug_dissassemble_una_instruccion(dumpassembler,menu_debug_memory_pointer_copia,&longitud_op);
+				//menu_escribe_linea_opcion(linea++,-1,1,dumpassembler);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,dumpassembler);
+				menu_debug_memory_pointer_copia +=longitud_op;
 
-					//Almacenar longitud del primer opcode mostrado
-					if (i==0) menu_debug_registers_print_registers_longitud_opcode=longitud_op;
-				}
-					menu_debug_memory_pointer_last=menu_debug_memory_pointer_copia;
+				//Almacenar longitud del primer opcode mostrado
+				if (i==0) menu_debug_registers_print_registers_longitud_opcode=longitud_op;
+			}
+
+			menu_debug_memory_pointer_last=menu_debug_memory_pointer_copia;
 
 
 		}
 
 
 
-			//Linea de condact de daad
-			if (menu_debug_registers_current_view==8) {
+		//Linea de condact de daad
+		if (menu_debug_registers_current_view==8) {
 
 				int total_lineas_debug=7;
 
@@ -11878,7 +11882,9 @@ int menu_debug_registers_print_registers(zxvision_window *w,int linea)
 
 				z80_int direccion_desensamblar=value_8_to_16(reg_b,reg_c);		
 
-				char buffer_linea[64];	
+
+
+				//char buffer_linea[MAX_LINE_CPU_REGISTERS_LENGTH];	
 
 
 				//Si no esta en zona de parser
@@ -11938,7 +11944,8 @@ Solo tienes que buscar en esa tabla el número de palabra de flag 33, que sea de
 
 				//linea++;	
 
-				int columna_registros=20;		
+				//Posicion fija para la columna de watches
+				int columna_watches=20;		
 
 				int terminador=0; //Si se ha llegado a algun terminador de linea						
 
@@ -11946,7 +11953,7 @@ Solo tienes que buscar en esa tabla el número de palabra de flag 33, que sea de
 
 					//Inicializamos linea a mostrar con espacios primero
 					int j; 
-					for (j=0;j<64;j++) buffer_linea[j]=32;
+					for (j=0;j<MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH;j++) buffer_linea[j]=32;
 
 						//Si esta en zona de parser
 						if (util_daad_is_in_parser() || util_paws_is_in_parser() ) {
@@ -11987,8 +11994,12 @@ Solo tienes que buscar en esa tabla el número de palabra de flag 33, que sea de
 							}
 
 						}
+						
 
-						menu_debug_registros_parte_derecha(i,buffer_linea,columna_registros,0);
+
+						//printf ("primero menu_debug_registros_parte_derecha. columna_registros=%d\n",columna_registros);
+						menu_debug_registros_parte_derecha(i,buffer_linea,columna_watches,0);
+						//printf ("despues\n");
 
 						//printf ("linea: %s\n",buffer_linea);
 
@@ -11998,22 +12009,37 @@ Solo tienes que buscar en esa tabla el número de palabra de flag 33, que sea de
 						direccion_desensamblar +=longitud_op;
 
 				
-				}
+		}
 
 				
 
 
 		}		
 
-                if (menu_debug_registers_current_view==1) {
+        if (menu_debug_registers_current_view==1) {
 
 
-                    size_t longitud_op;
-                    int limite=get_menu_debug_num_lineas_full(w);
+				size_t longitud_op;
+				int limite=get_menu_debug_num_lineas_full(w);
 
 
-				int columna_registros=19;
-				if (CPU_IS_MOTOROLA) columna_registros=20;
+				//printf ("%d\n",w->visible_width);
+
+
+				//A partir de que columna aparecen los registros a la derecha
+				//dependera del tamaño de la ventana
+				int columna_registros;
+
+
+				columna_registros=w->visible_width-13;   //32-13
+				if (CPU_IS_MOTOROLA) columna_registros=w->visible_width-12; //32-12
+
+
+				//Revisar un minimo y maximo
+				if (columna_registros<19) columna_registros=19;
+
+				//20 caracteres dan mas que de sobra para el texto de registros
+				if (columna_registros>MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH-20) columna_registros=MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH-20;
 
 
 
@@ -12024,14 +12050,14 @@ Solo tienes que buscar en esa tabla el número de palabra de flag 33, que sea de
 				menu_debug_memory_pointer_copia=menu_debug_disassemble_subir_veces(puntero_ptr_inicial,menu_debug_line_cursor);
          
 
-					//char buffer_registros[33];
 
-        //Comportamiento de 1 caracter de margen a la izquierda en ventana 
-        int antes_menu_escribe_linea_startx=menu_escribe_linea_startx;
 
-        menu_escribe_linea_startx=0;
+				//Comportamiento de 1 caracter de margen a la izquierda en ventana 
+				int antes_menu_escribe_linea_startx=menu_escribe_linea_startx;
+
+				menu_escribe_linea_startx=0;
 					
-				char buffer_linea[64];
+				//char buffer_linea[MAX_LINE_CPU_REGISTERS_LENGTH];
                 for (i=0;i<limite;i++) {
 
 					//Por si acaso
@@ -12040,7 +12066,7 @@ Solo tienes que buscar en esa tabla el número de palabra de flag 33, que sea de
 					//Inicializamos linea a mostrar primero con espacios
 					
 					int j; 
-					for (j=0;j<64;j++) buffer_linea[j]=32;
+					for (j=0;j<MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH;j++) buffer_linea[j]=32;
 
 					int opcion_actual=-1;
 
@@ -12099,41 +12125,53 @@ int menu_debug_registers_subview_type=0;
 					//menu_debug_lines_addresses[i]=puntero_dir;
 
 
+					//printf ("segundo menu_debug_registros_parte_derecha. i=%d columna=%d buffer_linea: [%s]\n",i,columna_registros,buffer_linea);
 					menu_debug_registros_parte_derecha(i,buffer_linea,columna_registros,1);
+					//printf ("despues\n");
+
+					//printf ("buffer_linea: [%s]\n",buffer_linea);
 
 
 					//zxvision_print_string_defaults_fillspc(w,1,linea,buffer_linea);
 
 					//De los pocos usos de menu_escribe_linea_opcion_zxvision,
 					//solo se usa en menus y aqui: para poder mostrar linea activada o en rojo
+
 					menu_escribe_linea_opcion_zxvision(w,linea,opcion_actual,opcion_activada,buffer_linea);
 
-										linea++;
+					//menu_escribe_linea_opcion_zxvision(w,linea,opcion_actual,opcion_activada,"0123456789001234567890012345678900123456789001234567890");
+
+					//printf ("despues menu_escribe_linea_opcion_zxvision. i=%d\n",i);
+
+					linea++;
 
 
-                                        menu_debug_memory_pointer_copia +=longitud_op;
+					menu_debug_memory_pointer_copia +=longitud_op;
 
-                                        //Almacenar longitud del primer opcode mostrado
-                                        if (i==0) menu_debug_registers_print_registers_longitud_opcode=longitud_op;
-                                }
-
-
-                                 menu_debug_memory_pointer_last=menu_debug_memory_pointer_copia;
+					//Almacenar longitud del primer opcode mostrado
+					if (i==0) menu_debug_registers_print_registers_longitud_opcode=longitud_op;
+                }
 
 
-					//Vamos a ver si metemos una linea mas de la parte de la derecha extra, siempre que tenga contenido (primer caracter no espacio)
-					//Esto sucede por ejemplo en tbblue, pues tiene 8 segmentos de memoria
-                                        //Inicializamos a espacios
-                                        int j;
-                                        for (j=0;j<64;j++) buffer_linea[j]=32;
+				menu_debug_memory_pointer_last=menu_debug_memory_pointer_copia;
 
-                                        menu_debug_registros_parte_derecha(i,buffer_linea,columna_registros,1);
 
-										//primero borramos esa linea, por si cambiamos de subvista con M y hay "restos" ahi
-										zxvision_print_string_defaults_fillspc(w,1,linea,"");
+				//Vamos a ver si metemos una linea mas de la parte de la derecha extra, siempre que tenga contenido (primer caracter no espacio)
+				//Esto sucede por ejemplo en tbblue, pues tiene 8 segmentos de memoria
+				//Inicializamos a espacios
+				int j;
+				for (j=0;j<MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH;j++) buffer_linea[j]=32;
 
-                                        //Si tiene contenido
-                                        if (buffer_linea[columna_registros]!=' ' && buffer_linea[columna_registros]!=0) {
+
+				//printf ("tercero menu_debug_registros_parte_derecha\n");
+				menu_debug_registros_parte_derecha(i,buffer_linea,columna_registros,1);
+				//printf ("despues\n");
+
+				//primero borramos esa linea, por si cambiamos de subvista con M y hay "restos" ahi
+				zxvision_print_string_defaults_fillspc(w,1,linea,"");
+
+				//Si tiene contenido
+				if (buffer_linea[columna_registros]!=' ' && buffer_linea[columna_registros]!=0) {
                                                 //Agregamos linea perdiendo la linea en blanco de margen
 						//menu_escribe_linea_opcion(linea,-1,1,buffer_linea);
 						//zxvision_print_string_defaults_fillspc(w,1,linea,buffer_linea);
@@ -12144,44 +12182,43 @@ int menu_debug_registers_subview_type=0;
 					menu_escribe_linea_opcion_zxvision(w,linea,-1,1,buffer_linea);
 
 
-					}
+				}
 
-					linea++;
+				linea++;
 
-					menu_escribe_linea_startx=antes_menu_escribe_linea_startx;
+				menu_escribe_linea_startx=antes_menu_escribe_linea_startx;
+
+			
+
+				//Linea de stack
+				//No mostrar stack en caso de scmp
+				if (CPU_IS_Z80 || CPU_IS_MOTOROLA) {
+					sprintf(buffer_linea,"(SP) ");
+
+					int valores=5;
+					if (CPU_IS_MOTOROLA) valores=3;
+					debug_get_stack_values(valores,&buffer_linea[5]);
+					//menu_escribe_linea_opcion(linea++,-1,1,buffer_linea);
+					zxvision_print_string_defaults_fillspc(w,1,linea++,buffer_linea);
+				}
+
+				//Linea de user stack
+				if (CPU_IS_MOTOROLA) {
+					int valores=5;
+					sprintf(buffer_linea,"(USP) ");
+
+					debug_get_user_stack_values(valores,&buffer_linea[5]);
+					//menu_escribe_linea_opcion(linea++,-1,1,buffer_linea);
+					zxvision_print_string_defaults_fillspc(w,1,linea++,buffer_linea);
+				}
+
+				else {
+					//En caso de Z80 o SCMP meter linea vacia
+					zxvision_print_string_defaults_fillspc(w,1,linea++,"");
+				}
 
 
-					
-
-					//Linea de stack
-					//No mostrar stack en caso de scmp
-					if (CPU_IS_Z80 || CPU_IS_MOTOROLA) {
-						sprintf(buffer_linea,"(SP) ");
-
-						int valores=5;
-						if (CPU_IS_MOTOROLA) valores=3;
-						debug_get_stack_values(valores,&buffer_linea[5]);
-						//menu_escribe_linea_opcion(linea++,-1,1,buffer_linea);
-						zxvision_print_string_defaults_fillspc(w,1,linea++,buffer_linea);
-					}
-
-					//Linea de user stack
-					if (CPU_IS_MOTOROLA) {
-						int valores=5;
-						sprintf(buffer_linea,"(USP) ");
-
-						debug_get_user_stack_values(valores,&buffer_linea[5]);
-						//menu_escribe_linea_opcion(linea++,-1,1,buffer_linea);
-						zxvision_print_string_defaults_fillspc(w,1,linea++,buffer_linea);
-					}
-
-					else {
-						//En caso de Z80 o SCMP meter linea vacia
-						zxvision_print_string_defaults_fillspc(w,1,linea++,"");
-					}
-
-
-                }
+        }
 
 		if (menu_debug_registers_current_view==5 || menu_debug_registers_current_view==6) {
 
@@ -12215,7 +12252,7 @@ int menu_debug_registers_subview_type=0;
             //Separador
         	sprintf (textoregistros," ");
             //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-		zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
 
 			//
@@ -12223,7 +12260,7 @@ int menu_debug_registers_subview_type=0;
 			//
             sprintf (textoregistros,"MEMPTR: %04X TSTATES: %05d",memptr,t_estados);
             //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-		zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
 
 			//
@@ -12241,7 +12278,7 @@ int menu_debug_registers_subview_type=0;
 
             sprintf (textoregistros,"TSTATL: %03d TSTATP: %s",(t_estados % screen_testados_linea),buffer_estadosparcial );
             //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-		zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
 			//
 			// FPS y Scanline
@@ -12254,7 +12291,7 @@ int menu_debug_registers_subview_type=0;
 	            sprintf (textoregistros,"SCANLINE: %03d FPS: %03d",t_scanline_draw,ultimo_fps);
 			}
             //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-		zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+			zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
 
 
@@ -12304,7 +12341,7 @@ int menu_debug_registers_subview_type=0;
 
 				autodetect_rainbow.v=copia_autodetect_rainbow.v;
     	        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
-		zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
+				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
 
 			}
@@ -12399,8 +12436,6 @@ int menu_debug_registers_subview_type=0;
 			textopaginasmem[max_longitud]=0;
     		//menu_escribe_linea_opcion(linea++,-1,1,textopaginasmem);
 			zxvision_print_string_defaults_fillspc(w,1,linea++,textopaginasmem);
-
-
 
 
 		}
@@ -13971,6 +14006,15 @@ void menu_debug_daad_get_condact_message(void)
 
 }
 
+void menu_debug_registers_zxvision_save_size(zxvision_window *ventana,int *ventana_ancho_antes,int *ventana_alto_antes)
+{
+
+	//Guardar ancho y alto anterior para recrear la ventana si cambia
+	*ventana_ancho_antes=ventana->visible_width;
+	*ventana_alto_antes=ventana->visible_height;
+}
+	
+
 void menu_debug_registers(MENU_ITEM_PARAMETERS)
 {
 
@@ -14030,10 +14074,37 @@ void menu_debug_registers(MENU_ITEM_PARAMETERS)
 
 	zxvision_window ventana;
 	menu_debug_registers_zxvision_ventana(&ventana);
+
+
+	//Guardar ancho y alto anterior para recrear la ventana si cambia
+	int ventana_ancho_antes;
+	int ventana_alto_antes;
+
+	menu_debug_registers_zxvision_save_size(&ventana,&ventana_ancho_antes,&ventana_alto_antes);
+
 	menu_debug_registers_set_title(&ventana);
 
 
 	do {
+
+		//Ver si ha cambiado tamanyo ventana para recrearla
+		//Si no gestionamos esto, zxvision redimensiona por su cuenta el tamaño visible pero el tamaño total
+		//requiere logicamente recrearla de nuevo
+		if (ventana.visible_width!=ventana_ancho_antes || ventana.visible_height!=ventana_alto_antes) {
+			debug_printf (VERBOSE_DEBUG,"Debug CPU window size has changed. Recreate it again");
+
+			//Guardamos la geometria actual
+			util_add_window_geometry("debugcpu",ventana.x,ventana.y,ventana.visible_width,ventana.visible_height);
+
+			zxvision_destroy_window(&ventana);
+
+			//Al crearla, usara la geometria guardada antes
+			menu_debug_registers_zxvision_ventana(&ventana);
+			menu_debug_registers_set_title(&ventana);
+
+			//Guardamos valores en variables para saber si cambia
+			menu_debug_registers_zxvision_save_size(&ventana,&ventana_ancho_antes,&ventana_alto_antes);
+		}
 
 
 		//Si es la vista 8, siempre esta en cpu step mode, y zona de memoria es la mapped
@@ -14347,7 +14418,7 @@ void menu_debug_registers(MENU_ITEM_PARAMETERS)
 
 					//si lento, avisar
 					if (menu_debug_continuous_speed<=1) {
-						zxvision_print_string_defaults_fillspc(&ventana,1,linea++,"Note: Do long key presses");
+						zxvision_print_string_defaults_fillspc(&ventana,1,linea++,"Note: Make long key presses");
 					}
 					else {
 						zxvision_print_string_defaults_fillspc(&ventana,1,linea++,"                         ");

@@ -3698,6 +3698,8 @@ void menu_retorna_colores_linea_opcion(int indice,int opcion_actual,int opcion_a
 
 }
 
+
+
 //escribe opcion de linea de texto
 //coordenadas "indice" relativa al interior de la ventana (0=inicio)
 //opcion_actual indica que numero de linea es la seleccionada
@@ -3705,7 +3707,8 @@ void menu_retorna_colores_linea_opcion(int indice,int opcion_actual,int opcion_a
 void menu_escribe_linea_opcion_zxvision(zxvision_window *ventana,int indice,int opcion_actual,int opcion_activada,char *texto_entrada)
 {
 
-	char texto[64];
+	char texto[MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH+1]; 
+	//Le doy 1 byte mas. Por si acaso alguien llama aqui sin contar el byte 0 del final y la lia...
 
         if (!strcmp(scr_driver_name,"stdout")) {
 		printf ("%s\n",texto_entrada);

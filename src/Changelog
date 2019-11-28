@@ -37,7 +37,7 @@ Added setting to choose cpu type
 
 Improved Debugging: 
 -added setting to dump .zsf snapshot when a cpu panic is fired
--debug CPU window: can now resize height and have more debug lines
+-debug CPU window: can now resize height and have more debug lines, legend keys expand as width increases, registers located at the most right position
 -cpu transaction log: faster when opening transaction log file
 -added key 'n' for "run" on debug cpu. Does the same as closing all menus and returning back to emulation
 -debug CPU window: show interrupt routine pointer on im2 mode
