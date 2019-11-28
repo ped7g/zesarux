@@ -777,6 +777,8 @@ z80_int *tbblue_get_palette_rw(void)
      101 = Layer 2 secondary palette
      010 = Sprites first palette 
      110 = Sprites secondary palette
+     011 = Tilemap first palette
+     111 = Tilemap second palette
   bit 3 = Select Sprites palette (0 = first palette, 1 = secondary palette)
   bit 2 = Select Layer 2 palette (0 = first palette, 1 = secondary palette)
   bit 1 = Select ULA palette (0 = first palette, 1 = secondary palette)
@@ -1324,6 +1326,7 @@ void tbblue_write_palette_value_high8(z80_byte valor)
 	tbblue_set_value_palette_rw(indice,valor16);
 }
 
+#define TBBLUE_LAYER2_PRIORITY 0x8000
 
 //Escribe valor de paleta de registro 44H, puede que se escriba en 8 bit superiores o en 1 inferior
 void tbblue_write_palette_value(z80_byte high8, z80_byte low1)
@@ -1354,7 +1357,12 @@ void tbblue_write_palette_value(z80_byte high8, z80_byte low1)
 
 	z80_int color9b=(z80_int)high8+high8+(low1&1);
 
-	//printf("writing full 9b color: palette_%d[%d] = %03X [from: %02X, %02X]\n",(tbblue_registers[0x43]>>4)&7,indice,color9b,high8,low1);
+	if ((low1&128) && 0x10 == (tbblue_registers[0x43]&0x30)) {
+		// layer 2 palette has extra priority bit in color (must be removed while mixing layers)
+		color9b |= TBBLUE_LAYER2_PRIORITY;
+	}
+
+	//printf("writing full 9b color: palette_%d[%d] = %04X [from: %02X, %02X]\n",(tbblue_registers[0x43]>>4)&7,indice,color9b,high8,low1);
 
 	tbblue_set_value_palette_rw(indice,color9b);
 
@@ -4552,19 +4560,25 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		for (i=0;i<ancho_rainbow;i++) {
 
 			//find non-transparent pixel
-			z80_int color;
-			color=p_layer_first[i];
-			if (tbblue_si_sprite_transp_ficticio(color)) {
-				color=p_layer_second[i];
+			z80_int color = tbblue_layer_layer2[i];
+			if (tbblue_si_sprite_transp_ficticio(color) || 0 == (color&TBBLUE_LAYER2_PRIORITY)) {
+				// if layer2 pixel is transparent, or normal-priority, go through the three layers
+				color=p_layer_first[i];
 				if (tbblue_si_sprite_transp_ficticio(color)) {
-					color=p_layer_third[i];
+					color=p_layer_second[i];
 					if (tbblue_si_sprite_transp_ficticio(color)) {
-						if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
-							color=fallbackcolour;
+						color=p_layer_third[i];
+						if (tbblue_si_sprite_transp_ficticio(color)) {
+							if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
+								color=fallbackcolour;
+							}
+							// else color is still transparent, do not modify the buffer
 						}
-						// else color is still transparent, do not modify the buffer
 					}
 				}
+			} else {
+				// else there is priority color in layer2, ignore other layers, remove priority bit
+				color &= 0x1FF;
 			}
 
 			if (!tbblue_si_sprite_transp_ficticio(color)) {
