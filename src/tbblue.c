@@ -2044,7 +2044,7 @@ void tbblue_mem_page_ram_rom(void)
 			tbblue_set_ram_page(1*2+1);
 			tbblue_set_ram_page(2*2);
 			tbblue_set_ram_page(2*2+1);
-			tbblue_set_ram_page(3*3);
+			tbblue_set_ram_page(3*2);
 			tbblue_set_ram_page(3*2+1);
 
 			contend_pages_actual[0]=contend_pages_128k_p2a[0];
