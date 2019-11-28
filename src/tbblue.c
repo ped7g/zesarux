@@ -3624,9 +3624,8 @@ struct s_tbblue_priorities_names tbblue_priorities_names[8]={
 	{ { "Layer 2" ,  "ULA&Tiles"  ,  "Sprites" } },
 	{ { "ULA&Tiles" ,  "Sprites"  ,  "Layer 2" } },
 	{ { "ULA&Tiles" ,  "Layer 2"  ,  "Sprites" } },
-
-	{ { "Invalid" ,  "Invalid"  ,  "Invalid" } },
-	{ { "Invalid" ,  "Invalid"  ,  "Invalid" } },
+	{ { "Sprites" ,  "ULA+L2"   ,  "-" } },
+	{ { "Sprites" ,  "ULA+L2-5" ,  "-" } },
 };
 
 //Retorna el texto de la capa que corresponde segun el byte de prioridad y la capa demandada en layer
@@ -3641,6 +3640,8 @@ char *tbblue_get_string_layer_prio(int layer,z80_byte prio)
      011 - L U S
      100 - U S L
      101 - U L S
+     110 - S(U+L) ULA and Layer 2 combined, colours clamped to 7
+     111 - S(U+L-5) ULA and Layer 2 combined, colours clamped to [0,7]
 */
 
 	//por si acaso. capa entre 0 y 7
@@ -3692,10 +3693,11 @@ void tbblue_set_layer_priorities(void)
      011 - L U S
      100 - U S L
      101 - U L S
+     110 - S(U+L) ULA and Layer 2 combined, colours clamped to 7
+     111 - S(U+L-5) ULA and Layer 2 combined, colours clamped to [0,7]
   bit 1 = Over border (1 = yes)(Back to 0 after a reset)
   bit 0 = Sprites visible (1 = visible)(Back to 0 after a reset)
   */
-	//z80_byte prio=(tbblue_registers[0x15] >> 2)&7;
 	z80_byte prio=tbblue_get_layers_priorities();
 
 	//printf ("prio: %d\n",prio);
@@ -4491,6 +4493,76 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 
 }
 
+void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int final_borde_izquierdo,
+	int inicio_borde_derecho, int ancho_rainbow, z80_int fallbackcolour)
+{
+	const int sub = (6 == tbblue_get_layers_priorities()) ? 0 : -5;	// subtract to blend value
+	int i;
+	for (i=0;i<ancho_rainbow;i++) {
+
+		z80_int l2_color = tbblue_layer_layer2[i];
+		int priority = (l2_color&TBBLUE_LAYER2_PRIORITY) && !tbblue_si_sprite_transp_ficticio(l2_color);
+		z80_int ula_color = tbblue_layer_ula[i];
+		//TODO
+		// ula_color should be only ULA or ULA+tile, depending on 0x68 (104) => ULA Control bit 6
+		// but at this point I have only ULA+tile in the layer buffer, no idea how to get ULA-only
+		// (as the tilemap may be drawn above blended pixel, this probably requires fourth buffer!)
+
+		// if L2 priority bit is set, ignore sprites pixel (priority bit should win)
+		z80_int color = priority ? TBBLUE_SPRITE_TRANS_FICT : tbblue_layer_sprites[i];
+		if (tbblue_si_sprite_transp_ficticio(color)) {
+			// check if blending is possible (no transparent color allowed)
+			if (tbblue_si_sprite_transp_ficticio(l2_color)) {
+				if (tbblue_si_sprite_transp_ficticio(ula_color)) {
+					// all layers transparent
+					if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
+						color = fallbackcolour;
+					}
+					// else color is still transparent, do not modify the buffer
+				} else {
+					color = ula_color;	// only ULA color
+				}
+			} else {
+				if (tbblue_si_sprite_transp_ficticio(ula_color)) {
+					color = l2_color&0x1FF;	// only L2 color (remove priority bit)
+				} else {
+					// blend L2 + ULA
+					int channel_b = (l2_color&0x007) + (ula_color&0x007);
+					int channel_g = (l2_color&0x038) + (ula_color&0x038);
+					int channel_r = (l2_color&0x1C0) + (ula_color&0x1C0);
+					// subtract -5 and clamp on zero value (if in "U+L-5" mode)
+					if (sub) {
+						channel_b += sub<<0;
+						if (channel_b < 0) channel_b = 0;
+						channel_g += sub<<3;
+						if (channel_g < 0) channel_g = 0;
+						channel_r += sub<<6;
+						if (channel_r < 0) channel_r = 0;
+					}
+					// clamp on value 7 (both blend modes can overflow)
+					if ((7<<0) < channel_b) channel_b = (7<<0);
+					if ((7<<3) < channel_g) channel_g = (7<<3);
+					if ((7<<6) < channel_r) channel_r = (7<<6);
+					// final color
+					color = channel_b + channel_g + channel_r;
+				}
+			}
+		} // else the sprite color is solid and above
+
+		if (!tbblue_si_sprite_transp_ficticio(color)) {
+			*puntero_final_rainbow = RGB9_INDEX_FIRST_COLOR + color;
+		}
+
+		puntero_final_rainbow++;
+
+	}
+	//doble de alto
+	for (i=0;i<ancho_rainbow;i++) {		// just copy the previous line
+		*puntero_final_rainbow = puntero_final_rainbow[-ancho_rainbow];
+		puntero_final_rainbow++;
+	}
+}
+
 //int tempconta;
 
 //Nos situamos en la linea justo donde empiezan los tiles
@@ -4542,6 +4614,14 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 
 
 	tbblue_set_layer_priorities();
+
+	// resolve blending modes by specialized routine
+	if (6 <= tbblue_get_layers_priorities()) {
+		if (!estamos_borde_supinf) {
+			tbblue_render_blended_rainbow(puntero_final_rainbow, final_borde_izquierdo, inicio_borde_derecho, ancho_rainbow, fallbackcolour);
+		}
+		return;
+	}
 
 	//printf ("ancho total: %d size layers: %d\n",get_total_ancho_rainbow(),TBBLUE_LAYERS_PIXEL_WIDTH );
 
