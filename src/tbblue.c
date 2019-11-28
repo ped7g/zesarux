@@ -4710,15 +4710,8 @@ void tbblue_do_layer2_overlay(void)
 
         //direccion=screen_addr_table[(scanline_copia<<5)];
 
-		//Inicializar puntero a layer2 de tbblue, irlo incrementando a medida que se ponen pixeles
-		//Layer2 siempre se dibuja desde registro que indique pagina 18. Registro 19 es un backbuffer pero siempre se dibuja desde 18
-		//int tbblue_layer2_offset=tbblue_registers[18]&63;
-
-		//tbblue_layer2_offset*=16384;
-
-
-
-		int tbblue_layer2_offset=tbblue_get_offset_start_layer2();
+		// NextReg 0x12 is always on display, "shadow" 0x13 is only for write/read over ROM
+		int tbblue_layer2_offset=tbblue_get_offset_start_layer2_reg(tbblue_registers[18]);
 
 
 		//Mantener el offset y en 0..191
