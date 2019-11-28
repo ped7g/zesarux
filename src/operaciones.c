@@ -1924,25 +1924,27 @@ set_visualmembuffer(dir);
 #endif
 
 		//Si se escribe en memoria layer2
-		if (dir<16384 && tbblue_write_on_layer2() ) {
-
-			int offset=tbblue_get_offset_start_layer2();
-
-			z80_byte region=tbblue_port_123b&(64+128);
-			switch (region) {
-				case 64:
-					offset +=16384;
-				break;
-
-				case 128: //TODO: en la documentacion dice 192... tiene logica???
-					offset +=32768;
-				break;
+		if (tbblue_write_on_layer2()) {
+			//check if 16kiB or 48kiB region is affected
+			z80_int paging_dir_max;
+			int offset;
+			int region = (tbblue_port_123b&(64+128))>>6;	// 0..3 value
+			if (3 == region) {		// 48kiB paging mode when value is 3
+				paging_dir_max = 3*16384;
+				offset = 0;
+			} else {
+				paging_dir_max = 16384;
+				offset = region * 16384;	//possible results: 0, 16384, 32768
 			}
-
-			offset +=dir;
-			memoria_spectrum[offset]=valor;
-
-			//printf ("Escribiendo layer 2 direccion %d valor %d offset %d region %d\n",dir,valor,offset,region);
+			//check if the value is written into the layer 2 region and write it there
+			if (dir < paging_dir_max) {
+				offset += tbblue_get_offset_start_layer2();
+				offset += dir;
+				memoria_spectrum[offset]=valor;
+				// exit here, do not write into ROM/RAM under the layer 2 mapping
+				return;
+			}
+			// outside of Layer 2 -> continue with regular write to memory
 		}
 
 		//Si se puede escribir en espacio ROM (0-16383)
@@ -1990,6 +1992,28 @@ z80_byte peek_byte_no_time_tbblue(z80_int dir)
 	#ifdef EMULATE_VISUALMEM
 		set_visualmemreadbuffer(dir);
 	#endif
+
+		// "read-over-ROM" Layer 2 feature will overshadow ROM (or mapped RAM) for regular reads
+		if (tbblue_read_on_layer2()) {
+			//check if 16kiB or 48kiB region is affected
+			z80_int paging_dir_max;
+			int offset;
+			int region = (tbblue_port_123b&(64+128))>>6;	// 0..3 value
+			if (3 == region) {		// 48kiB paging mode when value is 3
+				paging_dir_max = 3*16384;
+				offset = 0;
+			} else {
+				paging_dir_max = 16384;
+				offset = region * 16384;	//possible results: 0, 16384, 32768
+			}
+			//check if the value is read from the layer 2 region and read it from there
+			if (dir < paging_dir_max) {
+				offset += tbblue_get_offset_start_layer2();
+				offset += dir;
+				return memoria_spectrum[offset];
+			}
+			// outside of Layer 2 -> continue with regular read from memory
+		}
 
 		z80_byte *puntero;
 		puntero=tbblue_return_segment_memory(dir);

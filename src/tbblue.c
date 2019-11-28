@@ -1043,6 +1043,12 @@ int tbblue_write_on_layer2(void)
 	return 0;
 }
 
+int tbblue_read_on_layer2(void)
+{
+	if (tbblue_port_123b & 4) return 1;
+	return 0;
+}
+
 int tbblue_is_active_layer2(void)
 {
 	if (tbblue_port_123b & 2) return 1;
@@ -1051,7 +1057,10 @@ int tbblue_is_active_layer2(void)
 
 int tbblue_get_offset_start_layer2_reg(z80_byte register_value)
 {
-	int offset=register_value &=63;
+	//since core3.0 the NextRegs 0x12 and 0x13 are 7bit.
+	int offset=register_value&127;
+	//due to 7bit the value can leak outside of 2MiB = no info what HW does, so just clamp it to 109
+	if (109<offset) offset=109;
 
 	offset*=16384;
 
