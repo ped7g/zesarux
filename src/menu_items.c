@@ -7164,6 +7164,11 @@ int menu_display_total_palette_lista_colores(int linea,int si_barras)
 						indice_color_final_rgb=menu_debug_sprites_return_color_palette(menu_display_total_palette_current_palette,current_color);
 						color_final_rgb=spectrum_colortable_normal[indice_color_final_rgb];
 						digitos_hexa=menu_debug_get_total_digits_hexa((menu_debug_sprites_max_value_mapped_palette(menu_display_total_palette_current_palette))-1);
+						char priorityBit = ' ';
+						if (MACHINE_IS_TBBLUE) {	// TBBlue colours can have priority bit set
+							priorityBit = (indice_paleta&0x8000) ? '!' : ' ';
+							indice_paleta &= 0x1FF;	// keep only 9b colors after priority bit check
+						}
 
 						int no_mostrar_indice=0;
 
@@ -7174,7 +7179,7 @@ int menu_display_total_palette_lista_colores(int linea,int si_barras)
 							sprintf (dumpmemoria,"%*d: RGB %06XH",digitos_dec,indice_paleta,color_final_rgb);
 						}
 						else {
-							sprintf (dumpmemoria,"%*d: %0*XH RGB %06XH",digitos_dec,current_color,digitos_hexa,indice_paleta,color_final_rgb);
+							sprintf (dumpmemoria,"%*d:%c%0*XH RGB %06XH",digitos_dec,current_color,priorityBit,digitos_hexa,indice_paleta,color_final_rgb);
 						}
 
 					}
@@ -9809,7 +9814,7 @@ int menu_debug_sprites_return_color_palette(int paleta, z80_byte color)
 		case 12:
 		case 13:
 		case 14:
-			return RGB9_INDEX_FIRST_COLOR+index;
+			return RGB9_INDEX_FIRST_COLOR+(index&0x1FF);
 		break;
 
 		case 15:
