@@ -655,6 +655,19 @@ void cpu_set_turbo_speed(void)
 
 	z80_bit antes_mutiface_enabled;
 	antes_mutiface_enabled.v=multiface_enabled.v;
+	
+	z80_bit antes_cpu_code_coverage_enabled;
+	antes_cpu_code_coverage_enabled.v=cpu_code_coverage_enabled.v;
+	
+	z80_bit antes_cpu_history_enabled;
+	antes_cpu_history_enabled.v=cpu_history_enabled.v;
+	
+	z80_bit antes_extended_stack_enabled;
+	antes_extended_stack_enabled.v=extended_stack_enabled.v;
+	
+	
+	
+	
 
 	if (cpu_turbo_speed>MAX_CPU_TURBO_SPEED) {
 		debug_printf (VERBOSE_INFO,"Turbo mode higher than maximum. Setting to %d",MAX_CPU_TURBO_SPEED);
@@ -715,6 +728,18 @@ void cpu_set_turbo_speed(void)
 	if (antes_betadisk_enabled.v) betadisk_enable();
 
 	if (antes_mutiface_enabled.v) multiface_enable();
+	
+	
+	
+	if (antes_cpu_code_coverage_enabled.v) set_cpu_core_code_coverage_enable();
+	
+	
+	if (antes_cpu_history_enabled.v) set_cpu_core_history_enable();
+	
+	
+	if (antes_extended_stack_enabled.v) set_extended_stack();
+	
+	
 
 	cpu_turbo_speed_antes=cpu_turbo_speed;
 
@@ -7456,6 +7481,9 @@ tooltip_enabled.v=1;
 	lee_puerto=lee_puerto_vacio;
 	out_port=out_port_vacio;	
 	fetch_opcode=fetch_opcode_vacio;
+	realjoystick_init=realjoystick_null_init;
+	realjoystick_main=realjoystick_null_main;
+	realjoystick_hit=realjoystick_null_hit;
 
 	//Inicializo tambien la de push
 	push_valor=push_valor_default;
@@ -7703,6 +7731,13 @@ init_randomize_noise_value();
 	
 	mid_reset_export_buffers();
 
+
+	//Si estamos en Linux , el driver de joystick es el nativo
+#ifdef USE_LINUXREALJOYSTICK
+	realjoystick_init=realjoystick_linux_init;
+	realjoystick_main=realjoystick_linux_main;
+	realjoystick_hit=realjoystick_linux_hit;
+#endif	
 
 
 	if (realjoystick_present.v==1) {

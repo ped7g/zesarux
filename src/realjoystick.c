@@ -397,12 +397,22 @@ int simulador_joystick_forzado=0;
 //desde '0','1'.. hasta '9'.. y otras adicionales, como espacio
 z80_byte realjoystick_numselect='1';
 
-int realjoystick_hit()
+
+
+//Que funcion gestiona el inicio
+int (*realjoystick_init)(void);
+//Funcion de poll
+void (*realjoystick_main)(void);
+
+//Funcion que dice si se ha pulsado algo en el joystick
+int (*realjoystick_hit)(void);
+
+
+int realjoystick_linux_hit(void)
 {
 
-
     if (simulador_joystick==1) {
-                if (simulador_joystick_forzado==1) {
+        if (simulador_joystick_forzado==1) {
 			//simulador_joystick_forzado=0;
 			return 1;
 		}
@@ -627,9 +637,26 @@ Aux2: desasignado
 
 }
 
+
+int realjoystick_null_init(void)
+{
+	//No inicializa nada. Salir y decir que no hay joystick
+	return 1;
+}
+
+void realjoystick_null_main(void)
+{
+
+}
+
+int realjoystick_null_hit(void)
+{
+	return 0;
+}
+
 //retorna 0 si ok
 //retorna 1 is no existe o error
-int realjoystick_init(void)
+int realjoystick_linux_init(void)
 {
 
 	debug_printf(VERBOSE_INFO,"Initializing real joystick");
@@ -1076,7 +1103,7 @@ void realjoystick_set_reset_action(int index,int value)
 int realjoystick_last_button,realjoystick_last_type,realjoystick_last_value,realjoystick_last_index;
 
 //lectura de evento de joystick y conversion a movimiento de joystick spectrum
-void realjoystick_main(void)
+void realjoystick_linux_main(void)
 {
 
 
@@ -1200,10 +1227,10 @@ int realjoystick_redefine_event_key(realjoystick_events_keys_function *tabla,int
 
 	menu_espera_no_tecla();
 
-        //leemos boton
-        int button,type,value;
+	//leemos boton
+	int button,type,value;
 
-	debug_printf (VERBOSE_DEBUG,"redefine action: %d",indice);
+	debug_printf (VERBOSE_DEBUG,"Redefine action: %d",indice);
 
 	simulador_joystick_forzado=1;
 

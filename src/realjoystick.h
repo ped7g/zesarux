@@ -59,12 +59,23 @@ typedef unsigned char __u8;
 #endif
 
 
+extern int (*realjoystick_init)(void);
+extern void (*realjoystick_main)(void);
+extern int (*realjoystick_hit)(void);
+
+extern int realjoystick_null_init(void);
+extern void realjoystick_null_main(void);
+extern int realjoystick_null_hit(void);
+
+
+extern void realjoystick_linux_main(void);
+extern int realjoystick_linux_init(void);
+extern int realjoystick_linux_hit(void);
+
 
 extern int realjoystick_read_event(int *button,int *type,int *value);
-extern int realjoystick_init(void);
-extern void realjoystick_main(void);
+
 extern void realjoystick_set_default_functions(void);
-extern int realjoystick_hit();
 
 extern char string_dev_joystick[];
 

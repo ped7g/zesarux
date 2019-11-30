@@ -4,7 +4,18 @@
 
 -Menú debug cpu extra debug con extended debug, cpu history, code coverage etc
 
--Joystick en windows
+-Joystick en windows (SDL). Fases
+Done * Paso de funciones de init, poll, hit a funcion
+
+* Separar funciones hardware joystick linux a diferente archivo (realjoystick_linux.c,.h). 
+* Generar funciones comunes en realjoystick.c que se puedan llamar desde linux y desde sdl y cualquier otro joystick futuro (Mac ?)
+
+
+* Dar soporte a driver sdl (sdl1 de momento). Al iniciar driver de video debe sobreescribir funcion init, main y hit
+
+Done * Si arranca en linux, siempre sobreescribira funciones para que use las nativas de sistema y no la SDL si la hubiera. 
+Esto ya lo hace en cpu.c, ver #ifdef USE_LINUXREALJOYSTICK ...
+* Simulador de joystick deberia ser siempre accesible tanto si hay como si no soporte joystick 
 
 
 SDL_API - SDL Documentation Wiki
@@ -29,7 +40,7 @@ Si es en Linux y driver sdl, no activar los dos
 
 Quizá sdl joystick solo en windows?
 
-Mover funciones comunes de realjoystick.c a joystick.c. Posteriormente realjoystick.c pasará a llamarse linuxjoystick.c. Tipo axis , botón etc crear tipos nuevos para joystick.c
+Tipo axis , botón etc crear tipos nuevos para realjoystick.c
 
 -Fin joystick en windows
 
