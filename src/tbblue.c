@@ -2618,30 +2618,15 @@ void tbblue_set_emulator_setting_reg_8(void)
 	}
 
 
-  	//bit 2 = Enable Timex modes (1 = enabled)(0 after a PoR or Hard-reset)
-	if (value&4) {
-
-		/*
-		Desactivamos esto, pues NextOS al arrancar activa modo timex, y por tanto, el real video
-		Con real video activado, usa mucha mas cpu
-		Quitando esto, arrancara NextOS sin forzar a activar modo timex ni real video y por tanto usara menos cpu
-		Si alguien quiere modo timex y/o real video, que lo habilite a mano
-		debug_printf (VERBOSE_DEBUG,"Enabling timex video");
-		enable_timex_video();
-		*/
-	}
-	else {
-		/*
-		debug_printf (VERBOSE_DEBUG,"Disabling timex video");
-		disable_timex_video();
-		*/
-	}
+	//bit 2 = Enable port $FF Timex video mode *read* (disables floating bus on 0xff) (hard reset = 0)
+	// nothing to do here, affects idle_bus_port_atribute() in operaciones.c
   	
 	//bit 1 = Enable TurboSound (1 = enabled)(0 after a PoR or Hard-reset)
 	if (value &2) set_total_ay_chips(3);
 	else set_total_ay_chips(1);
 
-
+	//bit 0 = Implement Issue 2 keyboard (port $FE reads as early ZX boards) (hard reset = 0)
+	keyboard_issue2.v = value&1;
 
 }
 

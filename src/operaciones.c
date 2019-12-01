@@ -5142,6 +5142,11 @@ z80_byte idle_bus_port_atribute(void)
 
 	//TODO: mirar que usa fuse en funcion spectrum_unattached_port
 
+	if (MACHINE_IS_TBBLUE) {
+		if (tbblue_registers[8]&4) {	// reading timex port 255 is enabled (floating bus disabled)
+			return timex_port_ff;
+		}
+	}
 
 	//Si no esta habilitado rainbow y hay que detectar rainbow, habilitar rainbow, siempre que no este en ROM
 	if (rainbow_enabled.v==0) {
