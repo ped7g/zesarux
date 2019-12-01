@@ -2666,7 +2666,7 @@ void tbblue_reset_common(void)
 	tbblue_registers[35]=0;
 	tbblue_registers[50]=0;
 	tbblue_registers[51]=0;
-	tbblue_registers[66]=15;
+	tbblue_registers[66]=7;
 	tbblue_registers[67]=0;
 	tbblue_registers[74]=0;
 	tbblue_registers[75]=0xE3;
@@ -2942,6 +2942,36 @@ z80_byte tbblue_get_register_port(void)
 	return tbblue_last_register;
 }
 
+int tbblue_next_palette_format_as_mask_only(void) {
+/*
+	checks if the ink-mask in 0x42 is full-ink or invalid value
+	-> if yes, then it should be applied as bit-mask, and paper+border is "fallback" 0x4A
+	-> if no, then unset bits in mask are used to calculate paper color, starting at 128 in pal.
+
+	0x42 (66) => ULANext Attribute Byte Format
+	(R/W)
+	bits 7:0 = Mask indicating which bits of an attribute byte are used to represent INK.
+		Other bits represent PAPER. (soft reset = 0x07)
+		The mask can only indicate a solid sequence of bits on the right side of an attribute
+		byte (1, 3, 7, 15, 31, 63, 127 or 255).
+		INKs are mapped to base index 0 in the palette and PAPERs and border are
+		mapped to base index 128 in the palette.
+		The 255 value enables the full ink colour mode making all the palette entries INK.
+		In this case PAPER and border are both taken from the fallback colour in nextreg 0x4A.
+		If the mask is not one of those listed above, the INK is taken as the logical AND of
+		the mask with the attribute byte and the PAPER and border colour are again both taken
+		from the fallback colour in nextreg 0x4A.
+ */
+	z80_byte mask = tbblue_registers[0x42];
+	// 0 is invalid -> mask-mode any way, forcing ink = 0 color only
+	// 255 is "full-ink" -> mask-mode too (for practical reasons, making background pick 0x4A reg)
+	if (0 == mask || 255 == mask) return 1;
+
+	// return zero when mask is "power of two minus one" value, the valid format
+	// return non-zero when invalid (mask-mode)
+	return ((mask + 1) & mask);
+}
+
 void tbblue_get_string_palette_format(char *texto)
 {
 //if (value&128) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
@@ -2974,38 +3004,26 @@ void tbblue_get_string_palette_format(char *texto)
 
 		int tintas=palformat+1;
 
-		int papeles=255-palformat;
+		if (0 == palformat || 0 != (tintas & palformat)) {	//checks if "tintas" is power of two
 
-		//Dado que tintas siempre es +1, nunca habra division por 0. Pero por si acaso
+			// invalid ink format, the HW will use it as bit-mask for ink color, and fallback 0x4A for paper
+			sprintf(texto,"Extra colors %02XH mask (invalid)",palformat);
 
-		if (tintas==0) papeles=0;
-		else {
-			papeles=(papeles/tintas)+1;
+		} else {
+
+			// tintas is power of two -> 256/tintas is then papeles (8*32 = 256, 2*128=256, etc)
+			int papeles=256/tintas;
+			sprintf (texto,"Extra colors %d inks %d papers",tintas,papeles);
+
 		}
 
-		sprintf (texto,"Extra colors %d inks %d papers",tintas,papeles);
-
 	}
-		
 
 }
 
 
 void tbblue_splash_palette_format(void)
 {
-//if (value&128) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Enabling lores video mode. 128x96 256 colours");
-	/*
-	(R/W) 0x43 (67) => Palette Control
-	bit 0 = Disable the standard Spectrum flash feature to enable the extra colours.
-  (Reset to 0 after a reset)
-
-	(R/W) 0x42 (66) => Palette Format
-  bits 7-0 = Number of the last ink colour entry on palette. (Reset to 15 after a Reset)
-  This number can be 1, 3, 7, 15, 31, 63, 127 or 255.
-	
-
-	*/
-
 	char mensaje[200];
 	char videomode[100];
 
@@ -3014,40 +3032,6 @@ void tbblue_splash_palette_format(void)
 	sprintf (mensaje,"Setting %s",videomode);
 
 	screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
-
-	
-
-	/*
-	if ((tbblue_registers[67]&1)==0) screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,"Disabling extra colour palette");
-	else {
-
-		z80_byte palformat=tbblue_registers[66];
-
-		
-		//Ejemplo: mascara 3:   00000011
-		//Son 4 tintas
-		//64 papeles
-
-		//Para pasar de tintas a papeles :    00000011 -> inverso -> 11111100
-		//Dividimos 11111100 entre tintas, para rotar el valor 2 veces a la derecha = 252 / 4 = 63   -> +1 -> 64
-		
-
-		int tintas=palformat+1;
-
-		int papeles=255-palformat;
-
-		//Dado que tintas siempre es +1, nunca habra division por 0. Pero por si acaso
-
-		if (tintas==0) papeles=0;
-		else {
-			papeles=(papeles/tintas)+1;
-		}
-
-		char mensaje[200];
-		sprintf (mensaje,"Enabling extra colour palette: %d inks %d papers",tintas,papeles);
-		screen_print_splash_text_center(ESTILO_GUI_TINTA_NORMAL,ESTILO_GUI_PAPEL_NORMAL,mensaje);
-	}
-	*/
 
 }
 
@@ -3782,8 +3766,8 @@ z80_int tbblue_get_border_color(z80_int color)
 	}
     else if (flash_disabled) {   // ULANext mode ON
 
-        if (tbblue_registers[0x42] == 255) {    // full-ink mode takes border colour from "fallback"
-        //    // in this case this is final result, just return it (no further processing needed)
+        if (tbblue_next_palette_format_as_mask_only()) {	// invalid-mask or full-ink mode
+            // in such case this is final result, just return it (no further processing needed)
             return RGB9_INDEX_FIRST_COLOR + tbblue_get_9bit_colour(tbblue_registers[0x4A]);
         }
 
@@ -3802,7 +3786,7 @@ z80_int tbblue_get_border_color(z80_int color)
     return color + RGB9_INDEX_FIRST_COLOR;
 }
 
-void get_pixel_color_tbblue(z80_byte attribute,z80_int *tinta_orig, z80_int *papel_orig)
+void get_ula_pixel_9b_color_tbblue(z80_byte attribute,z80_int *tinta_orig, z80_int *papel_orig)
 {
 
 	/*
@@ -3815,7 +3799,6 @@ void get_pixel_color_tbblue(z80_byte attribute,z80_int *tinta_orig, z80_int *pap
 	z80_byte ink=*tinta_orig;
 	z80_byte paper=*papel_orig;
 
-	z80_byte palette_format=tbblue_registers[0x42];
 	z80_byte flash_disabled=tbblue_registers[0x43]&1; //flash_disabled se llamaba antes. ahora indica "enable ulanext"
 
 
@@ -3861,28 +3844,33 @@ void get_pixel_color_tbblue(z80_byte attribute,z80_int *tinta_orig, z80_int *pap
 	else {
       /*
 
-Nuevo:
-(R/W) 0x42 (66) => ULANext Attribute Byte Format
-  bits 7-0 = Mask indicating which bits of an attribute byte are used to
-             represent INK.  The rest will represent PAPER.  (15 on reset)
-             The mask can only indicate a solid sequence of bits on the right
-             side of the attribute byte (1, 3, 7, 15, 31, 63, 127 or 255).
-             The 255 value enables the full ink colour mode and all the the palette entries 
-             will be inks with all paper colours mapping to position 128.
+core3.0:
 
-OLD:
-(R/W) 0x42 (66) => Palette Format
-  bits 7-0 = Number of the last ink colour entry on palette. (Reset to 15 after a Reset)
-  This number can be 1, 3, 7, 15, 31, 63, 127 or 255.
-  The 255 value enables the full ink colour mode and
-  all the the palette entries are inks but the paper will be the colour at position 128.
-  (only applies to ULANext palette. Layer 2 and Sprite palettes works as "full ink")
+0x42 (66) => ULANext Attribute Byte Format
+(R/W)
+  bits 7:0 = Mask indicating which bits of an attribute byte are used to represent INK.
+    Other bits represent PAPER. (soft reset = 0x07)
+    The mask can only indicate a solid sequence of bits on the right side of an attribute
+    byte (1, 3, 7, 15, 31, 63, 127 or 255).
+    INKs are mapped to base index 0 in the palette and PAPERs and border are
+    mapped to base index 128 in the palette.
+    The 255 value enables the full ink colour mode making all the palette entries INK.
+    In this case PAPER and border are both taken from the fallback colour in nextreg 0x4A.
+    If the mask is not one of those listed above, the INK is taken as the logical AND of
+    the mask with the attribute byte and the PAPER and border colour are again both taken
+    from the fallback colour in nextreg 0x4A.
+		*/
+		z80_byte mascara_tinta=tbblue_registers[0x42];
+		if (tbblue_next_palette_format_as_mask_only()) {
+			//invalid mask or full-ink mode, the background color is "transparency fallback" register
+			ink=attribute&mascara_tinta;
+			*tinta_orig=tbblue_get_palette_active_ula(ink);
+			*papel_orig=tbblue_get_9bit_colour(tbblue_registers[0x4A]);
+			return;
+		}
 
-TODO: el significado es el mismo antes que ahora?
-        */
+		//only valid ink mask (and not "full-ink")
 		int rotacion_papel=1;
-		int mascara_tinta=palette_format;
-		int mascara_papel=255-mascara_tinta;
 
 		//Estos valores se podrian tener ya calculados al llamar desde la funcion de screen_store_scanline_rainbow_solo_display_tbblue
 		//o incluso calcularlos en cuanto se modificase el registro 42h o 43h
@@ -3919,21 +3907,13 @@ TODO: el significado es el mismo antes que ahora?
 
 		}
 
-		if (mascara_tinta==255) {
-			paper=128;
-			ink=attribute;
-		}
+		ink=attribute & mascara_tinta;
+		paper=(attribute >> rotacion_papel)+128;
 
-		else {
-			ink=attribute & mascara_tinta;
-			paper=((attribute & mascara_papel) >> rotacion_papel)+128;
-		}	
+	}
 
-	}			
-
-	*tinta_orig=ink;		
-	*papel_orig=paper;
-
+	*tinta_orig=tbblue_get_palette_active_ula(ink);
+	*papel_orig=tbblue_get_palette_active_ula(paper);
 }
 
 z80_int tbblue_tile_return_color_index(z80_byte index)
@@ -5015,7 +4995,7 @@ bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
 			attribute=col6;
 		}			
 			
-		get_pixel_color_tbblue(attribute,&ink,&paper);
+		get_ula_pixel_9b_color_tbblue(attribute,&ink,&paper);
 			
     	for (bit=0;bit<8;bit++) {			
 			color= ( byte_leido & 128 ? ink : paper ) ;
@@ -5028,13 +5008,11 @@ bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
 			//(W) 0x1A (26) => Clip Window ULA/LoRes
 			if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1] && scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][3]) {
 				if (!tbblue_force_disable_layer_ula.v) {
-					z80_int color_final=tbblue_get_palette_active_ula(color);
-
 					//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
-					if (tbblue_si_transparent(color_final)) color_final=TBBLUE_SPRITE_TRANS_FICT;
+					if (tbblue_si_transparent(color)) color=TBBLUE_SPRITE_TRANS_FICT;
 
-					tbblue_layer_ula[posicion_array_layer]=color_final;
-					if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer+1]=color_final; //doble de ancho
+					tbblue_layer_ula[posicion_array_layer]=color;
+					if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer+1]=color; //doble de ancho
 
 				}
 			}

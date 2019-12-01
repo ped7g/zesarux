@@ -272,7 +272,7 @@ extern z80_byte tbblue_get_layers_priorities(void);
 
 extern z80_byte tbblue_get_register_port(void);
 
-extern void get_pixel_color_tbblue(z80_byte attribute,z80_int *tinta_orig, z80_int *papel_orig);
+extern void get_ula_pixel_9b_color_tbblue(z80_byte attribute,z80_int *tinta_orig, z80_int *papel_orig);
 
 extern void screen_tbblue_refresca_no_rainbow(void);
 
