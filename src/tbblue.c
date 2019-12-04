@@ -3396,6 +3396,31 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 
 		break;
 
+		case 105:
+/*
+(R/W) 0x69 (105) => Display Control 1
+  bit 7 = Enable layer 2 (alias port 0x123B bit 1)
+  bit 6 = Enable ULA shadow display (alias port 0x7FFD bit 3)
+  bits 5:0 = Port 0xFF bits 5:0 alias (Timex display modes)
+*/
+			// port 0x123B bit 1 mirror (Layer 2 - visible/invisible)
+			if (value&0x80) {
+				tbblue_port_123b |= 2;	// set bit 1
+			} else {
+				tbblue_port_123b &= ~2;	// clear bit 1
+			}
+			// port 7FFD bit 3 mirror (ULA shadow Bank 7)
+			if (value&0x40) {
+				puerto_32765 |= 8;		// set bit 3
+			} else {
+				puerto_32765 &= ~8;		// clear bit 3
+			}
+			// timex port $FF mirror, bits 5:0
+			value &= 0x3F;				// keep only bits 5:0 from new value
+			value |= timex_port_ff & 0xC0;	// keep current port 255 bits 7:6
+			set_timex_port_ff(value);
+		break;
+
 	}
 
 
@@ -3529,6 +3554,22 @@ hardware numbers
 			linea_raster=tbblue_get_raster_line();
 			return (linea_raster&0xFF);
 		break;
+
+		case 105:
+/*
+(R/W) 0x69 (105) => Display Control 1
+  bit 7 = Enable layer 2 (alias port 0x123B bit 1)
+  bit 6 = Enable ULA shadow display (alias port 0x7FFD bit 3)
+  bits 5:0 = Port 0xFF bits 5:0 alias (Timex display modes)
+*/
+			// timex port $FF mirror, bits 5:0
+			// and clear bits 7:6 of temporary return value
+			tbblue_registers[105] = timex_port_ff&0x3F;
+			// port 0x123B bit 1 mirror (Layer2 visibility)
+			if (tbblue_is_active_layer2()) tbblue_registers[105] |= 0x80;
+			// port 7FFD bit 3 mirror (ULA shadow Bank 7)
+			if (puerto_32765 & 8) tbblue_registers[105] |= 0x40;
+			return tbblue_registers[105];
 
 		// (R/W) 0x6E (110) => Tilemap Base Address
 		// (R/W) 0x6F (111) => Tile Definitions Base Address
