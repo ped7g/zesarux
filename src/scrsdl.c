@@ -46,6 +46,7 @@
 #include "sam.h"
 #include "ql.h"
 #include "settings.h"
+#include "realjoystick.h"
 
 
 
@@ -1500,6 +1501,165 @@ int scrsdl_driver_can_ext_desktop (void)
 }
 
 
+int realjoystick_sdl_total_joysticks=0;
+SDL_Joystick *sdl_joy;
+
+int sdl_num_axes=0;
+int sdl_num_buttons=0;
+
+
+#define SDL_JOY_MAX_BOTONS 128
+#define SDL_JOY_MAX_AXES 16
+
+int sdl_states_joy_buttons[SDL_JOY_MAX_BOTONS];
+int sdl_states_joy_axes[SDL_JOY_MAX_AXES];
+
+
+int realjoystick_sdl_init(void)
+{
+
+
+        printf("Initializing real joystick. Using SDL support\n");
+
+        SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+
+
+        realjoystick_sdl_total_joysticks=SDL_NumJoysticks();
+
+        printf ("Total joysticks: %d\n",realjoystick_sdl_total_joysticks);
+
+        if (realjoystick_sdl_total_joysticks<1) {
+                return 1; //error
+        }
+
+        else {
+
+
+                sdl_joy=SDL_JoystickOpen(0);
+                if (sdl_joy) {
+                        printf("Opened Joystick 0\n");
+
+                      sdl_num_axes=SDL_JoystickNumAxes(sdl_joy);
+                      sdl_num_buttons=SDL_JoystickNumButtons(sdl_joy);
+
+    printf("Name: %s\n", SDL_JoystickName(0));
+    printf("Number of Axes: %d\n", sdl_num_axes);
+    printf("Number of Buttons: %d\n", sdl_num_buttons);
+    printf("Number of Balls: %d\n", SDL_JoystickNumBalls(sdl_joy));
+    printf("Number of Hats: %d\n",SDL_JoystickNumHats(sdl_joy));
+
+
+                }
+
+                else {
+                        return 1; //error
+                }
+        }
+
+ 
+        //Inicializar estados a 0
+        int i;
+        for (i=0;i<SDL_JOY_MAX_BOTONS;i++) sdl_states_joy_buttons[i]=0;
+        for (i=0;i<SDL_JOY_MAX_AXES;i++) sdl_states_joy_axes[i]=0;
+
+
+	return 0; //OK
+}
+
+
+
+
+//SDL_API - SDL Documentation Wiki
+//http://sdl.beuc.net/sdl.wiki/SDL_API
+
+//Para leer si ha habido un hit
+int realjoystick_sdl_main_hit=0;
+
+void realjoystick_sdl_main(void)
+{
+
+        if (realjoystick_present.v==0) return;
+
+/*
+#define SDL_JOY_MAX_BOTONS 128
+#define SDL_JOY_MAX_AXES 16
+
+int sdl_states_joy_buttons[SDL_JOY_MAX_BOTONS];
+int sdl_states_joy_axes[SDL_JOY_MAX_AXES];
+*/
+
+        //printf ("realjoystick SDL main\n");
+        //SDL_JoystickGetButton(SDL_Joystick *joystick, int button);
+        int i;
+        int total_botones=sdl_num_buttons;
+        if (total_botones>SDL_JOY_MAX_BOTONS) total_botones=SDL_JOY_MAX_BOTONS;
+
+        int total_axes=sdl_num_axes;
+        if (total_axes>SDL_JOY_MAX_AXES) total_axes=SDL_JOY_MAX_AXES;
+ 
+        for (i=0;i<total_botones;i++) {
+                int valorboton=SDL_JoystickGetButton(sdl_joy, i);
+                //printf ("boton %d: %d\n",i,valorboton);
+
+                //Si cambia estado anterior
+                if (valorboton!=sdl_states_joy_buttons[i]) {
+                        printf ("Enviar cambio estado boton %d : %d\n",i,valorboton);
+                        realjoystick_common_set_event(i,REALJOYSTICK_INPUT_EVENT_BUTTON,valorboton);
+                        realjoystick_hit=1;
+                        realjoystick_last_raw_value=valorboton;
+                }
+
+                sdl_states_joy_buttons[i]=valorboton;
+
+        }
+
+        for (i=0;i<total_axes;i++) {
+                int valoraxis=SDL_JoystickGetAxis(sdl_joy, i);
+                //printf ("axes %d: %d\n",i,valoraxis);
+
+                int valorfinalaxis;
+
+ 
+
+                //Parametro de autocalibrado para valores 0
+                if (valoraxis>-realjoystick_autocalibrate_value && valoraxis<realjoystick_autocalibrate_value) valorfinalaxis=0;
+                else if (valoraxis<=-realjoystick_autocalibrate_value) valorfinalaxis=-1;
+                else valorfinalaxis=+1;
+
+
+                if (valorfinalaxis!=sdl_states_joy_axes[i]) {
+                        printf ("Enviar cambio estado axis %d : %d\n",i,valorfinalaxis);
+                        realjoystick_common_set_event(i,REALJOYSTICK_INPUT_EVENT_AXIS,valorfinalaxis);
+                        realjoystick_hit=1;
+                        realjoystick_last_raw_value=valoraxis;
+                }
+
+                sdl_states_joy_axes[i]=valorfinalaxis;
+        }
+
+
+}
+
+
+/*
+int realjoystick_sdl_hit(void)
+{
+
+        
+
+        if (realjoystick_present.v==0) return 0;
+
+        //Suponemos que no ha habido hit
+        realjoystick_sdl_main_hit=0;
+
+        //Y llamamos a main
+        realjoystick_sdl_main();
+
+	return realjoystick_sdl_main_hit;
+}*/
+
+
+
 
 int scrsdl_init (void) {
 
@@ -1527,6 +1687,12 @@ int scrsdl_init (void) {
 	scr_detectedchar_print=scrsdl_detectedchar_print;
         scr_tiene_colores=1;
         screen_refresh_menu=1;
+
+
+
+	realjoystick_init=realjoystick_sdl_init;
+	realjoystick_main=realjoystick_sdl_main;
+	//realjoystick_hit=realjoystick_sdl_hit;        
 
 
 

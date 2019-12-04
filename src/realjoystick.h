@@ -39,9 +39,9 @@
         //Luego en el init detectamos esto y devuelve que no hay soporte joystick
 
 
-        #define JS_EVENT_BUTTON         0x01    /* button pressed/released */
-        #define JS_EVENT_AXIS           0x02    /* joystick moved */
-        #define JS_EVENT_INIT           0x80    /* initial state of device */
+        //#define JS_EVENT_BUTTON         0x01    /* button pressed/released */
+        //#define JS_EVENT_AXIS           0x02    /* joystick moved */
+        //#define JS_EVENT_INIT           0x80    /* initial state of device */
 
 
 typedef unsigned int __u32;
@@ -59,9 +59,21 @@ typedef unsigned char __u8;
 #endif
 
 
+//Los hacemos diferentes de JS_EVENT_* de Linux para asegurarnos que el codigo es portable en otras plataformas
+        //#define JS_EVENT_BUTTON         0x01    /* button pressed/released */
+        //#define JS_EVENT_AXIS           0x02    /* joystick moved */
+        //#define JS_EVENT_INIT           0x80    /* initial state of device */
+
+#define REALJOYSTICK_INPUT_EVENT_BUTTON         0x04    /* button pressed/released */
+#define REALJOYSTICK_INPUT_EVENT_AXIS           0x08    /* joystick moved */
+#define REALJOYSTICK_INPUT_EVENT_INIT           0x40    /* initial state of device */
+
+
 extern int (*realjoystick_init)(void);
 extern void (*realjoystick_main)(void);
-extern int (*realjoystick_hit)(void);
+//extern int (*realjoystick_hit)(void);
+
+extern int realjoystick_hit;
 
 extern int realjoystick_null_init(void);
 extern void realjoystick_null_main(void);
@@ -71,6 +83,9 @@ extern int realjoystick_null_hit(void);
 extern void realjoystick_linux_main(void);
 extern int realjoystick_linux_init(void);
 extern int realjoystick_linux_hit(void);
+
+extern z80_bit no_native_linux_realjoystick;
+extern int realjoystick_autocalibrate_value;
 
 
 extern int realjoystick_read_event(int *button,int *type,int *value);
@@ -160,7 +175,11 @@ extern int realjoystick_set_button_key(char *text_button,char *text_key);
 
 extern int realjoystick_set_event_key(char *text_event,char *text_key);
 
-extern int realjoystick_last_button,realjoystick_last_type,realjoystick_last_value,realjoystick_last_index;
+extern int realjoystick_last_button;
+extern int realjoystick_last_type;
+extern int realjoystick_last_value;
+extern int realjoystick_last_index;
+extern int realjoystick_last_raw_value;
 
 extern int simulador_joystick;
 extern int simulador_joystick_forzado;

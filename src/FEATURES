@@ -124,7 +124,7 @@
 
 * Supports RAM packs on Jupiter Ace up to 35 KB
 
-* Joystick emulation with real joystick (on GNU/Linux) and keyboard cursors: Kempston, Sinclair 1&2, Cursor Joystick, Cursor & Shift, OPQA, Fuller, Zebra, Mikro-Gen, ZXPand, SAM Coupe Cursors. Autofire function also
+* Joystick emulation with real joystick (on GNU/Linux and Windows) and keyboard cursors: Kempston, Sinclair 1&2, Cursor Joystick, Cursor & Shift, OPQA, Fuller, Zebra, Mikro-Gen, ZXPand, SAM Coupe Cursors. Autofire function also
 
 * On Screen keyboard useful when playing with joystick, two types: one with keyboard letters, and another with words, useful for playing Text Adventures. Also a tool to extract words from text adventures (Daad, Paws, Quill and Gac) and configure this on screen text keyboard
 

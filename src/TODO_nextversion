@@ -5,42 +5,32 @@
 -Menú debug cpu extra debug con extended debug, cpu history, code coverage etc
 
 -Joystick en windows (SDL). Fases
-Done * Paso de funciones de init, poll, hit a funcion
 
-* Separar funciones hardware joystick linux a diferente archivo (realjoystick_linux.c,.h). 
-* Generar funciones comunes en realjoystick.c que se puedan llamar desde linux y desde sdl y cualquier otro joystick futuro (Mac ?)
+*parametro de calibrado tambien en linux nativo
+
+*test de joystick que muestre incrementos en raw en sdl tambien
+->para ello, hay que tener funcion especial de hit, que no considere parametro de umbral de autocalibrado (realjoystick_autocalibrate_value)
 
 
-* Dar soporte a driver sdl (sdl1 de momento). Al iniciar driver de video debe sobreescribir funcion init, main y hit
-
-Done * Si arranca en linux, siempre sobreescribira funciones para que use las nativas de sistema y no la SDL si la hubiera. 
-Esto ya lo hace en cpu.c, ver #ifdef USE_LINUXREALJOYSTICK ...
 * Simulador de joystick deberia ser siempre accesible tanto si hay como si no soporte joystick 
 
 
+http://brightrain.aerifal.cx/~niklata/files/unix/fceu-sdlusbjoy.patch
+
+Leer nombre en Linux:
+
+https://www.kernel.org/doc/Documentation/input/joystick-api.txt
+
+
+
+
+
 SDL_API - SDL Documentation Wiki
+http://sdl.beuc.net/sdl.wiki/SDL_API
 
-Parece que axis, hat, buttons etc cada uno se numera de 0 hasta X
+* revisar TODO de realjoystick y de realjoystick_sdl
 
-
-Quizá para hacerlo compatible con lo que hay hasta ahora, sacar el total de cada uno y numerarlos así:
-
-Axis 0 hasta total de axis-1
-Hat. Total de axis hasta total de axis+hats
-Button. Valor anterior + 1 hasta valor anterior+1+total buttons -1
-
-Ejemplo:
-3 axis. 5 hats y 6 buttons:
-
-0..2 axis
-3..7 hats
-8..13 buttons
-
-Si es en Linux y driver sdl, no activar los dos
-
-Quizá sdl joystick solo en windows?
-
-Tipo axis , botón etc crear tipos nuevos para realjoystick.c
+* meterlo en documentacion, etc
 
 -Fin joystick en windows
 

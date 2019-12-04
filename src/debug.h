@@ -447,9 +447,11 @@ extern int debug_get_timestamp(char *destino);
 
 extern z80_byte cpu_code_coverage_array[];
 extern void set_cpu_core_code_coverage(void);
+extern void set_cpu_core_code_coverage_enable(void);
 extern void reset_cpu_core_code_coverage(void);
 extern void cpu_code_coverage_clear(void);
 extern z80_bit cpu_code_coverage_enabled;
+
 
 
 extern z80_bit cpu_history_enabled;
@@ -464,8 +466,10 @@ extern int cpu_history_get_total_elements(void);
 extern int cpu_history_get_max_size(void);
 extern void reset_cpu_core_history(void);
 extern void set_cpu_core_history(void);
+extern void set_cpu_core_history_enable(void);
 extern int cpu_history_set_max_size(int total);
 extern void cpu_history_init_buffer(void);
 extern void cpu_history_get_pc_register_element(int indice,char *string_destino);
+
 
 #endif

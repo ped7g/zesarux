@@ -3675,7 +3675,12 @@ int util_write_configfile(void)
                                               ADD_STRING_CONFIG,"--remoteprotocol-port %d",remote_protocol_port);
 
   if (realjoystick_disabled.v==1)              ADD_STRING_CONFIG,"--disablerealjoystick");
-  
+
+
+  if (no_native_linux_realjoystick.v)          ADD_STRING_CONFIG,"--no-native-linux-realjoy");
+		  
+
+                  
                           ADD_STRING_CONFIG,"--realjoystickpath %s",string_dev_joystick);
 
 
