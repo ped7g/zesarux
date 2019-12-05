@@ -2649,6 +2649,8 @@ void tbblue_reset_common(void)
 	tbblue_registers[31]=0;
 	tbblue_registers[34]=0;
 	tbblue_registers[35]=0;
+	tbblue_registers[38]=0;
+	tbblue_registers[39]=0;
 	tbblue_registers[50]=0;
 	tbblue_registers[51]=0;
 	tbblue_registers[66]=7;
@@ -4855,31 +4857,19 @@ void tbblue_do_ula_standard_overlay()
 
 	z80_byte *screen=get_base_mem_pantalla();
 
+/*
+	(R/W) 0x26 (38) => ULA X Scroll
+	bits 7:0 = X Offset (0-255) (soft reset = 0)
 
-	/*
-	(R/W) 0x32 (50) => ULA / LoRes Offset X
-bits 7-0 = X Offset (0-255)(Reset to 0 after a reset)
-ULA can only scroll in multiples of 8 pixels so the lowest 3 bits have no effect at this time.
-	*/
+	(R/W) 0x27 (39) => ULA Y Scroll
+	bits 7:0 = Y Offset (0-191) (soft reset = 0)
+*/
 
-	//entonces sumar 1 posicion por cada 8 del scroll
+	z80_byte ula_offset_x=tbblue_registers[0x26];
+	int indice_origen_bytes=(ula_offset_x/8)*2; //*2 dado que leemos del puntero_buffer_atributos que guarda 2 bytes: pixel y atributo	
+	int pixelOffset=(ula_offset_x&7);
 
-	z80_byte ula_offset_x=tbblue_registers[50];
-	ula_offset_x /=8;
-	int indice_origen_bytes=ula_offset_x*2; //*2 dado que leemos del puntero_buffer_atributos que guarda 2 bytes: pixel y atributo	
-
-	/*
-	(R/W) 0x33 (51) => ULA / LoRes Offset Y
-bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
-
-
-	linea_lores +=tbblue_registers[0x33];
-
-	linea_lores=linea_lores % 192;
-
-	*/
-
-	z80_byte tbblue_scroll_y=tbblue_registers[51];
+	z80_byte tbblue_scroll_y=tbblue_registers[0x27];
 	
 
 	scanline_copia +=tbblue_scroll_y;
@@ -4892,7 +4882,7 @@ bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
 
 
 	//scroll x para modo no rainbow (es decir, cuando hay scroll vertical)
-	pos_no_rainbow_pix_x=ula_offset_x;
+	pos_no_rainbow_pix_x=ula_offset_x/8;
 	pos_no_rainbow_pix_x %=32;	
 
 
@@ -4965,10 +4955,10 @@ bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
 	posicion_array_layer +=(screen_total_borde_izquierdo*border_enabled.v*2); //Doble de ancho
 
 
-	int columnas=32;
+	int columnas=33;
 
 	if (si_timex_hires.v) {
-		columnas=64;
+		columnas=66;
 	}
 
     for (x=0;x<columnas;x++) {
@@ -5028,6 +5018,7 @@ bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
 
 			int posx=x*8+bit; //Posicion pixel. Para clip window registers	
 			if (si_timex_hires.v) posx /=2;
+			posx -= pixelOffset;
 
 			//Tener en cuenta valor clip window
 			
@@ -5037,8 +5028,8 @@ bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
 					//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
 					if (tbblue_si_transparent(color)) color=TBBLUE_SPRITE_TRANS_FICT;
 
-					tbblue_layer_ula[posicion_array_layer]=color;
-					if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer+1]=color; //doble de ancho
+					tbblue_layer_ula[posicion_array_layer-pixelOffset*2]=color;
+					if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer-pixelOffset*2+1]=color; //doble de ancho
 
 				}
 			}
@@ -5100,15 +5091,17 @@ void tbblue_do_ula_lores_overlay()
 	int linea_lores=scanline_copia;  
 	//Sumamos offset y
 	/*
-	(R/W) 0x33 (51) => LoRes Offset Y
-	bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
-	Being only 96 pixels, this allows the display to scroll in "half-pixels",
-	at the same resolution and smoothness as Layer 2.
+	(R/W) 0x32 (50) => LoRes X Scroll
+	bits 7:0 = X Offset (0-255) (soft reset = 0)
+	LoRes scrolls in "half-pixels" at the same resolution and smoothness as Layer 2.
+
+	(R/W) 0x33 (51) => LoRes Y Scroll
+	bits 7:0 = Y Offset (0-191) (soft reset = 0)
+	LoRes scrolls in "half-pixels" at the same resolution and smoothness as Layer 2.
 	*/
 	linea_lores +=tbblue_registers[0x33];
 
 	linea_lores=linea_lores % 192;
-	//if (linea_lores>=192) linea_lores -=192;
 
 	lores_pointer=get_lores_pointer(linea_lores/2);  //admite hasta y=95, dividimos entre 2 linea actual
 
