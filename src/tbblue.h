@@ -122,11 +122,10 @@ extern void tbsprite_do_overlay(void);
 
 
 #define TBBLUE_MAX_PATTERNS 64
-#define TBBLUE_SPRITE_SIZE 256
+#define TBBLUE_8BIT_PATTERN_SIZE 256
 
 #define TBBLUE_MAX_SPRITES 128
-//#define TBBLUE_TRANSPARENT_COLOR_INDEX 0xE3
-//#define TBBLUE_TRANSPARENT_COLOR 0x1C6
+#define TBBLUE_SPRITE_ATTRIBUTE_SIZE 5
 
 #define TBBLUE_DEFAULT_TRANSPARENT 0xE3
 #define TBBLUE_TRANSPARENT_REGISTER (tbblue_registers[20])
@@ -138,12 +137,9 @@ extern void tbsprite_do_overlay(void);
 #define TBBLUE_TILE_HEIGHT 8
 #define TBBLUE_TILE_WIDTH 8
 
-//extern z80_byte tbsprite_patterns[TBBLUE_MAX_PATTERNS][256];
-extern z80_byte tbsprite_new_patterns[TBBLUE_MAX_PATTERNS*256];
+extern z80_byte tbsprite_patterns[TBBLUE_MAX_PATTERNS*TBBLUE_8BIT_PATTERN_SIZE];
 
-
-//extern z80_int tbsprite_palette[];
-extern z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][4];
+extern z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][TBBLUE_SPRITE_ATTRIBUTE_SIZE];
 
 
 extern z80_int tbblue_palette_ula_first[];

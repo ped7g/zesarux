@@ -3053,7 +3053,6 @@ void menu_debug_tsconf_tbblue_spritenav_lista_sprites(void)
 
 	limite=menu_debug_tsconf_tbblue_spritenav_get_total_sprites();
 
-	//z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][4];
 	/*
 	1st: X position (bits 7-0).
 2nd: Y position (0-255).
@@ -3112,7 +3111,6 @@ void menu_debug_tsconf_tbblue_spritenav_lista_sprites(void)
 			}
 
 			if (MACHINE_IS_TBBLUE) {
-					//z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][4];
 	/*
 	1st: X position (bits 7-0).
 2nd: Y position (0-255).
@@ -9969,7 +9967,7 @@ menu_z80_moto_int menu_debug_draw_sprites_get_pointer_offset(int direccion)
 		}
 
 		if (MACHINE_IS_TBBLUE) {
-			puntero=view_sprites_direccion*TBBLUE_SPRITE_SIZE;
+			puntero=view_sprites_direccion*TBBLUE_8BIT_PATTERN_SIZE;
 		}
 
 

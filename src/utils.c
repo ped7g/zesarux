@@ -11001,7 +11001,7 @@ unsigned int machine_get_memory_zone_attrib(int zone, int *readwrite)
     case 14:
       if (MACHINE_IS_TBBLUE) {
         *readwrite=3;
-        size=TBBLUE_MAX_SPRITES*TBBLUE_SPRITE_SIZE;
+        size=TBBLUE_MAX_SPRITES*TBBLUE_8BIT_PATTERN_SIZE;
       }
     break;    
 
@@ -11281,7 +11281,7 @@ z80_byte *machine_get_memory_zone_pointer(int zone, int address)
     //tbblue sprites
     case 14:
       if (MACHINE_IS_TBBLUE) {
-        p=tbsprite_new_patterns;
+        p=tbsprite_patterns;
         p=p+address;
       }
     break;    

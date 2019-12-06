@@ -916,35 +916,33 @@ Bit	Function
 
 
 //64 patterns de Sprites
-/*
-In the palette each byte represents the colors in the RRRGGGBB format, and the pink color, defined by standard 1110011, is reserved for the transparent color.
-*/
-//z80_byte tbsprite_patterns[TBBLUE_MAX_PATTERNS][TBBLUE_SPRITE_SIZE];
-z80_byte tbsprite_new_patterns[TBBLUE_MAX_PATTERNS*TBBLUE_SPRITE_SIZE];
+z80_byte tbsprite_patterns[TBBLUE_MAX_PATTERNS*TBBLUE_8BIT_PATTERN_SIZE];
 
 int tbsprite_pattern_get_offset_index(z80_byte sprite,z80_byte index_in_sprite)
 {
-	return sprite*TBBLUE_SPRITE_SIZE+index_in_sprite;
+	return sprite*TBBLUE_8BIT_PATTERN_SIZE+index_in_sprite;
 }
 
 z80_byte tbsprite_pattern_get_value_index(z80_byte sprite,z80_byte index_in_sprite)
 {
-	return tbsprite_new_patterns[tbsprite_pattern_get_offset_index(sprite,index_in_sprite)];
+	return tbsprite_patterns[tbsprite_pattern_get_offset_index(sprite,index_in_sprite)];
 }
 
 void tbsprite_pattern_put_value_index(z80_byte sprite,z80_byte index_in_sprite,z80_byte value)
 {
-	tbsprite_new_patterns[tbsprite_pattern_get_offset_index(sprite,index_in_sprite)]=value;
+	tbsprite_patterns[tbsprite_pattern_get_offset_index(sprite,index_in_sprite)]=value;
 }
 
 
 /*
+Old sprites description, needs update with core3.0 sprites and full description of fifth byte)
 [0] 1st: X position (bits 7-0).
 [1] 2nd: Y position (0-255).
 [2] 3rd: bits 7-4 is palette offset, bit 3 is X MSB, bit 2 is X mirror, bit 1 is Y mirror and bit 0 is visible flag.
 [3] 4th: bits 7-6 is reserved, bits 5-0 is Name (pattern index, 0-63).
+[4] 5th: anchor/relative/compound extras (only used when [3] bit6 is "1")
 */
-z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][4];
+z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][TBBLUE_SPRITE_ATTRIBUTE_SIZE];
 
 //Indices al indicar paleta, pattern, sprites. Subindex indica dentro de cada pattern o sprite a que posicion (0..3 en sprites o 0..255 en pattern ) apunta
 z80_byte tbsprite_index_pattern,tbsprite_index_pattern_subindex;
@@ -1142,7 +1140,6 @@ void tbblue_reset_sprites(void)
 	for (i=0;i<TBBLUE_MAX_PATTERNS;i++) {
 		int j;
 		for (j=0;j<256;j++) {
-			//tbsprite_patterns[i][j]=TBBLUE_DEFAULT_TRANSPARENT;
 			tbsprite_pattern_put_value_index(i,j,TBBLUE_DEFAULT_TRANSPARENT);
 		}
 	}
@@ -1153,6 +1150,7 @@ void tbblue_reset_sprites(void)
 		tbsprite_sprites[i][1]=0;
 		tbsprite_sprites[i][2]=0;
 		tbsprite_sprites[i][3]=0;
+		tbsprite_sprites[i][4]=0;
 	}
 
 
@@ -1398,14 +1396,15 @@ void tbblue_out_sprite_sprite(z80_byte value)
 	//z80_byte tbsprite_index_sprite,tbsprite_index_sprite_subindex;
 
 	tbsprite_sprites[tbsprite_index_sprite][tbsprite_index_sprite_subindex]=value;
-	if (tbsprite_index_sprite_subindex==3) {
+	if (3 == tbsprite_index_sprite_subindex && 0 == (value&0x40)) {			// 4-byte type, add 0 as fifth
+		tbsprite_sprites[tbsprite_index_sprite][++tbsprite_index_sprite_subindex]=0;
+	}
+	if (++tbsprite_index_sprite_subindex == TBBLUE_SPRITE_ATTRIBUTE_SIZE) {
 		//printf ("sprite %d [3] pattern: %d\n",tbsprite_index_sprite,tbsprite_sprites[tbsprite_index_sprite][3]&63);
 		tbsprite_index_sprite_subindex=0;
 		tbsprite_index_sprite++;
 		if (tbsprite_index_sprite>=TBBLUE_MAX_SPRITES) tbsprite_index_sprite=0;
 	}
-
-	else tbsprite_index_sprite_subindex++;
 }
 
 
@@ -1500,8 +1499,6 @@ bits 7-0 = Set the index value. (0XE3 after a reset)
 
 z80_byte tbsprite_do_overlay_get_pattern_xy(z80_byte index_pattern,z80_byte sx,z80_byte sy)
 {
-
-	//return tbsprite_patterns[index_pattern][sy*TBBLUE_SPRITE_WIDTH+sx];
 	return tbsprite_pattern_get_value_index(index_pattern,sy*TBBLUE_SPRITE_WIDTH+sx);
 }
 

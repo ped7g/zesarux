@@ -5458,7 +5458,6 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 											for (;totalitems;totalitems--) {
 												int i;
 												for (i=0;i<256;i++) {
-                	         	//z80_byte index_color=tbsprite_patterns[index_int][i];
 														 z80_byte index_color=tbsprite_pattern_get_value_index(index_int,i);
 	                	        escribir_socket_format(misocket,"%02X ",index_color);
 												}
@@ -5513,7 +5512,7 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 							else {
 								for (;totalitems;totalitems--) {
 									int i;
-									for (i=0;i<4;i++) {
+									for (i=0;i<TBBLUE_SPRITE_ATTRIBUTE_SIZE;i++) {
 											z80_byte value_sprite=tbsprite_sprites[index_int][i];
 											escribir_socket_format(misocket,"%02X ",value_sprite);
 									}
@@ -5602,7 +5601,6 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 			char *s=find_space_or_end(parametros);
 			while (*s) {
 				valor=parse_string_to_number(s);
-				//tbsprite_patterns[index_int][i++]=valor;
 				tbsprite_pattern_put_value_index(index_int,i,valor);
 				i++;
 
@@ -5662,7 +5660,7 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 			while (*s) {
 				valor=parse_string_to_number(s);
 				tbsprite_sprites[index_int][i++]=valor;
-				if (i==4) i=0;
+				if (i==TBBLUE_SPRITE_ATTRIBUTE_SIZE) i=0;
 
 				s=find_space_or_end(s);
 			}
