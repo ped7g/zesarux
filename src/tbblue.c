@@ -4592,14 +4592,15 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		//	(0 = black on reset on reset)
 	z80_int fallbackcolour = tbblue_get_9bit_colour(tbblue_registers[74]);
 
-	int y;
-	int diferencia_border_tiles=screen_indice_inicio_pant-TBBLUE_TILES_BORDER;
+	int tiles_top_y=screen_indice_inicio_pant-TBBLUE_TILES_BORDER;
+	int tiles_bottom_y=screen_indice_inicio_pant+192+TBBLUE_TILES_BORDER;
+	if (t_scanline_draw<tiles_top_y || t_scanline_draw>=tiles_bottom_y) {
+		return; //Si estamos por encima o por debajo de la zona de tiles,
+	}
+	//que es la mas alta de todas las capas
+	int y=t_scanline_draw-screen_invisible_borde_superior;
 
-    y=t_scanline_draw-screen_invisible_borde_superior;
     if (border_enabled.v==0) y=y-screen_borde_superior;
-
-		if (y<diferencia_border_tiles || y>=(screen_indice_inicio_pant+192+TBBLUE_TILES_BORDER)) return; //Si estamos por encima o por debajo de la zona de tiles,
-		//que es la mas alta de todas las capas
 
 		//Calcular donde hay border
 		int final_border_superior=screen_indice_inicio_pant-screen_invisible_borde_superior;
@@ -4647,7 +4648,7 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	//Si solo hay capa ula, hacer render mas rapido
 	//printf ("%d %d %d\n",capalayer2,capasprites,tbblue_get_layers_priorities());
 	//if (capalayer2==0 && capasprites==0 && tbblue_get_layers_priorities()==0) {  //prio 0=S L U
-	if (capalayer2==0 && capasprites==0) { 	 
+	if (estamos_borde_supinf || (capalayer2==0 && capasprites==0)) {
 		//Hará fast render cuando no haya capa de layer2 o sprites, aunque tambien,
 		//estando esas capas, cuando este en zona de border o no visible de dichas capas
 		tbblue_fast_render_ula_layer(puntero_final_rainbow,estamos_borde_supinf,final_borde_izquierdo,inicio_borde_derecho,ancho_rainbow);
