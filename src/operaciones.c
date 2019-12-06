@@ -7559,7 +7559,6 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 		if (puerto==TBBLUE_SPRITE_INDEX_PORT)	tbblue_out_port_sprite_index(value);
 		if (puerto==TBBLUE_LAYER2_PORT) tbblue_out_port_layer2_value(value);
 
-		//if (puerto_l==TBBLUE_SPRITE_PALETTE_PORT)	tbblue_out_sprite_palette(value);
 		if (puerto_l==TBBLUE_SPRITE_PATTERN_PORT) tbblue_out_sprite_pattern(value);
 
 		//Mantenemos puerto 0x55 port compatibilidad temporalmente. Se eliminara al subir nueva beta o la estable

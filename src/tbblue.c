@@ -947,7 +947,6 @@ void tbsprite_pattern_put_value_index(z80_byte sprite,z80_byte index_in_sprite,z
 z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][4];
 
 //Indices al indicar paleta, pattern, sprites. Subindex indica dentro de cada pattern o sprite a que posicion (0..3 en sprites o 0..255 en pattern ) apunta
-z80_byte tbsprite_index_palette;
 z80_byte tbsprite_index_pattern,tbsprite_index_pattern_subindex;
 z80_byte tbsprite_index_sprite,tbsprite_index_sprite_subindex;
 
@@ -961,7 +960,7 @@ Port 0x303B, if written, defines the sprite slot to be configured by ports 0x55 
 
 */
 
-z80_byte tbblue_port_303b;
+z80_byte tbblue_port_303b;		// "read only" part
 
 
 /* Informacion relacionada con Layer2. Puede cambiar en el futuro, hay que ir revisando info en web de Next
@@ -1157,7 +1156,8 @@ void tbblue_reset_sprites(void)
 	}
 
 
-	tbsprite_index_palette=tbsprite_index_pattern=tbsprite_index_sprite=0;
+	tbsprite_index_pattern=tbsprite_index_pattern_subindex=0;
+	tbsprite_index_sprite=tbsprite_index_sprite_subindex=0;
 
 	tbblue_port_303b=0;
 
@@ -1264,19 +1264,9 @@ done < /tmp/archivo_lista.txt
 void tbblue_out_port_sprite_index(z80_byte value)
 {
 	//printf ("Out tbblue_out_port_sprite_index %02XH\n",value);
-	tbsprite_index_palette=tbsprite_index_pattern=tbsprite_index_sprite=value;
-
+	tbsprite_index_pattern=tbsprite_index_sprite=value;
 	tbsprite_index_pattern_subindex=tbsprite_index_sprite_subindex=0;
 }
-
-/*void tbblue_out_sprite_palette(z80_byte value)
-{
-	//printf ("Out tbblue_out_sprite_palette %02XH\n",value);
-
-	tbsprite_palette[tbsprite_index_palette]=value;
-	if (tbsprite_index_palette==255) tbsprite_index_palette=0;
-	else tbsprite_index_palette++;
-}*/
 
 
 //Indica si al escribir registro 44h de paleta:
@@ -1386,7 +1376,6 @@ void tbblue_out_sprite_pattern(z80_byte value)
 
 
 	tbsprite_pattern_put_value_index(tbsprite_index_pattern,tbsprite_index_pattern_subindex,value);
-	//tbsprite_patterns[tbsprite_index_pattern][tbsprite_index_pattern_subindex]=value;
 
 
 
@@ -3025,7 +3014,7 @@ void tbblue_splash_palette_format(void)
 	
 //tbblue_last_register
 //void tbblue_set_value_port(z80_byte value)
-void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
+void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value)
 {
 
 
@@ -3038,36 +3027,51 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 	z80_byte last_register_66=tbblue_registers[66];
 	z80_byte last_register_67=tbblue_registers[67];
 
-	if (index_position==3) {
-            //Controlar caso especial
-            //(W) 0x03 (03) => Set machine type, only in IPL or config mode
-            //   		bits 2-0 = Machine type:
-            //      		000 = Config mode
-            z80_byte machine_type=tbblue_registers[3]&7;
+	switch(index_position) {
 
-            if (!(machine_type==0 || tbblue_bootrom.v)) {
-                debug_printf(VERBOSE_DEBUG,"Can not change machine type (to %02XH) while in non config mode or non IPL mode",value);
-                return;
-            }
-        }
+		case 3:
+		{
+			//Controlar caso especial
+			//(W) 0x03 (03) => Set machine type, only in IPL or config mode
+			//   		bits 2-0 = Machine type:
+			//      		000 = Config mode
+			z80_byte machine_type=tbblue_registers[3]&7;
 
-	if (index_position==28) {
-        /*
-        (W) 0x1C (28) => Clip Window control
-            bits 7-4 = Reserved, must be 0
-            bit 3 - reset the Tilemap clip index.
-            bit 2 - reset the ULA/LoRes clip index.
-            bit 1 - reset the sprite clip index.
-            bit 0 - reset the Layer 2 clip index.
-        */
+			if (!(machine_type==0 || tbblue_bootrom.v)) {
+				debug_printf(VERBOSE_DEBUG,"Can not change machine type (to %02XH) while in non config mode or non IPL mode",value);
+				return;
+			}
+		}
+		break;
+
+		case 28:
+			/*
+			(W) 0x1C (28) => Clip Window control
+				bits 7-4 = Reserved, must be 0
+				bit 3 - reset the Tilemap clip index.
+				bit 2 - reset the ULA/LoRes clip index.
+				bit 1 - reset the sprite clip index.
+				bit 0 - reset the Layer 2 clip index.
+			*/
 			if (value&1) tbblue_reset_clip_window_layer2_index();
 			if (value&2) tbblue_reset_clip_window_sprites_index();
 			if (value&4) tbblue_reset_clip_window_ula_index();
 			if (value&8) tbblue_reset_clip_window_tilemap_index();
-            return;
-    }
+			return;
 
-    if (index_position==98) {
+		case 40:
+		/*
+		0x28 (40) => PS/2 Keymap Address MSB
+		(R) bits 7:0 = Stored palette value from nextreg 0x44
+		(W)
+			bits 7:1 = Reserved, must be 0
+			bit 0 = MSB address
+		*/
+		// no functionality in ZEsarUX when written to, but keep value stored by 0x44 palette reg.
+		// = return before that color value is overwritten
+		return;
+
+		case 98:
 /*
 (W) 0x62 (98) => Copper control HI bit
    bits 7-6 = Start control
@@ -3080,10 +3084,10 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
    When "Control mode" bits are identical with previously set ones, they are ignored - allowing for
    index change without restarting currently running Copper program.
 */
-		tbblue_copper_write_control_hi_byte(value, tbblue_registers[98]);
-	}
+			tbblue_copper_write_control_hi_byte(value, tbblue_registers[98]);
+		break;
 
-	if (index_position==99) {
+		case 99:
 /*
 0x63 (99) => Copper Data 16-bit Write
 (W)
@@ -3093,23 +3097,12 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
   After each write, the copper address is auto-incremented to the next memory position
   After a write to an odd address, the entire 16-bits is written to copper memory at once
 */
-		tbblue_copper_write_data_16b(tbblue_registers[99], value);	// old value + new value
+			tbblue_copper_write_data_16b(tbblue_registers[99], value);	// old value + new value
+		break;
 	}
 
-	if (index_position==40) {
-/*
-0x28 (40) => PS/2 Keymap Address MSB
-(R)
-  bits 7:0 = Stored palette value from nextreg 0x44
-(W)
-  bits 7:1 = Reserved, must be 0
-  bit 0 = MSB address
-*/
-		// no functionality in ZEsarUX when written to, but keep value stored by 0x44 palette reg.
-		// = return before that color value is overwritten
-		return;
-	}
-
+	/////////////////////////////////////////////////
+	// write new value into register
 	tbblue_registers[index_position]=value;
 
 
@@ -3196,8 +3189,6 @@ void tbblue_set_value_port_position(z80_byte index_position,z80_byte value)
 			tbblue_set_emulator_setting_timing();
 		break;
 
-
-		break;
 
 		case 4:
 

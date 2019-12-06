@@ -73,7 +73,6 @@ extern void tbblue_set_timing_48k(void);
 #define TBBLUE_LAYER2_PORT 0x123B
 
 #define TBBLUE_SPRITE_INDEX_PORT 0x303B
-#define TBBLUE_SPRITE_PALETTE_PORT 0x53
 #define TBBLUE_SPRITE_PATTERN_PORT 0x5b
 #define TBBLUE_SPRITE_SPRITE_PORT 0x57
 
@@ -98,7 +97,7 @@ extern void tbblue_set_timing_48k(void);
 
 extern z80_byte tbblue_copper_memory[];
 
-extern void tbblue_set_value_port_position(z80_byte index_position,z80_byte value);
+extern void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value);
 
 
 extern z80_byte tbblue_registers[];
