@@ -3763,10 +3763,38 @@ void tbblue_set_layer_priorities(void)
 		break;	
 	}
 
+}
 
-
-
-
+void tbblue_set_layer_priorities_border_only(void)
+{
+	/*
+	(R/W) 0x15 (21) => Sprite and Layers system
+  bit 7 - LoRes mode, 128 x 96 x 256 colours (1 = enabled)
+  bits 6-5 = Reserved, must be 0
+  bits 4-2 = set layers priorities:
+     Reset default is 000, sprites over the Layer 2, over the ULA graphics
+     000 - S L U
+     001 - L S U
+     010 - S U L
+*    011 - L U S
+*    100 - U S L
+*    101 - U L S
+     110 - S(U+L) ULA and Layer 2 combined, colours clamped to 7
+     111 - S(U+L-5) ULA and Layer 2 combined, colours clamped to [0,7]
+  bit 1 = Over border (1 = yes)(Back to 0 after a reset)
+  bit 0 = Sprites visible (1 = visible)(Back to 0 after a reset)
+  */
+	// border area => no Layer 2, only Sprites + tilemap (ULA)
+	z80_byte prio=tbblue_get_layers_priorities();
+	// all modes where sprites are on top of tilemap (ULA)
+	p_layer_first=tbblue_layer_sprites;
+	p_layer_second=tbblue_layer_ula;
+	p_layer_third=NULL;
+	if (prio < 3 || 5 < prio) return;
+	// all modes where tilemap (ULA) is on top of Sprites
+	p_layer_first=tbblue_layer_ula;
+	p_layer_second=tbblue_layer_sprites;
+	return;
 }
 
 z80_int tbblue_get_border_color(z80_int color)
@@ -4618,8 +4646,11 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	//Por defecto
 	//sprites over the Layer 2, over the ULA graphics
 
-
-	tbblue_set_layer_priorities();
+	if (estamos_borde_supinf) {
+		tbblue_set_layer_priorities_border_only();
+	} else {
+		tbblue_set_layer_priorities();
+	}
 
 	// resolve blending modes by specialized routine
 	if (6 <= tbblue_get_layers_priorities()) {
@@ -4636,44 +4667,63 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	//Si solo hay capa ula, hacer render mas rapido
 	//printf ("%d %d %d\n",capalayer2,capasprites,tbblue_get_layers_priorities());
 	//if (capalayer2==0 && capasprites==0 && tbblue_get_layers_priorities()==0) {  //prio 0=S L U
-	if (estamos_borde_supinf || (capalayer2==0 && capasprites==0)) {
+	if (capalayer2==0 && capasprites==0) {
 		//Hará fast render cuando no haya capa de layer2 o sprites, aunque tambien,
 		//estando esas capas, cuando este en zona de border o no visible de dichas capas
 		tbblue_fast_render_ula_layer(puntero_final_rainbow,estamos_borde_supinf,final_borde_izquierdo,inicio_borde_derecho,ancho_rainbow);
 
-	} else if (!estamos_borde_supinf) {
+	} else {
+		if (!estamos_borde_supinf) {
 
-		for (i=0;i<ancho_rainbow;i++) {
+			for (i=0;i<ancho_rainbow;i++) {
 
-			//find non-transparent pixel
-			z80_int color = tbblue_layer_layer2[i];
-			if (tbblue_si_sprite_transp_ficticio(color) || 0 == (color&TBBLUE_LAYER2_PRIORITY)) {
-				// if layer2 pixel is transparent, or normal-priority, go through the three layers
-				color=p_layer_first[i];
-				if (tbblue_si_sprite_transp_ficticio(color)) {
-					color=p_layer_second[i];
+				//find non-transparent pixel
+				z80_int color = tbblue_layer_layer2[i];
+				if (tbblue_si_sprite_transp_ficticio(color) || 0 == (color&TBBLUE_LAYER2_PRIORITY)) {
+					// if layer2 pixel is transparent, or normal-priority, go through the three layers
+					color=p_layer_first[i];
 					if (tbblue_si_sprite_transp_ficticio(color)) {
-						color=p_layer_third[i];
+						color=p_layer_second[i];
 						if (tbblue_si_sprite_transp_ficticio(color)) {
-							if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
-								color=fallbackcolour;
+							color=p_layer_third[i];
+							if (tbblue_si_sprite_transp_ficticio(color)) {
+								if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
+									color=fallbackcolour;
+								}
+								// else color is still transparent, do not modify the buffer
 							}
-							// else color is still transparent, do not modify the buffer
 						}
 					}
+				} else {
+					// else there is priority color in layer2, ignore other layers, remove priority bit
+					color &= 0x1FF;
 				}
-			} else {
-				// else there is priority color in layer2, ignore other layers, remove priority bit
-				color &= 0x1FF;
+
+				if (!tbblue_si_sprite_transp_ficticio(color)) {
+					*puntero_final_rainbow = RGB9_INDEX_FIRST_COLOR + color;
+				}
+
+				puntero_final_rainbow++;
+
 			}
 
-			if (!tbblue_si_sprite_transp_ficticio(color)) {
-				*puntero_final_rainbow = RGB9_INDEX_FIRST_COLOR + color;
+		} else {
+			//estamos_borde_supinf = 1 (outside of Layer 2 and ULA, only sprites + tiles)
+			for (i=0;i<ancho_rainbow;i++) {
+
+				//find non-transparent pixel
+				z80_int color=p_layer_first[i];
+				if (tbblue_si_sprite_transp_ficticio(color)) {
+					color=p_layer_second[i];
+				}
+				if (!tbblue_si_sprite_transp_ficticio(color)) {
+					*puntero_final_rainbow = RGB9_INDEX_FIRST_COLOR + color;
+				}
+
+				puntero_final_rainbow++;
 			}
-
-			puntero_final_rainbow++;
-
 		}
+
 		//doble de alto
 		for (i=0;i<ancho_rainbow;i++) {		// just copy the previous line
 			*puntero_final_rainbow = puntero_final_rainbow[-ancho_rainbow];
