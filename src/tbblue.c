@@ -579,13 +579,6 @@ int tbblue_get_current_raster_horiz_position(void)
 }
 
 
-//Sprites
-
-//Paleta de 256 colores formato RGB9 RRRGGGBBB
-//Valores son de 9 bits por tanto lo definimos con z80_int que es de 16 bits
-//z80_int tbsprite_palette[256];
-
-
 //Diferentes paletas
 //Total:
 //     000 = ULA first palette
@@ -947,6 +940,7 @@ z80_byte tbsprite_sprites[TBBLUE_MAX_SPRITES][TBBLUE_SPRITE_ATTRIBUTE_SIZE];
 //Indices al indicar paleta, pattern, sprites. Subindex indica dentro de cada pattern o sprite a que posicion (0..3 en sprites o 0..255 en pattern ) apunta
 z80_byte tbsprite_index_pattern,tbsprite_index_pattern_subindex;
 z80_byte tbsprite_index_sprite,tbsprite_index_sprite_subindex;
+z80_byte tbsprite_nr_index_sprite;
 
 /*
 Port 0x303B, if read, returns some information:
@@ -959,6 +953,17 @@ Port 0x303B, if written, defines the sprite slot to be configured by ports 0x55 
 */
 
 z80_byte tbblue_port_303b;		// "read only" part
+
+int tbsprite_is_lockstep()
+{
+	return (tbblue_registers[9]&0x10);
+}
+
+void tbsprite_increment_index_303b() {	// increment the "port" index
+	tbsprite_index_sprite_subindex=0;
+	++tbsprite_index_sprite;
+	tbsprite_index_sprite %= TBBLUE_MAX_SPRITES;
+}
 
 
 /* Informacion relacionada con Layer2. Puede cambiar en el futuro, hay que ir revisando info en web de Next
@@ -1156,6 +1161,7 @@ void tbblue_reset_sprites(void)
 
 	tbsprite_index_pattern=tbsprite_index_pattern_subindex=0;
 	tbsprite_index_sprite=tbsprite_index_sprite_subindex=0;
+	tbsprite_nr_index_sprite=0;
 
 	tbblue_port_303b=0;
 
@@ -1262,8 +1268,10 @@ done < /tmp/archivo_lista.txt
 void tbblue_out_port_sprite_index(z80_byte value)
 {
 	//printf ("Out tbblue_out_port_sprite_index %02XH\n",value);
-	tbsprite_index_pattern=tbsprite_index_sprite=value;
-	tbsprite_index_pattern_subindex=tbsprite_index_sprite_subindex=0;
+	tbsprite_index_pattern=value%TBBLUE_MAX_PATTERNS;
+	tbsprite_index_pattern_subindex=value&0x80;
+	tbsprite_index_sprite=value%TBBLUE_MAX_SPRITES;
+	tbsprite_index_sprite_subindex=0;
 }
 
 
@@ -1400,10 +1408,7 @@ void tbblue_out_sprite_sprite(z80_byte value)
 		tbsprite_sprites[tbsprite_index_sprite][++tbsprite_index_sprite_subindex]=0;
 	}
 	if (++tbsprite_index_sprite_subindex == TBBLUE_SPRITE_ATTRIBUTE_SIZE) {
-		//printf ("sprite %d [3] pattern: %d\n",tbsprite_index_sprite,tbsprite_sprites[tbsprite_index_sprite][3]&63);
-		tbsprite_index_sprite_subindex=0;
-		tbsprite_index_sprite++;
-		if (tbsprite_index_sprite>=TBBLUE_MAX_SPRITES) tbsprite_index_sprite=0;
+		tbsprite_increment_index_303b();
 	}
 }
 
@@ -3314,6 +3319,32 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 
 		break;
 
+		case 52:	//0x34 - sprite index
+			if (tbsprite_is_lockstep()) {
+				tbblue_out_port_sprite_index(value);
+			} else {
+				tbsprite_nr_index_sprite=value%TBBLUE_MAX_SPRITES;
+			}
+		break;
+
+		// sprite attribute registers
+		case 53:	case 54:	case 55:	case 56:	case 57:	//0x35, 0x36, 0x37, 0x38, 0x39
+		case 117:	case 118:	case 119:	case 120:	case 121:	//0x75, 0x76, 0x77, 0x78, 0x79
+		{
+			int attribute_id = (index_position-0x35)&7;				//0..4
+			int sprite_id = tbsprite_is_lockstep() ? tbsprite_index_sprite : tbsprite_nr_index_sprite;
+			tbsprite_sprites[sprite_id][attribute_id] = value;
+			if (index_position < 0x70) break;	//0x35, 0x36, 0x37, 0x38, 0x39 = done
+			//0x75, 0x76, 0x77, 0x78, 0x79 = increment sprite id
+			if (tbsprite_is_lockstep()) {
+				tbsprite_increment_index_303b();
+			} else {
+				++tbsprite_nr_index_sprite;
+				tbsprite_nr_index_sprite%=TBBLUE_MAX_SPRITES;
+			}
+		}
+		break;
+
 		case 64:
 			//palette index
 			tbblue_reset_palette_write_state();
@@ -3543,6 +3574,14 @@ hardware numbers
 		case 31:
 			linea_raster=tbblue_get_raster_line();
 			return (linea_raster&0xFF);
+		break;
+
+		case 52:	//0x34 - sprite index
+			if (tbsprite_is_lockstep()) {
+				return tbsprite_index_sprite;
+			} else {
+				return tbsprite_nr_index_sprite;
+			}
 		break;
 
 		case 105:
