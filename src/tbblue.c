@@ -1151,11 +1151,10 @@ void tbblue_reset_sprites(void)
 
 	//Poner toda info de sprites a 0. Seria quiza suficiente con poner bit de visible a 0
 	for (i=0;i<TBBLUE_MAX_SPRITES;i++) {
-		tbsprite_sprites[i][0]=0;
-		tbsprite_sprites[i][1]=0;
-		tbsprite_sprites[i][2]=0;
-		tbsprite_sprites[i][3]=0;
-		tbsprite_sprites[i][4]=0;
+		int j;
+		for (j=0;j<TBBLUE_SPRITE_ATTRIBUTE_SIZE;++j) {
+			tbsprite_sprites[i][j]=0;
+		}
 	}
 
 
@@ -1507,6 +1506,16 @@ z80_byte tbsprite_do_overlay_get_pattern_xy(z80_byte index_pattern,z80_byte sx,z
 	return tbsprite_pattern_get_value_index(index_pattern,sy*TBBLUE_SPRITE_WIDTH+sx);
 }
 
+z80_byte tbsprite_do_overlay_get_4bpppattern_xy(z80_byte index_pattern, int half_pattern_ofs, z80_byte sx,z80_byte sy)
+{
+	z80_byte offset = ((sy*TBBLUE_SPRITE_WIDTH+sx)>>1) + half_pattern_ofs;
+	if (sx&1) {
+		return tbsprite_pattern_get_value_index(index_pattern,offset)&0x0F;
+	} else {
+		return tbsprite_pattern_get_value_index(index_pattern,offset)>>4;
+	}
+}
+
 z80_int tbsprite_return_color_index(z80_byte index)
 {
 	//z80_int color_final=tbsprite_palette[index];
@@ -1553,12 +1562,6 @@ void tbsprite_do_overlay(void)
 
 				//Situamos el 0 32 pixeles por encima de dentro de pantalla, tal cual como funcionan las cordenadas de sprite de tbblue
 
-
-				//Calculos exclusivos para puntero buffer rainbow
-		    int rainbowy=t_scanline_draw-screen_invisible_borde_superior;
-		    if (border_enabled.v==0) rainbowy=rainbowy-screen_borde_superior;
-		 
-
 				//Aqui tenemos el y=0 arriba del todo del border
 
         //Bucle para cada sprite
@@ -1571,232 +1574,226 @@ void tbsprite_do_overlay(void)
 		z80_byte sprites_over_border=tbblue_registers[21]&2;
 
 
-				int rangoxmin, rangoxmax;
+		int rangoxmin, rangoxmax;
 
-				if (sprites_over_border) {
-					rangoxmin=0;
-					rangoxmax=TBBLUE_SPRITE_BORDER+256+TBBLUE_SPRITE_BORDER-1;
-				}
+		if (sprites_over_border) {
+			rangoxmin=0;
+			rangoxmax=TBBLUE_SPRITE_BORDER+255+TBBLUE_SPRITE_BORDER;
+		} else {
+			rangoxmin=TBBLUE_SPRITE_BORDER;
+			rangoxmax=TBBLUE_SPRITE_BORDER+255;
+		}
 
-				else {
-					rangoxmin=TBBLUE_SPRITE_BORDER;
-					rangoxmax=TBBLUE_SPRITE_BORDER+255;
-				}
+		int rangoymin, rangoymax;
 
+		if (sprites_over_border) {
+			rangoymin=0;
+			rangoymax=TBBLUE_SPRITE_BORDER+191+TBBLUE_SPRITE_BORDER;
+		} else {
+			rangoymin=TBBLUE_SPRITE_BORDER;
+			rangoymax=TBBLUE_SPRITE_BORDER+191;
+		}
 
-				int total_sprites=0;
+		if (y < rangoymin || rangoymax < y) return;
 
+		int total_sprites=0;
+		int is_4bpp = 0, half_4bpp_pattern = 0, unified_anchor = 0;
 
         for (conta_sprites=0;conta_sprites<TBBLUE_MAX_SPRITES && total_sprites<MAX_SPRITES_PER_LINE;conta_sprites++) {
-					int sprite_x;
-					int sprite_y;
+			int sprite_x;
+			int sprite_y;
+
+			/*
+			core3.0
+			[0] 1st: X position (bits 7-0) (int9_t in total)   (relative sprites have int8_t -128..+127)
+			[1] 2nd: Y position (bits 7-0) (int9_t or uint8_t) (relative sprites have int8_t -128..+127)
+			[2] 3rd: bits 7-4 is palette offset, bit 3 is X mirror, bit 2 is Y mirror, bit 1 is rotate flag and bit 0 is X MSB.
+						(bit 0 "X8" is palette-offset-is-relative flag for relative sprites)
+			[3] 4th: bit 7 is visible flag, bit 6 is 4B/5B type, bits 5-0 is Name (pattern index, 0-63)
+			[4] 5th: bits 7-6:
+				"1x" is 4bpp anchor sprite, "x" half-pattern bit, bit 5 0=composite/1=unified, bits 4-3 scaleX, bits 2-1 scaleY, bit 0 Y8 (ninth bit of Y)
+				"00" is 8bpp anchor sprite, bits 5-0 same as "4bpp anchor sprite"
+				"01" after composite anchor: bit 5 is half-pattern for 4bpp, bits 4-3 scaleX, bits 2-1 scaleY, bit 0 pattern is relative to anchor
+				"01" after unified anchor: bit 5 is half-pattern for 4bpp, bits 4-1 reserved (0), bit 0 pattern is relative to anchor
+			When [3] bit 6 is 0, the rendering is same as if [4] is zero (no scale, 8bpp, Y8=0, composite anchor)
+			*/
+			/*
+			Because sprites can be displayed on top of the ZX Spectrum border, the coordinates of each sprite can range
+			from 0 to 319 for the X axis and 0 to 255 for the Y axis. For both axes, values from 0 to 31 are reserved
+			for the Left or top border, for the X axis the values 288 to 319 is reserved for the right border and for
+			the Y axis values 224 to 255 for the lower border.
+			With 5byte type both X and Y for anchor sprites are signed 9bit, i.e. "0x1FF" is -1 coordinate.
+			Relative sprites have signed 8bit X/Y, i.e. -128..+127 only (X8 and Y8 have different meaning)
+
+			If the display of the sprites on the border is disabled, the coordinates of the sprites range from (32,32) to (287,223).
+			*/
+
+			if (!(tbsprite_sprites[conta_sprites][3]&0x80)) continue;		// not visible
+			//Si sprite visible
+			const z80_byte attr4 = tbsprite_sprites[conta_sprites][3]&0x40 ? tbsprite_sprites[conta_sprites][4] : 0;
+			const int is_anchor = 0x40 != (attr4&0xC0);
+			int scaleX = (attr4>>3)&3, scaleY = (attr4>>1)&3;
+			z80_byte mirror_x=tbsprite_sprites[conta_sprites][2]&8;
+			z80_byte mirror_y=tbsprite_sprites[conta_sprites][2]&4;
+			z80_byte sprite_rotate=tbsprite_sprites[conta_sprites][2]&2;
+			//Offset paleta se lee tal cual sin rotar valor
+			z80_byte palette_offset=tbsprite_sprites[conta_sprites][2] & 0xF0;
+
+			if (is_anchor) {
+				sprite_x=tbsprite_sprites[conta_sprites][0] | ((tbsprite_sprites[conta_sprites][2]&1)<<8);
+				sprite_y=tbsprite_sprites[conta_sprites][1] | ((attr4&1)<<8);
+				if (512-128 < sprite_x) sprite_x -= 512;		// -127 .. +384 (cover 8x scaleX)
+				if (512-128 < sprite_y) sprite_y -= 512;		// -127 .. +384 (cover 8x scaleY)
+				is_4bpp = attr4&0x80;
+				half_4bpp_pattern = (attr4&0x40)<<1;	// will result into 0 for 8bpp type, 0/+128 for 4bpp
+				unified_anchor = attr4&0x20;			// 0 = composite, 0x20 = unified
+			} else {
+				sprite_x=(signed char)tbsprite_sprites[conta_sprites][0];
+				sprite_y=(signed char)tbsprite_sprites[conta_sprites][1];
+				half_4bpp_pattern = is_4bpp ? (attr4&0x20)<<2 : 0;	// 0/+128 for 4bpp, +0 for 8bpp
+				if (unified_anchor) {
+					//TODO
+// 					scaleX = anchor.scaleX;
+// 					scaleY = anchor.scaleY;
+				}
+			}
+
+			index_pattern=tbsprite_sprites[conta_sprites][3]&63;
+			//Si coordenada y esta en margen y sprite activo
+
+			int diferencia=y-sprite_y;
+
+			// by here all the anchor/relative stuff has to be resolved (and positioning)
+			if (diferencia < 0 || TBBLUE_SPRITE_HEIGHT <= diferencia) continue;
+
+			//Pintar el sprite si esta en rango de coordenada y
+			z80_byte sx=0,sy=0; //Coordenadas x,y dentro del pattern
+			//offset_pattern=0;
+
+			//Incrementos de x e y
+			int incx=+1;
+			int incy=0;
+
+			//Aplicar mirror si conviene y situarnos en la ultima linea
+			if (mirror_y) {
+				//offset_pattern=offset_pattern+TBBLUE_SPRITE_WIDTH*(TBBLUE_SPRITE_HEIGHT-1);
+				sy=TBBLUE_SPRITE_HEIGHT-1-diferencia;
+				//offset_pattern -=TBBLUE_SPRITE_WIDTH*diferencia;
+			} else {
+				//offset_pattern +=TBBLUE_SPRITE_WIDTH*diferencia;
+				sy=diferencia;
+			}
 
 
 
-					/*
+			//Dibujar linea x
 
-					OLD
-					[0] 1st: X position (bits 7-0).
-					[1] 2nd: Y position (0-255).
-					[2] 3rd: bits 7-4 is palette offset, bit 3 is X mirror, bit 2 is Y mirror, bit 1 is visible flag and bit 0 is X MSB.
-					[3] 4th: bits 7-6 is reserved, bits 5-0 is Name (pattern index, 0-63).
+			//Cambiar offset si mirror x, ubicarlo a la derecha del todo
+			if (mirror_x) {
+				//offset_pattern=offset_pattern+TBBLUE_SPRITE_WIDTH-1;
+				sx=TBBLUE_SPRITE_WIDTH-1;
+				incx=-1;
+			}
 
-					NEW
-					[0] 1st: X position (bits 7-0).
-					[1] 2nd: Y position (0-255).
-					[2] 3rd: bits 7-4 is palette offset, bit 3 is X mirror, bit 2 is Y mirror, bit 1 is rotate flag and bit 0 is X MSB.
-					[3] 4th: bit 7 is visible flag, bit 6 is reserved, bits 5-0 is Name (pattern index, 0-63).
-
-
-					*/
-					/*
-					Because sprites can be displayed on top of the ZX Spectrum border, the coordinates of each sprite can range
-					from 0 to 319 for the X axis and 0 to 255 for the Y axis. For both axes, values from 0 to 31 are reserved
-					for the Left or top border, for the X axis the values 288 to 319 is reserved for the right border and for
-					the Y axis values 224 to 255 for the lower border.
-
-If the display of the sprites on the border is disabled, the coordinates of the sprites range from (32,32) to (287,223).
-*/
-
-					//Si sprite visible
-					if (tbsprite_sprites[conta_sprites][3]&128) {
-						sprite_x=tbsprite_sprites[conta_sprites][0] | ((tbsprite_sprites[conta_sprites][2]&1)<<8);
-
-						//printf ("sprite %d x: %d \n",conta_sprites,sprite_x);
-
-						sprite_y=tbsprite_sprites[conta_sprites][1];
-
-						//Posicionamos esa y teniendo en cuenta que nosotros contamos 0 arriba del todo del border en cambio sprites aqui
-						//Considera y=32 dentro de pantalla y y=0..31 en el border
-						//sprite_y +=screen_borde_superior-32;
-
-						//Si y==32-> y=32+48-32=32+16=48
-						//Si y==0 -> y=48-32=16
-
-						z80_byte mirror_x=tbsprite_sprites[conta_sprites][2]&8;
-						//[2] 3rd: bits 7-4 is palette offset, bit 3 is X mirror, bit 2 is Y mirror, bit 1 is rotate flag and bit 0 is X MSB.
-						z80_byte mirror_y=tbsprite_sprites[conta_sprites][2]&4;
-
-						//3rd: bits 7-4 is palette offset, bit 3 is X mirror, bit 2 is Y mirror, bit 1 is rotate flag and bit 0 is X MSB.
-						//Offset paleta se lee tal cual sin rotar valor
-						z80_byte palette_offset=(tbsprite_sprites[conta_sprites][2]) & 0xF0;
-
-						index_pattern=tbsprite_sprites[conta_sprites][3]&63;
-						//Si coordenada y esta en margen y sprite activo
-
-						int diferencia=y-sprite_y;
+			/*
+			Comparar bits rotacion con ejemplo en media/spectrum/tbblue/sprites/rotate_example.png
+			*/
+			/*
+			Basicamente sin rotar un sprite, se tiene (reduzco el tamaño a la mitad aqui para que ocupe menos)
 
 
-						int rangoymin, rangoymax;
-
-						if (sprites_over_border) {
-							rangoymin=0;
-							rangoymax=TBBLUE_SPRITE_BORDER+192+TBBLUE_SPRITE_BORDER-1;
-						}
-
-						else {
-							rangoymin=TBBLUE_SPRITE_BORDER;
-							rangoymax=TBBLUE_SPRITE_BORDER+191;
-						}
+			El sentido normal de dibujado viene por ->, aumentando coordenada X
 
 
-						//Pintar el sprite si esta en rango de coordenada y
-						if (diferencia>=0 && diferencia<TBBLUE_SPRITE_HEIGHT && y>=rangoymin && y<=rangoymax) {
+		->  ---X----
+				---XX---
+				---XXX--
+				---XXXX-
+				---X----
+				---X----
+				---X----
+				---X----
 
-							//printf ("y: %d t_scanline_draw: %d rainbowy:%d sprite_y: %d\n",y,t_scanline_draw,rainbowy,sprite_y);
-							z80_byte sx=0,sy=0; //Coordenadas x,y dentro del pattern
-							//offset_pattern=0;
+				Luego cuando se rota 90 grados, en vez de empezar de arriba a la izquierda, se empieza desde abajo y reduciendo coordenada Y:
 
-							//Incrementos de x e y
-							int incx=+1;
-							int incy=0;
+					---X----
+						---XX---
+						---XXX--
+						---XXXX-
+						---X----
+						---X----
+				^ 	---X----
+				|		---X----
 
-							//Aplicar mirror si conviene y situarnos en la ultima linea
-							if (mirror_y) {
-								//offset_pattern=offset_pattern+TBBLUE_SPRITE_WIDTH*(TBBLUE_SPRITE_HEIGHT-1);
-								sy=TBBLUE_SPRITE_HEIGHT-1-diferencia;
-								//offset_pattern -=TBBLUE_SPRITE_WIDTH*diferencia;
-							}
-							else {
-								//offset_pattern +=TBBLUE_SPRITE_WIDTH*diferencia;
-								sy=diferencia;
-							}
+				Entonces, al dibujar empezando asi, la imagen queda rotada:
 
+				--------
+				--------
+				XXXXXXXX
+				----XXX-
+				----XX--
+				----X---
+				--------
 
+				De ahi que el incremento y sea -incremento x , incremento x sera 0
 
-							//Dibujar linea x
+				Aplicando tambien el comportamiento para mirror, se tiene el resto de combinaciones
 
-							//Cambiar offset si mirror x, ubicarlo a la derecha del todo
-							if (mirror_x) {
-								//offset_pattern=offset_pattern+TBBLUE_SPRITE_WIDTH-1;
-								sx=TBBLUE_SPRITE_WIDTH-1;
-								incx=-1;
-							}
-
-							z80_byte sprite_rotate;
-
-							sprite_rotate=tbsprite_sprites[conta_sprites][2]&2;
-
-							/*
-							Comparar bits rotacion con ejemplo en media/spectrum/tbblue/sprites/rotate_example.png
-							*/
-							/*
-							Basicamente sin rotar un sprite, se tiene (reduzco el tamaño a la mitad aqui para que ocupe menos)
+				*/
 
 
-							El sentido normal de dibujado viene por ->, aumentando coordenada X
+			if (sprite_rotate) {
+				z80_byte sy_old=sy;
+				sy=(TBBLUE_SPRITE_HEIGHT-1)-sx;
+				sx=sy_old;
 
+				incy=-incx;
+				incx=0;
+			}
 
-					->  ---X----
-							---XX---
-							---XXX--
-							---XXXX-
-							---X----
-							---X----
-							---X----
-							---X----
+			const z80_byte transparent_idx = is_4bpp ? tbblue_registers[75]&0x0F : tbblue_registers[75];
 
-							Luego cuando se rota 90 grados, en vez de empezar de arriba a la izquierda, se empieza desde abajo y reduciendo coordenada Y:
+			for (i=0;i<TBBLUE_SPRITE_WIDTH;i++) {
+				z80_byte index_color;
+				if (is_4bpp) {
+					index_color=tbsprite_do_overlay_get_4bpppattern_xy(index_pattern,half_4bpp_pattern,sx,sy);
+				} else {
+					index_color=tbsprite_do_overlay_get_pattern_xy(index_pattern,sx,sy);
+				}
 
-							    ---X----
-									---XX---
-									---XXX--
-									---XXXX-
-									---X----
-									---X----
-							^ 	---X----
-							|		---X----
-
-							Entonces, al dibujar empezando asi, la imagen queda rotada:
-
-							--------
-							--------
-							XXXXXXXX
-							----XXX-
-							----XX--
-							----X---
-							--------
-
-							De ahi que el incremento y sea -incremento x , incremento x sera 0
-
-							Aplicando tambien el comportamiento para mirror, se tiene el resto de combinaciones
-
-							*/
-
-
-							if (sprite_rotate) {
-								z80_byte sy_old=sy;
-								sy=(TBBLUE_SPRITE_HEIGHT-1)-sx;
-								sx=sy_old;
-
-								incy=-incx;
-								incx=0;
-							}
-
-
-							for (i=0;i<TBBLUE_SPRITE_WIDTH;i++) {
-								z80_byte index_color=tbsprite_do_overlay_get_pattern_xy(index_pattern,sx,sy);
-
-									//Si index de color es transparente, no hacer nada
+					//Si index de color es transparente, no hacer nada
 /*
 The sprites have now a new register for sprite transparency. Unlike the Global Transparency Colour register this refers to an index and  should be set when using indices other than 0xE3:
 
 (R/W) 0x4B (75) => Transparency index for Sprites
 bits 7-0 = Set the index value. (0XE3 after a reset)
-	*/
+*/
 
-								sx=sx+incx;
-								sy=sy+incy;
-
-
-								if (index_color!=tbblue_registers[75]) {
-
-								//Sumar palette offset. Logicamente si es >256 el resultado, dará la vuelta el contador
-								index_color +=palette_offset;
-
-								//printf ("index color: %d\n",index_color);
-								
-
-								tbsprite_put_color_line(sprite_x,index_color,rangoxmin,rangoxmax);
-
-								}
-								sprite_x++;
+				sx=sx+incx;
+				sy=sy+incy;
 
 
-							}
+				if (index_color!=transparent_idx) {
 
-							total_sprites++;
-							//printf ("total sprites in this line: %d\n",total_sprites);
-							if (total_sprites==MAX_SPRITES_PER_LINE) {
-								//max sprites per line flag
-								tbblue_port_303b |=2;
-								//printf ("set max sprites per line flag\n");
-							}
+					//Sumar palette offset. Logicamente si es >256 el resultado, dará la vuelta el contador
+					index_color +=palette_offset;
 
-						}
+					tbsprite_put_color_line(sprite_x,index_color,rangoxmin,rangoxmax);
 
 				}
+				sprite_x++;
+
 			}
+
+			total_sprites++;
+			//printf ("total sprites in this line: %d\n",total_sprites);
+			if (total_sprites==MAX_SPRITES_PER_LINE) {
+				//max sprites per line flag
+				tbblue_port_303b |=2;
+				//printf ("set max sprites per line flag\n");
+			}
+
+		}
 
 
 }
@@ -4316,7 +4313,6 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 
 
 
-	//printf ("y: %d t_scanline_draw: %d rainbowy:%d sprite_y: %d\n",y,t_scanline_draw,rainbowy,sprite_y);
 	z80_byte tbblue_default_tilemap_attr=tbblue_registers[108];
 
 
