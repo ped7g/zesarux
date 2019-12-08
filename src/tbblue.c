@@ -1661,7 +1661,7 @@ void tbsprite_do_overlay(void)
 			index_pattern=tbsprite_sprites[conta_sprites][3]&63;
 			//Si coordenada y esta en margen y sprite activo
 
-			int diferencia=y-sprite_y;
+			int diferencia=(y-sprite_y)>>scaleY;
 
 			// by here all the anchor/relative stuff has to be resolved (and positioning)
 			if (diferencia < 0 || TBBLUE_SPRITE_HEIGHT <= diferencia) continue;
@@ -1778,10 +1778,17 @@ bits 7-0 = Set the index value. (0XE3 after a reset)
 					//Sumar palette offset. Logicamente si es >256 el resultado, dará la vuelta el contador
 					index_color +=palette_offset;
 
-					tbsprite_put_color_line(sprite_x,index_color,rangoxmin,rangoxmax);
+					if (scaleX) {
+						const int scaleImax = (1<<scaleX);
+						for (int scaleI = 0; scaleI < scaleImax; ++scaleI) {
+							tbsprite_put_color_line(sprite_x+scaleI,index_color,rangoxmin,rangoxmax);
+						}
+					} else {
+						tbsprite_put_color_line(sprite_x,index_color,rangoxmin,rangoxmax);
+					}
 
 				}
-				sprite_x++;
+				sprite_x += (1<<scaleX);
 
 			}
 
