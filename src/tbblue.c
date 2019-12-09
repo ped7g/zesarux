@@ -911,19 +911,19 @@ Bit	Function
 //64 patterns de Sprites
 z80_byte tbsprite_patterns[TBBLUE_MAX_PATTERNS*TBBLUE_8BIT_PATTERN_SIZE];
 
-int tbsprite_pattern_get_offset_index(z80_byte sprite,z80_byte index_in_sprite)
+int tbsprite_pattern_get_offset_index(z80_byte pattern_7b_id,z80_byte byte_offset)
 {
-	return sprite*TBBLUE_8BIT_PATTERN_SIZE+index_in_sprite;
+	return pattern_7b_id*TBBLUE_4BIT_PATTERN_SIZE+byte_offset;
 }
 
-z80_byte tbsprite_pattern_get_value_index(z80_byte sprite,z80_byte index_in_sprite)
+z80_byte tbsprite_pattern_get_value_index(z80_byte pattern_7b_id,z80_byte byte_offset)
 {
-	return tbsprite_patterns[tbsprite_pattern_get_offset_index(sprite,index_in_sprite)];
+	return tbsprite_patterns[tbsprite_pattern_get_offset_index(pattern_7b_id,byte_offset)];
 }
 
-void tbsprite_pattern_put_value_index(z80_byte sprite,z80_byte index_in_sprite,z80_byte value)
+void tbsprite_pattern_put_value_index(z80_byte pattern_7b_id,z80_byte byte_offset,z80_byte value)
 {
-	tbsprite_patterns[tbsprite_pattern_get_offset_index(sprite,index_in_sprite)]=value;
+	tbsprite_patterns[tbsprite_pattern_get_offset_index(pattern_7b_id,byte_offset)]=value;
 }
 
 
@@ -1145,7 +1145,7 @@ void tbblue_reset_sprites(void)
 	for (i=0;i<TBBLUE_MAX_PATTERNS;i++) {
 		int j;
 		for (j=0;j<256;j++) {
-			tbsprite_pattern_put_value_index(i,j,TBBLUE_DEFAULT_TRANSPARENT);
+			tbsprite_pattern_put_value_index(i<<1,j,TBBLUE_DEFAULT_TRANSPARENT);
 		}
 	}
 
@@ -1380,7 +1380,7 @@ void tbblue_out_sprite_pattern(z80_byte value)
 
 
 
-	tbsprite_pattern_put_value_index(tbsprite_index_pattern,tbsprite_index_pattern_subindex,value);
+	tbsprite_pattern_put_value_index(tbsprite_index_pattern<<1,tbsprite_index_pattern_subindex,value);
 
 
 
@@ -1501,18 +1501,18 @@ bits 7-0 = Set the index value. (0XE3 after a reset)
 
 }
 
-z80_byte tbsprite_do_overlay_get_pattern_xy(z80_byte index_pattern,z80_byte sx,z80_byte sy)
+z80_byte tbsprite_do_overlay_get_pattern_xy(z80_byte pattern_7b_id,z80_byte sx,z80_byte sy)
 {
-	return tbsprite_pattern_get_value_index(index_pattern,sy*TBBLUE_SPRITE_WIDTH+sx);
+	return tbsprite_pattern_get_value_index(pattern_7b_id,sy*TBBLUE_SPRITE_WIDTH+sx);
 }
 
-z80_byte tbsprite_do_overlay_get_4bpppattern_xy(z80_byte index_pattern, int half_pattern_ofs, z80_byte sx,z80_byte sy)
+z80_byte tbsprite_do_overlay_get_4bpppattern_xy(z80_byte pattern_7b_id,z80_byte sx,z80_byte sy)
 {
-	z80_byte offset = ((sy*TBBLUE_SPRITE_WIDTH+sx)>>1) + half_pattern_ofs;
+	z80_byte offset = (sy*TBBLUE_SPRITE_WIDTH+sx)>>1;
 	if (sx&1) {
-		return tbsprite_pattern_get_value_index(index_pattern,offset)&0x0F;
+		return tbsprite_pattern_get_value_index(pattern_7b_id,offset)&0x0F;
 	} else {
-		return tbsprite_pattern_get_value_index(index_pattern,offset)>>4;
+		return tbsprite_pattern_get_value_index(pattern_7b_id,offset)>>4;
 	}
 }
 
@@ -1566,7 +1566,7 @@ void tbsprite_do_overlay(void)
 
         //Bucle para cada sprite
         int conta_sprites;
-				z80_byte index_pattern;
+		z80_byte pattern_7b_id, half_4bpp_pattern;
 
 		int i;
 		//int offset_pattern;
@@ -1597,7 +1597,7 @@ void tbsprite_do_overlay(void)
 		if (y < rangoymin || rangoymax < y) return;
 
 		int total_sprites=0;
-		int is_4bpp = 0, half_4bpp_pattern = 0, unified_anchor = 0;
+		int is_4bpp = 0, unified_anchor = 0;
 
         for (conta_sprites=0;conta_sprites<TBBLUE_MAX_SPRITES && total_sprites<MAX_SPRITES_PER_LINE;conta_sprites++) {
 			int sprite_x;
@@ -1645,12 +1645,12 @@ void tbsprite_do_overlay(void)
 				if (512-128 < sprite_x) sprite_x -= 512;		// -127 .. +384 (cover 8x scaleX)
 				if (512-128 < sprite_y) sprite_y -= 512;		// -127 .. +384 (cover 8x scaleY)
 				is_4bpp = attr4&0x80;
-				half_4bpp_pattern = (attr4&0x40)<<1;	// will result into 0 for 8bpp type, 0/+128 for 4bpp
+				half_4bpp_pattern = (attr4&0x40)>>6;	// will result into 0 for 8bpp type, 0/1 for 4bpp
 				unified_anchor = attr4&0x20;			// 0 = composite, 0x20 = unified
 			} else {
 				sprite_x=(signed char)tbsprite_sprites[conta_sprites][0];
 				sprite_y=(signed char)tbsprite_sprites[conta_sprites][1];
-				half_4bpp_pattern = is_4bpp ? (attr4&0x20)<<2 : 0;	// 0/+128 for 4bpp, +0 for 8bpp
+				half_4bpp_pattern = is_4bpp ? (attr4&0x20)>>5 : 0;	// 0/1 for 4bpp, 0 for 8bpp
 				if (unified_anchor) {
 					//TODO
 // 					scaleX = anchor.scaleX;
@@ -1658,7 +1658,7 @@ void tbsprite_do_overlay(void)
 				}
 			}
 
-			index_pattern=tbsprite_sprites[conta_sprites][3]&63;
+			pattern_7b_id=((tbsprite_sprites[conta_sprites][3]&63)<<1)|half_4bpp_pattern;
 			//Si coordenada y esta en margen y sprite activo
 
 			int diferencia=(y-sprite_y)>>scaleY;
@@ -1756,9 +1756,9 @@ void tbsprite_do_overlay(void)
 			for (i=0;i<TBBLUE_SPRITE_WIDTH;i++) {
 				z80_byte index_color;
 				if (is_4bpp) {
-					index_color=tbsprite_do_overlay_get_4bpppattern_xy(index_pattern,half_4bpp_pattern,sx,sy);
+					index_color=tbsprite_do_overlay_get_4bpppattern_xy(pattern_7b_id,sx,sy);
 				} else {
-					index_color=tbsprite_do_overlay_get_pattern_xy(index_pattern,sx,sy);
+					index_color=tbsprite_do_overlay_get_pattern_xy(pattern_7b_id,sx,sy);
 				}
 
 					//Si index de color es transparente, no hacer nada

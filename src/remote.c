@@ -5458,7 +5458,7 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 											for (;totalitems;totalitems--) {
 												int i;
 												for (i=0;i<256;i++) {
-														 z80_byte index_color=tbsprite_pattern_get_value_index(index_int,i);
+														 z80_byte index_color=tbsprite_pattern_get_value_index(index_int<<1,i);
 	                	        escribir_socket_format(misocket,"%02X ",index_color);
 												}
 												escribir_socket(misocket,"\n");
@@ -5601,7 +5601,7 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 			char *s=find_space_or_end(parametros);
 			while (*s) {
 				valor=parse_string_to_number(s);
-				tbsprite_pattern_put_value_index(index_int,i,valor);
+				tbsprite_pattern_put_value_index(index_int<<1,i,valor);
 				i++;
 
 				s=find_space_or_end(s);
