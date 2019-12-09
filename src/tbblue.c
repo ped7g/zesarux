@@ -913,7 +913,7 @@ z80_byte tbsprite_patterns[TBBLUE_MAX_PATTERNS*TBBLUE_8BIT_PATTERN_SIZE];
 
 int tbsprite_pattern_get_offset_index(z80_byte pattern_7b_id,z80_byte byte_offset)
 {
-	return pattern_7b_id*TBBLUE_4BIT_PATTERN_SIZE+byte_offset;
+	return (pattern_7b_id*TBBLUE_4BIT_PATTERN_SIZE+byte_offset)%(TBBLUE_MAX_PATTERNS*TBBLUE_8BIT_PATTERN_SIZE);
 }
 
 z80_byte tbsprite_pattern_get_value_index(z80_byte pattern_7b_id,z80_byte byte_offset)
@@ -1540,6 +1540,14 @@ int tbblue_if_tilemap_enabled(void)
 
 }
 
+struct s_tbsprite_anchor_data {
+	int			x, y;
+	z80_byte	pal_offset;
+	z80_byte	pattern_7b_id;
+	z80_byte	x_scale, y_scale;
+	z80_byte	visible : 1, unified_anchor : 1, x_mirror : 1, y_mirror : 1, rotate : 1;
+};
+
 void tbsprite_do_overlay(void)
 {
 
@@ -1597,7 +1605,8 @@ void tbsprite_do_overlay(void)
 		if (y < rangoymin || rangoymax < y) return;
 
 		int total_sprites=0;
-		int is_4bpp = 0, unified_anchor = 0;
+		struct s_tbsprite_anchor_data anchor = { 0 };
+		int is_4bpp = 0;
 
         for (conta_sprites=0;conta_sprites<TBBLUE_MAX_SPRITES && total_sprites<MAX_SPRITES_PER_LINE;conta_sprites++) {
 			int sprite_x;
@@ -1628,11 +1637,15 @@ void tbsprite_do_overlay(void)
 			If the display of the sprites on the border is disabled, the coordinates of the sprites range from (32,32) to (287,223).
 			*/
 
-			if (!(tbsprite_sprites[conta_sprites][3]&0x80)) continue;		// not visible
-			//Si sprite visible
 			const z80_byte attr4 = tbsprite_sprites[conta_sprites][3]&0x40 ? tbsprite_sprites[conta_sprites][4] : 0;
 			const int is_anchor = 0x40 != (attr4&0xC0);
-			int scaleX = (attr4>>3)&3, scaleY = (attr4>>1)&3;
+			if (!(tbsprite_sprites[conta_sprites][3]&0x80)) {
+				if (is_anchor) anchor.visible = 0;		// hides whole relative cluster
+				continue;		// not visible
+			}
+			if (!is_anchor && !anchor.visible) continue;	// anchor not visible, skip this one
+			//Si sprite visible
+			z80_byte scaleX = (attr4>>3)&3, scaleY = (attr4>>1)&3;
 			z80_byte mirror_x=tbsprite_sprites[conta_sprites][2]&8;
 			z80_byte mirror_y=tbsprite_sprites[conta_sprites][2]&4;
 			z80_byte sprite_rotate=tbsprite_sprites[conta_sprites][2]&2;
@@ -1640,27 +1653,67 @@ void tbsprite_do_overlay(void)
 			z80_byte palette_offset=tbsprite_sprites[conta_sprites][2] & 0xF0;
 
 			if (is_anchor) {
+				anchor.visible = 1;
 				sprite_x=tbsprite_sprites[conta_sprites][0] | ((tbsprite_sprites[conta_sprites][2]&1)<<8);
 				sprite_y=tbsprite_sprites[conta_sprites][1] | ((attr4&1)<<8);
 				if (512-128 < sprite_x) sprite_x -= 512;		// -127 .. +384 (cover 8x scaleX)
 				if (512-128 < sprite_y) sprite_y -= 512;		// -127 .. +384 (cover 8x scaleY)
 				is_4bpp = attr4&0x80;
 				half_4bpp_pattern = (attr4&0x40)>>6;	// will result into 0 for 8bpp type, 0/1 for 4bpp
-				unified_anchor = attr4&0x20;			// 0 = composite, 0x20 = unified
+				pattern_7b_id=((tbsprite_sprites[conta_sprites][3]&63)<<1)|half_4bpp_pattern;
+				anchor.x = sprite_x;
+				anchor.y = sprite_y;
+				anchor.pattern_7b_id = pattern_7b_id;
+				anchor.pal_offset = palette_offset;
+				if (attr4&0x20) {
+					anchor.unified_anchor = 1;			// unified type
+					anchor.x_mirror = 0 != mirror_x;
+					anchor.y_mirror = 0 != mirror_y;
+					anchor.rotate = 0 != sprite_rotate;
+					anchor.x_scale = scaleX;
+					anchor.y_scale = scaleY;
+				} else {
+					anchor.unified_anchor = 0;			// composite type
+				}
 			} else {
 				sprite_x=(signed char)tbsprite_sprites[conta_sprites][0];
 				sprite_y=(signed char)tbsprite_sprites[conta_sprites][1];
 				half_4bpp_pattern = is_4bpp ? (attr4&0x20)>>5 : 0;	// 0/1 for 4bpp, 0 for 8bpp
-				if (unified_anchor) {
-					//TODO
-// 					scaleX = anchor.scaleX;
-// 					scaleY = anchor.scaleY;
+				pattern_7b_id=((tbsprite_sprites[conta_sprites][3]&63)<<1)|half_4bpp_pattern;
+				// relative palette offset?
+				if (tbsprite_sprites[conta_sprites][2]&1) palette_offset += anchor.pal_offset;
+				// relative pattern?
+				if (attr4&1) pattern_7b_id += anchor.pattern_7b_id;
+				if (anchor.unified_anchor) {
+					// transform child of unified anchor by the anchor mirror/scale/rotation
+					scaleX = anchor.x_scale;			// scale is just copied from anchor
+					scaleY = anchor.y_scale;
+					if (anchor.rotate) {
+						sprite_rotate = !sprite_rotate;
+						int old_x = sprite_x;
+						sprite_x = -sprite_y;
+						sprite_y = old_x;
+						z80_byte old_v = mirror_x;
+						mirror_x = sprite_rotate ? mirror_y : !mirror_y;
+						mirror_y = sprite_rotate ? old_v : !old_v;
+					}
+					if (anchor.x_mirror) {
+						mirror_x = !mirror_x;
+						sprite_x = -sprite_x;
+					}
+					if (anchor.y_mirror) {
+						mirror_y = !mirror_y;
+						sprite_y = -sprite_y;
+					}
+					sprite_x <<= scaleX;
+					sprite_y <<= scaleY;
 				}
+				// update final relative coordinates
+				sprite_x+=anchor.x;
+				sprite_y+=anchor.y;
 			}
 
-			pattern_7b_id=((tbsprite_sprites[conta_sprites][3]&63)<<1)|half_4bpp_pattern;
 			//Si coordenada y esta en margen y sprite activo
-
 			int diferencia=(y-sprite_y)>>scaleY;
 
 			// by here all the anchor/relative stuff has to be resolved (and positioning)
