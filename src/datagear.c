@@ -82,7 +82,7 @@ z80_bit datagear_dma_is_disabled={0};
 z80_bit datagear_is_dma_transfering={0};
 
 //Valor de la DMA de TBBLUE de prescaler
-z80_byte datagear_dma_tbblue_prescaler;
+z80_byte datagear_dma_tbblue_prescaler=0;
 
 int datagear_dma_last_testados=0;
 
@@ -103,7 +103,7 @@ void datagear_reset(void)
 
     datagear_wr0=datagear_wr1=datagear_wr2=datagear_wr3=datagear_wr4=datagear_wr5=datagear_wr6=0;
     datagear_is_dma_transfering.v=0;
-
+    datagear_dma_tbblue_prescaler=0;
 }
 
 /*void datagear_do_transfer(void)
@@ -592,7 +592,7 @@ Excepción:
 
 			//printf ("Tbblue and burst mode\n");
 
-			if ( (datagear_port_b_variable_timing_byte & 32)==0 ) {
+			if ( (datagear_port_b_variable_timing_byte & 32)==0 || 0 == datagear_dma_tbblue_prescaler) {
 				//printf ("burst mode not allowed on tbblue because it has no pre escalar\n");
 				dma_continuous=1; //no tiene pre escalar
 			}
