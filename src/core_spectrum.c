@@ -792,11 +792,12 @@ void core_spectrum_ciclo_fetch(void)
 				//Soporte DMA ZXUNO
 				if (MACHINE_IS_ZXUNO && zxuno_dma_disabled.v==0) zxuno_handle_dma();
 
-				//Soporte Datagear/TBBlue DMA
+				//Soporte Datagear DMA	(FIXME remove completely after zxnDMA will do the Zilog mode)
 				if (datagear_dma_emulation.v && datagear_dma_is_disabled.v==0) datagear_handle_dma(); 
 
-				//Soporte TBBlue copper
+				//Soporte TBBlue DMA & copper
 				if (MACHINE_IS_TBBLUE) {
+					if (zxndma.emulate.v && zxndma.menu_enabled.v) zxndma_emulate(&zxndma);
 					//Si esta activo copper
 					tbblue_copper_handle_next_opcode();
 				}

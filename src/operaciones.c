@@ -6150,6 +6150,12 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
 
 	}
 
+	if (zxndma.emulate.v && (puerto_l==DATAGEAR_DMA_FIRST_PORT || puerto_l==DATAGEAR_DMA_SECOND_PORT) ) {
+		//TODO the port should be only 0x6B in "zxnDMA" mode, both ports in "Zilog" mode
+		if (zxndma.menu_enabled.v) return zxndma_read_value(&zxndma);
+		return 0;
+	}
+
 	if (datagear_dma_emulation.v && (puerto_l==DATAGEAR_DMA_FIRST_PORT || puerto_l==DATAGEAR_DMA_SECOND_PORT) ) {
 			//printf ("Reading Datagear DMA Port %04XH\n",puerto);
 			//TODO
@@ -7584,6 +7590,11 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 		if (puerto==TBBLUE_UART_TX_PORT) tbblue_uartbridge_writedata(value);				
 
 
+	}
+
+	if (zxndma.emulate.v && (puerto_l==DATAGEAR_DMA_FIRST_PORT || puerto_l==DATAGEAR_DMA_SECOND_PORT) ) {
+		//TODO the port should be only 0x6B in "zxnDMA" mode, both ports in "Zilog" mode
+		if (zxndma.menu_enabled.v) zxndma_write_value(&zxndma, value);
 	}
 
 	if (datagear_dma_emulation.v && (puerto_l==DATAGEAR_DMA_FIRST_PORT || puerto_l==DATAGEAR_DMA_SECOND_PORT) ) {
