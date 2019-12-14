@@ -236,7 +236,8 @@ extern int util_get_configfile_name(char *configfile);
 enum util_mouse_buttons
 {
 	UTIL_MOUSE_LEFT_BUTTON,
-	UTIL_MOUSE_RIGHT_BUTTON
+	UTIL_MOUSE_RIGHT_BUTTON,
+	UTIL_MOUSE_MIDDLE_BUTTON
 };
 
 

@@ -1388,6 +1388,9 @@ void scrsdl_actualiza_tablas_teclado(void)
                                 //mouse_right=1;
 				util_set_reset_mouse(UTIL_MOUSE_RIGHT_BUTTON,1);
                         }
+                        if ( event.button.button == SDL_BUTTON_MIDDLE ) {
+                            util_set_reset_mouse(UTIL_MOUSE_MIDDLE_BUTTON,1);
+                        }
 
                         gunstick_x=event.button.x;
                         gunstick_y=event.button.y;
@@ -1409,6 +1412,9 @@ void scrsdl_actualiza_tablas_teclado(void)
 				util_set_reset_mouse(UTIL_MOUSE_RIGHT_BUTTON,0);
 				//mouse_right=0;
 			}
+                        if ( event.button.button == SDL_BUTTON_MIDDLE ) {
+                            util_set_reset_mouse(UTIL_MOUSE_MIDDLE_BUTTON,0);
+                        }
 
                         if ( event.button.button == SDL_BUTTON_WHEELUP ) {
                                 mouse_wheel_vertical=1;

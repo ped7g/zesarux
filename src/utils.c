@@ -5757,6 +5757,10 @@ void util_set_reset_mouse(enum util_mouse_buttons boton,int pressrelease)
       }
     break;
 
+    case UTIL_MOUSE_MIDDLE_BUTTON:
+      mouse_middle = (0 != pressrelease);
+    break;
+
   }
 
 

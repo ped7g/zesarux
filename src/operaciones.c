@@ -6046,20 +6046,32 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
                         //Buttons
 			acumulado=255;
 
-			//left button
-			if (mouse_left) acumulado &=(255-2);
+                        //left button
+                        if (mouse_left) acumulado &= ~2;
                         //right button
-                        if (mouse_right) acumulado &=(255-1);
+                        if (mouse_right) acumulado &= ~1;
                         
                         //en Next, bits altos se usan para wheel, como no los emulamos, a 0
                         //https://specnext.dev/wiki/Kempston_Mouse_Buttons
-                        if (MACHINE_IS_TBBLUE) acumulado &=0x0F;
+                        if (MACHINE_IS_TBBLUE) {
+                            if (mouse_middle) acumulado &= ~4;
+                            acumulado &=0x0F;
+                        }
                 }
 
 		//printf ("devolvemos valor: %d\n",acumulado);
 		return acumulado;
 
 	}
+
+	if (MACHINE_IS_TBBLUE && (0xDF == puerto_l) && ( 0x0A == (puerto_h&0x0F) || 0x0B == (puerto_h&0x0B) ) ) {
+		// kempston mouse ports on TBBLUE have more precise decoding, so catch them even when
+		// mouse emulation is disabled, and return reasonable values
+		// (if mouse emulation is enabled, the block above will catch and return values instead)
+		if (0x0A == (puerto_h&0x0F)) return 0x0F;	// buttons
+		return 0;	// mouse x/y
+	}
+
 
 	//If you read from a port that activates both the keyboard and a joystick port (e.g. Kempston), the joystick takes priority.
 

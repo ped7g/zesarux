@@ -79,6 +79,8 @@ z80_bit kempston_mouse_emulation;
 int mouse_left=0;
 //pulsado boton derecho raton
 int mouse_right=0;
+//pulsado boton middle
+int mouse_middle=0;
 
 //accionado wheel vertical. Positivo: scroll arriba. Negativo: scroll abajo
 int mouse_wheel_vertical=0;

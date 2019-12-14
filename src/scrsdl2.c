@@ -1459,6 +1459,9 @@ See the SDL documentation. Scancodes represent the physical position of the keys
                                 //mouse_right=1;
 				util_set_reset_mouse(UTIL_MOUSE_RIGHT_BUTTON,1);
                         }
+                        if ( event.button.button == SDL_BUTTON_MIDDLE ) {
+                            util_set_reset_mouse(UTIL_MOUSE_MIDDLE_BUTTON,1);
+                        }
 
                         //TODO: soporte rueda raton. Ya no se trata como un boton en SDL2, sino que es  SDL_MOUSEWHEEL  event
 
@@ -1482,6 +1485,9 @@ See the SDL documentation. Scancodes represent the physical position of the keys
 				//mouse_right=0;
 				util_set_reset_mouse(UTIL_MOUSE_RIGHT_BUTTON,0);
 			}
+                        if ( event.button.button == SDL_BUTTON_MIDDLE ) {
+                            util_set_reset_mouse(UTIL_MOUSE_MIDDLE_BUTTON,0);
+                        }
 
 		}
 
