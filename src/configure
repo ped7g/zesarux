@@ -20,7 +20,7 @@
 #
 
 echo
-echo "Configuration script for ZEsarUX"
+echo "Configuration script for ZEsarUX - TBBlue fork: ZESERUse"
 echo
 
 
@@ -1214,11 +1214,11 @@ CC=gcc
 INSTALLPREFIX=$INSTALLPREFIX
 
 
-all: zesarux
+all: zeseruse
 
 
-zesarux: charset.o $OPTIONOBJSTDOUT $OPTIONOBJSIMPLETEXT $OPTIONOBJCURSES $OPTIONOBJCURSESW $OPTIONOBJAA $OPTIONOBJCACA $OPTIONOBJXWINDOWS $OPTIONOBJSDL $OPTIONOBJFBDEV autoselectoptions.o chardetect.o textspeech.o scrnull.o $OPTIONOBJDSP $OPTIONOBJALSA $OPTIONOBJPULSE $OPTIONOBJCOREAUDIO $OPTIONLINUXREALJOYSTICK audionull.o ay38912.o saa_simul.o cpu.o codsinpr.o codprddfd.o codpred.o operaciones.o debug.o tape.o tape_tap.o tape_tzx.o tape_smp.o audio.o audio_sine_table.o screen.o mem128.o chloe.o prism.o tbblue.o timex.o zx8081.o jupiterace.o z88.o cpc.o sam.o atomlite.o zxuno.o snap.o snap_zsf.o snap_z81.o snap_zx8081.o snap_rzx.o snap_spg.o spg_depack.o menu.o menu_items.o settings.o core_spectrum.o core_reduced_spectrum.o core_zx8081.o core_z88.o core_cpc.o core_ace.o core_sam.o core_ql.o core_mk14.o mk14.o scmp.o timer.o contend.o disassemble.o utils.o playtzx.o mdvtool.o joystick.o ula.o mmc.o ide.o pd765.o divmmc.o divide.o diviface.o zxpand.o superupgrade.o dandanator.o betadisk.o codetests.o kartusho.o ifrom.o datagear.o spritefinder.o multiface.o spectra.o spritechip.o printers.o realjoystick.o ulaplus.o if1.o ds1307.o ql.o m68kcpu.o m68kdasm.o m68kops.o  m68kopac.o m68kopdm.o m68kopnz.o chrome.o zxevo.o tsconf.o baseconf.o remote.o esxdos_handler.o assemble.o expression_parser.o chardevice.o uartbridge.o network.o zeng.o atomic.o stats.o scl2trd.o zip.o $MAINSOURCE.o 
-	\$(CC) \$(CFLAGS) cpu.o $MAINSOURCE.o charset.o $OPTIONOBJSTDOUT $OPTIONOBJSIMPLETEXT $OPTIONOBJCURSES $OPTIONOBJCURSESW $OPTIONOBJAA $OPTIONOBJCACA $OPTIONOBJXWINDOWS $OPTIONOBJSDL $OPTIONOBJFBDEV autoselectoptions.o chardetect.o textspeech.o scrnull.o screen.o mem128.o chloe.o prism.o tbblue.o timex.o $OPTIONOBJDSP $OPTIONOBJALSA $OPTIONOBJPULSE $OPTIONOBJCOREAUDIO $OPTIONLINUXREALJOYSTICK audionull.o ay38912.o saa_simul.o codsinpr.o codprddfd.o codpred.o operaciones.o debug.o tape.o tape_tap.o tape_tzx.o tape_smp.o audio.o audio_sine_table.o zx8081.o jupiterace.o z88.o cpc.o sam.o atomlite.o zxuno.o snap.o snap_zsf.o snap_z81.o snap_spg.o spg_depack.o snap_zx8081.o snap_rzx.o menu.o menu_items.o settings.o core_spectrum.o core_reduced_spectrum.o core_zx8081.o core_z88.o core_cpc.o core_ace.o core_sam.o core_ql.o core_mk14.o mk14.o scmp.o timer.o contend.o disassemble.o utils.o playtzx.o mdvtool.o joystick.o ula.o mmc.o ide.o pd765.o divmmc.o divide.o diviface.o zxpand.o superupgrade.o dandanator.o betadisk.o codetests.o kartusho.o ifrom.o datagear.o spritefinder.o multiface.o spectra.o spritechip.o printers.o realjoystick.o ulaplus.o ds1307.o if1.o ql.o m68kcpu.o m68kdasm.o m68kops.o  m68kopac.o m68kopdm.o m68kopnz.o chrome.o zxevo.o tsconf.o baseconf.o remote.o esxdos_handler.o assemble.o expression_parser.o chardevice.o uartbridge.o network.o zeng.o atomic.o stats.o scl2trd.o zip.o -o zesarux \$(LDFLAGS)
+zeseruse: charset.o $OPTIONOBJSTDOUT $OPTIONOBJSIMPLETEXT $OPTIONOBJCURSES $OPTIONOBJCURSESW $OPTIONOBJAA $OPTIONOBJCACA $OPTIONOBJXWINDOWS $OPTIONOBJSDL $OPTIONOBJFBDEV autoselectoptions.o chardetect.o textspeech.o scrnull.o $OPTIONOBJDSP $OPTIONOBJALSA $OPTIONOBJPULSE $OPTIONOBJCOREAUDIO $OPTIONLINUXREALJOYSTICK audionull.o ay38912.o saa_simul.o cpu.o codsinpr.o codprddfd.o codpred.o operaciones.o debug.o tape.o tape_tap.o tape_tzx.o tape_smp.o audio.o audio_sine_table.o screen.o mem128.o chloe.o prism.o tbblue.o timex.o zx8081.o jupiterace.o z88.o cpc.o sam.o atomlite.o zxuno.o snap.o snap_zsf.o snap_z81.o snap_zx8081.o snap_rzx.o snap_spg.o spg_depack.o menu.o menu_items.o settings.o core_spectrum.o core_reduced_spectrum.o core_zx8081.o core_z88.o core_cpc.o core_ace.o core_sam.o core_ql.o core_mk14.o mk14.o scmp.o timer.o contend.o disassemble.o utils.o playtzx.o mdvtool.o joystick.o ula.o mmc.o ide.o pd765.o divmmc.o divide.o diviface.o zxpand.o superupgrade.o dandanator.o betadisk.o codetests.o kartusho.o ifrom.o datagear.o spritefinder.o multiface.o spectra.o spritechip.o printers.o realjoystick.o ulaplus.o if1.o ds1307.o ql.o m68kcpu.o m68kdasm.o m68kops.o  m68kopac.o m68kopdm.o m68kopnz.o chrome.o zxevo.o tsconf.o baseconf.o remote.o esxdos_handler.o assemble.o expression_parser.o chardevice.o uartbridge.o network.o zeng.o atomic.o stats.o scl2trd.o zip.o $MAINSOURCE.o 
+	\$(CC) \$(CFLAGS) cpu.o $MAINSOURCE.o charset.o $OPTIONOBJSTDOUT $OPTIONOBJSIMPLETEXT $OPTIONOBJCURSES $OPTIONOBJCURSESW $OPTIONOBJAA $OPTIONOBJCACA $OPTIONOBJXWINDOWS $OPTIONOBJSDL $OPTIONOBJFBDEV autoselectoptions.o chardetect.o textspeech.o scrnull.o screen.o mem128.o chloe.o prism.o tbblue.o timex.o $OPTIONOBJDSP $OPTIONOBJALSA $OPTIONOBJPULSE $OPTIONOBJCOREAUDIO $OPTIONLINUXREALJOYSTICK audionull.o ay38912.o saa_simul.o codsinpr.o codprddfd.o codpred.o operaciones.o debug.o tape.o tape_tap.o tape_tzx.o tape_smp.o audio.o audio_sine_table.o zx8081.o jupiterace.o z88.o cpc.o sam.o atomlite.o zxuno.o snap.o snap_zsf.o snap_z81.o snap_spg.o spg_depack.o snap_zx8081.o snap_rzx.o menu.o menu_items.o settings.o core_spectrum.o core_reduced_spectrum.o core_zx8081.o core_z88.o core_cpc.o core_ace.o core_sam.o core_ql.o core_mk14.o mk14.o scmp.o timer.o contend.o disassemble.o utils.o playtzx.o mdvtool.o joystick.o ula.o mmc.o ide.o pd765.o divmmc.o divide.o diviface.o zxpand.o superupgrade.o dandanator.o betadisk.o codetests.o kartusho.o ifrom.o datagear.o spritefinder.o multiface.o spectra.o spritechip.o printers.o realjoystick.o ulaplus.o ds1307.o if1.o ql.o m68kcpu.o m68kdasm.o m68kops.o  m68kopac.o m68kopdm.o m68kopnz.o chrome.o zxevo.o tsconf.o baseconf.o remote.o esxdos_handler.o assemble.o expression_parser.o chardevice.o uartbridge.o network.o zeng.o atomic.o stats.o scl2trd.o zip.o -o zeseruse \$(LDFLAGS)
 	@echo
 	@echo "Compilation finished"
 	@echo
@@ -1558,67 +1558,67 @@ textspeech.o: textspeech.c textspeech.h cpu.h operaciones.h debug.h screen.h cha
 
 
 clean:
-	rm -f *.o zesarux zesarux.exe smpatap sp_z80 tapabin bin_sprite_to_c leezx81 file_to_eprom bmp_to_prism_4_planar bmp_to_sprite spedtotxt install.sh 
-	rm -fR bintargztemp/ sourcetargztemp/ ZEsarUX_win-\$(EMULATOR_VERSION)/
-	rm -fR macos/zesarux.app
-	rm -fR macos/zesarux.dmg
-	rm -fR macos/zesarux.dmg.gz
-	rm -fR macos/ZEsarUX_macos*gz
-	rm -f ZEsarUX_bin-*tar.gz
-	rm -f ZEsarUX_src-*tar.gz
-	rm -f ZEsarUX_win-*.zip
-	rm -f ZEsarUX_extras-*.zip
+	rm -f *.o zeseruse zeseruse.exe smpatap sp_z80 tapabin bin_sprite_to_c leezx81 file_to_eprom bmp_to_prism_4_planar bmp_to_sprite spedtotxt install.sh 
+	rm -fR bintargztemp/ sourcetargztemp/ zeseruse_win-\$(EMULATOR_VERSION)/
+	rm -fR macos/zeseruse.app
+	rm -fR macos/zeseruse.dmg
+	rm -fR macos/zeseruse.dmg.gz
+	rm -fR macos/zeseruse_macos*gz
+	rm -f zeseruse_bin-*tar.gz
+	rm -f zeseruse_src-*tar.gz
+	rm -f zeseruse_win-*.zip
+	rm -f zeseruse_extras-*.zip
 
 COMMONFILES=ACKNOWLEDGEMENTS LICENSE LICENSES_info licenses Changelog TODO* README HISTORY FEATURES INSTALL INSTALLWINDOWS ALTERNATEROMS INCLUDEDTAPES DONATE FAQ zesarux.odt mantransfev3.bin *.rom zxuno.flash tbblue.mmc speech_filters my_soft zesarux.mp3 zesarux.xcf editionnamegame.tap editionnamegame.tap.config bin_sprite_to_c.sh
 
 ONLYSOURCEFILES=macos *.c *.m *.h *.tpl DEVELOPMENT CHECKLIST configure generate_install_sh.sh join_tzx.sh testsound.sh txt_to_basic_lines.sh automatic_tests.sh zxuno_roms_bin_a_flash.sh *.asm benchmark_*.txt current_checklist.txt patches prism_change_boot.txt 
 
 
-ONLYUNIXBINARIES=install.sh zesarux
-ONLYWINBINARIES=zesarux.exe $LIBSDL.dll $LIBPTHREADS_WIN
+ONLYUNIXBINARIES=install.sh zeseruse
+ONLYWINBINARIES=zeseruse.exe $LIBSDL.dll $LIBPTHREADS_WIN
 
 sourcetargz:
 	rm -fR sourcetargztemp
-	mkdir -p sourcetargztemp/ZEsarUX-\$(EMULATOR_VERSION)
-	cp -a \$(COMMONFILES) \$(ONLYSOURCEFILES) sourcetargztemp/ZEsarUX-\$(EMULATOR_VERSION)/
-	tar -C sourcetargztemp -cvzf ZEsarUX_src-\$(EMULATOR_VERSION).tar.gz ZEsarUX-\$(EMULATOR_VERSION)
+	mkdir -p sourcetargztemp/zeseruse-\$(EMULATOR_VERSION)
+	cp -a \$(COMMONFILES) \$(ONLYSOURCEFILES) sourcetargztemp/zeseruse-\$(EMULATOR_VERSION)/
+	tar -C sourcetargztemp -cvzf zeseruse_src-\$(EMULATOR_VERSION).tar.gz zeseruse-\$(EMULATOR_VERSION)
 	echo
-	echo "Generated file is : ZEsarUX_src-\$(EMULATOR_VERSION).tar.gz"
+	echo "Generated file is : zeseruse_src-\$(EMULATOR_VERSION).tar.gz"
 
 bintargz: all
 	./generate_install_sh.sh
 	rm -fR bintargztemp
-	mkdir -p bintargztemp/ZEsarUX-\$(EMULATOR_VERSION)
-	cp -a \$(COMMONFILES) \$(ONLYUNIXBINARIES) bintargztemp/ZEsarUX-\$(EMULATOR_VERSION)/
-	tar -C bintargztemp -cvzf ZEsarUX_bin-\$(EMULATOR_VERSION).tar.gz ZEsarUX-\$(EMULATOR_VERSION)
+	mkdir -p bintargztemp/zeseruse-\$(EMULATOR_VERSION)
+	cp -a \$(COMMONFILES) \$(ONLYUNIXBINARIES) bintargztemp/zeseruse-\$(EMULATOR_VERSION)/
+	tar -C bintargztemp -cvzf zeseruse_bin-\$(EMULATOR_VERSION).tar.gz zeseruse-\$(EMULATOR_VERSION)
 	echo
-	echo "Generated file is : ZEsarUX_bin-\$(EMULATOR_VERSION).tar.gz"
+	echo "Generated file is : zeseruse_bin-\$(EMULATOR_VERSION).tar.gz"
 
 extra_files:
-	zip -r ZEsarUX_extras-\$(EMULATOR_VERSION).zip extras
-	echo "Generated file is: ZEsarUX_extras-\$(EMULATOR_VERSION).zip"
+	zip -r zeseruse_extras-\$(EMULATOR_VERSION).zip extras
+	echo "Generated file is: zeseruse_extras-\$(EMULATOR_VERSION).zip"
 
 windows:
-	mkdir -p ZEsarUX_win-\$(EMULATOR_VERSION)
-	cp -a \$(COMMONFILES) \$(ONLYWINBINARIES) ZEsarUX_win-\$(EMULATOR_VERSION)/
-	zip -r ZEsarUX_win-\$(EMULATOR_VERSION).zip ZEsarUX_win-\$(EMULATOR_VERSION)/
+	mkdir -p zeseruse_win-\$(EMULATOR_VERSION)
+	cp -a \$(COMMONFILES) \$(ONLYWINBINARIES) zeseruse_win-\$(EMULATOR_VERSION)/
+	zip -r zeseruse_win-\$(EMULATOR_VERSION).zip zeseruse_win-\$(EMULATOR_VERSION)/
 	echo
-	echo "Generated file is: ZEsarUX_win-\$(EMULATOR_VERSION).zip"
+	echo "Generated file is: zeseruse_win-\$(EMULATOR_VERSION).zip"
 
 macapp: all
-	mkdir -p macos/zesarux.app
-	cp -r macos/apptemplate/* macos/zesarux.app/
-	cp zesarux macos/zesarux.app/Contents/MacOS/zesarux
-	cp -a \$(COMMONFILES) macos/zesarux.app/Contents/Resources/
-	rm -f macos/zesarux.dmg
-	rm -f macos/zesarux.dmg.gz
-	hdiutil create -megabytes 100 -fs HFS+ -volname ZEsarUX macos/zesarux.dmg
-	hdiutil attach -mountpoint macos/tempmount macos/zesarux.dmg
-	cp -R macos/zesarux.app macos/tempmount
+	mkdir -p macos/zeseruse.app
+	cp -r macos/apptemplate/* macos/zeseruse.app/
+	cp zeseruse macos/zeseruse.app/Contents/MacOS/zeseruse
+	cp -a \$(COMMONFILES) macos/zeseruse.app/Contents/Resources/
+	rm -f macos/zeseruse.dmg
+	rm -f macos/zeseruse.dmg.gz
+	hdiutil create -megabytes 100 -fs HFS+ -volname zeseruse macos/zeseruse.dmg
+	hdiutil attach -mountpoint macos/tempmount macos/zeseruse.dmg
+	cp -R macos/zeseruse.app macos/tempmount
 	ln -s /Applications/ macos/tempmount/Applications
 	sleep 5
 	hdiutil detach macos/tempmount
-	gzip macos/zesarux.dmg
+	gzip macos/zeseruse.dmg
 
 
 #CC32=gcc \$(CFLAGS) -m32
@@ -2460,7 +2460,7 @@ echo
 echo "Install prefix: $INSTALLPREFIX"
 
 echo
-#echo "'make' will now compile zesarux."
+#echo "'make' will now compile zeseruse."
 #echo
 #echo "You can also compile the utilities with:"
 #echo "make utils"

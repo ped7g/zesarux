@@ -62,6 +62,7 @@ cmake-build-debug/
 # Linux configure+make+install in src directory does generate these files for me:
 src/compileoptions.h
 src/zesarux
+src/zeseruse
 src/install.sh
 
 # KDevelop IDE does produce these local folders and files:
