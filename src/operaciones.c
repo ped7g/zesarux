@@ -416,18 +416,18 @@ void init_cpu_tables(void)
 	//Tabla paridad, sz53
 	for (contador=0;contador<256;contador++,value++) {
 		parity_table[value]=get_flags_parity(value);
-		debug_printf (VERBOSE_DEBUG,"Parity table: value: %3d (" BYTETOBINARYPATTERN ") parity: %d",value,BYTETOBINARY(value),parity_table[value]);
+		debug_printf (VERBOSE_PARANOID,"Parity table: value: %3d (" BYTETOBINARYPATTERN ") parity: %d",value,BYTETOBINARY(value),parity_table[value]);
 
 
 		sz53_table[value]=value & ( FLAG_3|FLAG_5|FLAG_S );
 
 		if (value==0) sz53_table[value] |=FLAG_Z;
 
-		debug_printf (VERBOSE_DEBUG,"SZ53 table: value: %3d (" BYTETOBINARYPATTERN ") flags: (" BYTETOBINARYPATTERN ") ",value,BYTETOBINARY(value),BYTETOBINARY(sz53_table[value])) ;
+		debug_printf (VERBOSE_PARANOID,"SZ53 table: value: %3d (" BYTETOBINARYPATTERN ") flags: (" BYTETOBINARYPATTERN ") ",value,BYTETOBINARY(value),BYTETOBINARY(sz53_table[value])) ;
 
 
 		sz53p_table[value]=sz53_table[value] | parity_table[value];
-		debug_printf (VERBOSE_DEBUG,"SZ53P table: value: %3d (" BYTETOBINARYPATTERN ") flags: (" BYTETOBINARYPATTERN ") ",value,BYTETOBINARY(value),BYTETOBINARY(sz53p_table[value])) ;
+		debug_printf (VERBOSE_PARANOID,"SZ53P table: value: %3d (" BYTETOBINARYPATTERN ") flags: (" BYTETOBINARYPATTERN ") ",value,BYTETOBINARY(value),BYTETOBINARY(sz53p_table[value])) ;
 
 	}
 }

@@ -240,7 +240,7 @@ int zeng_connect_remote(void)
 
 		//zsock_wait_until_command_prompt(indice_socket);
 
-		printf("Sending get-version\n");
+		debug_printf(VERBOSE_DEBUG,"ZENG: Sending get-version");
 
 		//Enviar un get-version
 		int escritos=z_sock_write_string(indice_socket,"get-version\n");
@@ -255,7 +255,7 @@ int zeng_connect_remote(void)
 		leidos=zsock_read_all_until_command(indice_socket,(z80_byte *)buffer,ZENG_BUFFER_INITIAL_CONNECT,&posicion_command);
 		if (leidos>0) {
 			buffer[leidos]=0; //fin de texto
-			printf("Received text for get-version (length %d): \n[\n%s\n]\n",leidos,buffer);
+			debug_printf(VERBOSE_DEBUG,"ZENG: Received text for get-version (length %d): \n[\n%s\n]",leidos,buffer);
 		}	
 
 		if (leidos<0) {
@@ -266,7 +266,7 @@ int zeng_connect_remote(void)
 		//1 mas para eliminar el salto de linea anterior a "command>"
 		if (posicion_command>=1) {
 			buffer[posicion_command-1]=0;
-			printf ("Recibida version: %s\n",buffer);
+			debug_printf(VERBOSE_DEBUG,"ZENG: Receiver version: %s",buffer);
 		}
 		else {
 			debug_printf (VERBOSE_ERR,"Error receiving ZEsarUX remote version");
@@ -309,14 +309,14 @@ char *zeng_send_snapshot_mem_hexa=NULL; //zeng_send_snapshot_mem_hexa
 int zeng_send_snapshot(int socket)
 {
 	//Enviar snapshot cada 20*250=5000 ms->5 segundos
-		printf ("Enviando snapshot\n");
+		debug_printf (VERBOSE_DEBUG,"ZENG: Sending snapshot");
 
 		int posicion_command;
 		int escritos,leidos;
 
 				
 			
-				printf ("Sending put-snapshot\n");
+				//printf ("Sending put-snapshot\n");
 				escritos=z_sock_write_string(socket,"put-snapshot ");
 				if (escritos<0) return escritos;
 			
@@ -449,7 +449,7 @@ Poder enviar mensajes a otros jugadores
 		//Si hay tecla pendiente de enviar
 		zeng_key_presses elemento;
 		while (!zeng_fifo_read_element(&elemento) && !error_desconectar) {
-			printf ("leido evento de la zeng fifo tecla %d pressrelease %d\n",elemento.tecla,elemento.pressrelease);
+			debug_printf (VERBOSE_DEBUG,"ZENG: Read event from zeng fifo and sending it to remote: key %d pressrelease %d",elemento.tecla,elemento.pressrelease);
 
 			//command> help send-keys-event
 			//Syntax: send-keys-event key event
@@ -540,7 +540,7 @@ void zeng_send_snapshot_if_needed(void)
 					//metemos salto de linea y 0 al final
 					strcpy (&zeng_send_snapshot_mem_hexa[char_destino],"\n");
 
-					printf ("Poniendo en cola snapshot para enviar snapshot longitud %d\n",longitud);
+					debug_printf (VERBOSE_DEBUG,"ZENG: Queuing snapshot to send, length: %d",longitud);
 
 
 					//Liberar memoria que ya no se usa
@@ -695,7 +695,7 @@ void zeng_add_pending_send_message_footer(char *mensaje)
 	if (!pending_zeng_send_message_footer) {
 		sprintf(zeng_send_message_footer,"print-footer %s\n",mensaje);
 		pending_zeng_send_message_footer=1;
-		printf ("Poniendo en cola enviar mensaje a remoto: %s\n",mensaje);
+		debug_printf (VERBOSE_DEBUG,"Queuing sending message to remote: %s",mensaje);
 	}
 
 }

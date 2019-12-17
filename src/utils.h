@@ -868,4 +868,8 @@ extern int convert_pzx_to_rwa(char *origen, char *destino);
 #define PZX_CURRENT_MAJOR_VERSION 1
 #define PZX_CURRENT_MINOR_VERSION 0
 
+extern int convert_scr_to_tap(char *origen, char *destino);
+
+extern z80_byte get_memory_checksum_spectrum(z80_byte crc,z80_byte *origen,int longitud);
+
 #endif

@@ -345,9 +345,9 @@ EOF
 #include <unistd.h>
 #include <fcntl.h>
 
-#ifndef MINGW
+
 #include <sys/ioctl.h>
-#endif
+
 
 #include <stdlib.h>
 #include <errno.h>
@@ -360,6 +360,7 @@ EOF
 #include "debug.h"
 #include "joystick.h"
 #include "compileoptions.h"
+#include "menu.h"
 
 
 
@@ -378,17 +379,13 @@ int realjoystick_linux_hit(void)
 
 	if (realjoystick_present.v==0) return 0;
 
-#ifndef MINGW
+
 	struct timeval tv = { 0L, 0L };
 	fd_set fds;
 	FD_ZERO(&fds);
 	FD_SET(ptr_realjoystick_linux, &fds);
 	return select(ptr_realjoystick_linux+1, &fds, NULL, NULL, &tv);
-#else
-	//Para windows retornar siempre 0
-	//aunque aqui no llegara, solo para que no se queje el compilador
-	return 0;
-#endif
+
 }
 
 
@@ -398,25 +395,13 @@ int realjoystick_linux_hit(void)
 int realjoystick_linux_init(void)
 {
 
-	debug_printf(VERBOSE_INFO,"Initializing real joystick. Using native linux support");
-
-	if (simulador_joystick==1) {
-		printf ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-		        "WARNING: using joystick simulator. Don't enable it on production version. Use F7 key to simulate joystick event\n"
-			"!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-		sleep(4);
-		return 0;
-	}
-
 	
 
-#ifndef USE_LINUXREALJOYSTICK
-	debug_printf(VERBOSE_INFO,"Linux real joystick support disabled on compilation");
-	return 1;
-#endif
+
+	debug_printf(VERBOSE_DEBUG,"Initializing real joystick. Using native linux support. Using device %s",string_dev_joystick);
 
 
-#ifndef MINGW
+
 	ptr_realjoystick_linux=open(string_dev_joystick,O_RDONLY|O_NONBLOCK);
 	if (ptr_realjoystick_linux==-1) {
 		debug_printf(VERBOSE_INFO,"Unable to open joystick %s : %s",string_dev_joystick,strerror(errno));
@@ -447,10 +432,82 @@ int realjoystick_linux_init(void)
 	*/
 
 
+	if (ioctl(ptr_realjoystick_linux, JSIOCGNAME(REALJOYSTICK_MAX_NAME), realjoystick_joy_name) < 0) {
+		strcpy(realjoystick_joy_name,"Unknown");
+	}
+
+	debug_printf(VERBOSE_DEBUG,"Name: %s", realjoystick_joy_name);	
+
+
+	char number_of_axes;
+	ioctl (ptr_realjoystick_linux, JSIOCGAXES, &number_of_axes);
+	debug_printf(VERBOSE_DEBUG,"Number of axes: %d",number_of_axes);
+	realjoystick_total_axes=number_of_axes;
+	
+
+	char number_of_buttons;
+	ioctl (ptr_realjoystick_linux, JSIOCGBUTTONS, &number_of_buttons);
+	debug_printf(VERBOSE_DEBUG,"Number of buttons: %d",number_of_buttons);
+	realjoystick_total_buttons=number_of_buttons;
+
+
+	strcpy(realjoystick_driver_name,"Linux Native");
+
+
+/*
+4. IOCTLs
+~~~~~~~~~
+
+The joystick driver defines the following ioctl(2) operations.
+
+				 function			3rd arg  
+	#define JSIOCGAXES	 get number of axes		char	 
+	#define JSIOCGBUTTONS	 get number of buttons	char	 
+	#define JSIOCGVERSION	get driver version		int	 
+	#define JSIOCGNAME(len)  get identifier string	char	 
+	#define JSIOCSCORR	 set correction values	&js_corr 
+	#define JSIOCGCORR	 get correction values	&js_corr 
+
+For example, to read the number of axes
+
+	char number_of_axes;
+	ioctl (fd, JSIOCGAXES, &number_of_axes);
+
+
+4.1 JSIOGCVERSION
+~~~~~~~~~~~~~~~~~
+
+JSIOGCVERSION is a good way to check in run-time whether the running
+driver is 1.0+ and supports the event interface. If it is not, the
+IOCTL will fail. For a compile-time decision, you can test the
+JS_VERSION symbol
+
+	#ifdef JS_VERSION
+	#if JS_VERSION > 0xsomething
+
+
+4.2 JSIOCGNAME
+~~~~~~~~~~~~~~
+
+JSIOCGNAME(len) allows you to get the name string of the joystick - the same
+as is being printed at boot time. The 'len' argument is the length of the
+buffer provided by the application asking for the name. It is used to avoid
+possible overrun should the name be too long.
+
+	char name[128];
+	if (ioctl(fd, JSIOCGNAME(sizeof(name)), name) < 0)
+		strncpy(name, "Unknown", sizeof(name));
+	printf("Name: %s\n", name);
+
+*/
+
+
+
+
 	realjoystick_present.v=1;
 
 	return 0;
-#endif
+
 
 }
 
@@ -493,17 +550,15 @@ int realjoystick_linux_read_event(int *button,int *type,int *value)
 
 	realjoystick_hit=1;
 
-	if (simulador_joystick==1) {
-		read_simulador_joystick(ptr_realjoystick_linux, &e, sizeof(e));
-	}
 
-	else {
+
+	
 		int leidos=read(ptr_realjoystick_linux, &e, sizeof(e));
 		if (leidos<0) {
 			debug_printf (VERBOSE_ERR,"Error reading real joystick. Disabling it");
 			realjoystick_present.v=0;
 		}
-	}
+	
 
 	debug_printf (VERBOSE_DEBUG,"event: time: %d value: %d type: %d number: %d",e.time,e.value,e.type,e.number);
 
@@ -541,16 +596,16 @@ int realjoystick_linux_read_event(int *button,int *type,int *value)
 
 
 
-
-
-
-
 //lectura de evento de joystick y conversion a movimiento de joystick spectrum
 void realjoystick_linux_main(void)
 {
 
+	//printf ("on realjoystick_linux_main\n");
 
 	if (realjoystick_present.v==0) return;
+
+	//printf ("on realjoystick_linux_main. joystick is present\n");
+
 
 	int button,type,value;
 
@@ -559,11 +614,9 @@ void realjoystick_linux_main(void)
 		if ( (type&JS_EVENT_INIT)!=JS_EVENT_INIT) {
 
 
-			realjoystick_last_raw_value=value;
+			menu_info_joystick_last_raw_value=value;
 
 			realjoystick_common_set_event(button,realjoystick_linux_event_to_common(type),value);
-
-			
 
 
 

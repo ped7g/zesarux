@@ -90,7 +90,12 @@ extern int realjoystick_autocalibrate_value;
 
 extern int realjoystick_read_event(int *button,int *type,int *value);
 
-extern void realjoystick_set_default_functions(void);
+//extern void realjoystick_set_default_functions(void);
+
+extern void realjoystick_new_set_default_functions(void);
+
+extern void realjoystick_init_events_keys_tables(void);
+extern void realjoystick_initialize_joystick(void);
 
 extern char string_dev_joystick[];
 
@@ -175,17 +180,29 @@ extern int realjoystick_set_button_key(char *text_button,char *text_key);
 
 extern int realjoystick_set_event_key(char *text_event,char *text_key);
 
-extern int realjoystick_last_button;
-extern int realjoystick_last_type;
-extern int realjoystick_last_value;
-extern int realjoystick_last_index;
-extern int realjoystick_last_raw_value;
+extern void realjoystick_common_set_event(int button,int type,int value);
+
+
 
 extern int simulador_joystick;
 extern int simulador_joystick_forzado;
 
 //extern int realjoystick_find_event(int indice_inicial,int button,int type,int value);
 extern int realjoystick_buscar_evento_en_tabla(int button, int button_type);
+
+extern void realjoystick_reopen_driver(void);
+extern int realjoystick_is_linux_native(void);
+extern void realjoystick_start_driver(void);
+
+extern int realjoystick_total_buttons;
+extern int realjoystick_total_axes;
+#define REALJOYSTICK_MAX_NAME 32
+
+extern char realjoystick_joy_name[];
+
+#define REALJOYSTICK_MAX_DRIVER_NAME 40
+
+extern char realjoystick_driver_name[];
 
 
 #endif

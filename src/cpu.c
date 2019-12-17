@@ -1923,6 +1923,7 @@ printf (
 	printf(
 		"--disablerealjoystick      Disable real joystick emulation\n"
 		"--realjoystickpath f       Change default real joystick device path\n"
+		"--realjoystick-calibrate n Parameter to autocalibrate joystick axis. Axis values read from joystick less than n and greater than -n are considered as 0. Default: 16384. Not used on native linux real joystick\n"
 
 #ifdef USE_LINUXREALJOYSTICK
 		"--no-native-linux-realjoy  Do not use native linux real joystick support. Instead use the video driver joystick support (currently only SDL)\n"
@@ -3756,6 +3757,15 @@ void set_menu_gui_zoom(void)
 	debug_printf (VERBOSE_INFO,"Setting GUI menu zoom to %d",menu_gui_zoom);
 }
 
+void post_set_mach_reopen_screen(void)
+{
+				debug_printf(VERBOSE_INFO,"End Screen");
+			scr_end_pantalla();
+			debug_printf(VERBOSE_INFO,"Creating Screen");
+			screen_init_pantalla_and_others_and_realjoystick();
+
+			//scr_init_pantalla();
+}
 
 /*
 Reabrir ventana en caso de que maquina seleccionada tenga tamanyo diferente que la anterior
@@ -3774,11 +3784,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 
 		if ( (MACHINE_IS_Z88 && last_machine_type!=130)  || (last_machine_type==130 && !(MACHINE_IS_Z88) ) ) {
 			debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing Z88 to/from other machine)");
-			debug_printf(VERBOSE_INFO,"End Screen");
-			scr_end_pantalla();
-			debug_printf(VERBOSE_INFO,"Creating Screen");
-			screen_init_pantalla_and_others();
-			//scr_init_pantalla();
+			post_set_mach_reopen_screen();
 			return;
 		}
 	}
@@ -3791,11 +3797,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 											if ( (MACHINE_IS_CPC && !(last_machine_type>=140 && last_machine_type<=149) )  || (  (last_machine_type>=140 && last_machine_type<=149) && !(MACHINE_IS_CPC) ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing CPC to/from other machine)");
 
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -3807,11 +3809,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 											if ( (MACHINE_IS_SAM && !(last_machine_type>=150 && last_machine_type<=159) )  || (  (last_machine_type>=150 && last_machine_type<=159) && !(MACHINE_IS_SAM) ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing SAM to/from other machine)");
 
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -3823,11 +3821,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 											if ( (MACHINE_IS_QL && !(last_machine_type>=160 && last_machine_type<=179) )  || (  (last_machine_type>=160 && last_machine_type<=179) && !(MACHINE_IS_QL) ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing QL to/from other machine)");
 
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -3841,11 +3835,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 											if ( (MACHINE_IS_PRISM && last_machine_type!=18)   || (last_machine_type==18 && !(MACHINE_IS_PRISM)  ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing PRISM to/from other machine)");
 
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -3857,11 +3847,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 											if ( (MACHINE_IS_TBBLUE && last_machine_type!=MACHINE_ID_TBBLUE)   || (last_machine_type==MACHINE_ID_TBBLUE && !(MACHINE_IS_TBBLUE)  ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing TBBLUE to/from other machine)");
 
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -3873,11 +3859,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 											if ( (MACHINE_IS_TSCONF && last_machine_type!=MACHINE_ID_TSCONF)   || (last_machine_type==MACHINE_ID_TSCONF && !(MACHINE_IS_TSCONF)  ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing TSCONF to/from other machine)");
 
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -3890,11 +3872,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 											if ( (MACHINE_IS_MK14 && last_machine_type!=MACHINE_ID_MK14_STANDARD)   || (last_machine_type==MACHINE_ID_MK14_STANDARD && !(MACHINE_IS_MK14)  ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing MK14 to/from other machine)");
 
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -3904,11 +3882,7 @@ void post_set_machine_no_rom_load_reopen_window(void)
 
 											if ( (MACHINE_IS_SPECTRUM && !(last_machine_type<30) )  || (  (last_machine_type<30) && !(MACHINE_IS_SPECTRUM) ) ) {
 															debug_printf (VERBOSE_INFO,"Reopening window so machine has different size (changing Spectrum to/from other machine)");
-															debug_printf(VERBOSE_INFO,"End Screen");
-															scr_end_pantalla();
-															debug_printf(VERBOSE_INFO,"Creating Screen");
-															//scr_init_pantalla();
-															screen_init_pantalla_and_others();
+															post_set_mach_reopen_screen();
 															return;
 											}
 							}
@@ -6897,7 +6871,7 @@ int parse_cmdline_options(void) {
 
 
 			else if (!strcmp(argv[puntero_parametro],"--disablerealjoystick")) {
-				realjoystick_present.v=0;
+				//realjoystick_present.v=0;
 				realjoystick_disabled.v=1;
 			}
 
@@ -6911,7 +6885,17 @@ int parse_cmdline_options(void) {
 				strcpy(string_dev_joystick,argv[puntero_parametro]);
 				
 			}
-			
+
+			else if (!strcmp(argv[puntero_parametro],"--realjoystick-calibrate")) {
+				siguiente_parametro_argumento();
+				int valor=parse_string_to_number(argv[puntero_parametro]);
+				if (valor<0 || valor>32000) {
+					printf ("Invalid value %d for setting --realjoystick-calibrate\n",valor);
+                    exit(1);				
+				}
+				realjoystick_autocalibrate_value=valor;
+			}
+
 
 			else if (!strcmp(argv[puntero_parametro],"--joystickevent")) {
 				char *text_button;
@@ -7251,7 +7235,8 @@ int zesarux_main (int main_argc,char *main_argv[]) {
 
 	if (main_argc>1) {
 		if (!strcmp(main_argv[1],"--version")) {
-			printf ("ZEsarUX Version: " EMULATOR_VERSION " Date: " EMULATOR_DATE " - " EMULATOR_EDITION_NAME "\n");
+		//	printf ("ZEsarUX Version: " EMULATOR_VERSION " Date: " EMULATOR_DATE " - " EMULATOR_EDITION_NAME "\n");
+			printf ("ZEsarUX v." EMULATOR_VERSION " - " EMULATOR_EDITION_NAME ". " EMULATOR_DATE  "\n");
 			exit(0);
 		}
 	}
@@ -7327,7 +7312,8 @@ Also, you should keep the following copyright message, beginning with "Begin Cop
 
 		
 
-			printf ("ZEsarUX Version: " EMULATOR_VERSION " Date: " EMULATOR_DATE " - " EMULATOR_EDITION_NAME "\n"
+		  //printf ("ZEsarUX Version: " EMULATOR_VERSION " Date: " EMULATOR_DATE " - " EMULATOR_EDITION_NAME "\n"
+			printf ("ZEsarUX v." EMULATOR_VERSION " - " EMULATOR_EDITION_NAME ". " EMULATOR_DATE  "\n"
 			
 					"\n");
 
@@ -7526,7 +7512,11 @@ tooltip_enabled.v=1;
                 sprintf (external_tool_gunzip,"/usr/bin/gunzip");
 #endif
 
-	realjoystick_set_default_functions();
+	//antiguo
+	//realjoystick_new_set_default_functions();
+
+	//nuevo:
+	realjoystick_init_events_keys_tables();
 
 
 		//por si lanzamos un cpu_panic antes de inicializar video, que esto este a NULL y podamos detectarlo para no ejecutarlo
@@ -7660,6 +7650,19 @@ init_randomize_noise_value();
 	menu_debug_daad_init_flagobject();
 
 
+
+#ifdef USE_LINUXREALJOYSTICK
+
+	//Soporte nativo de linux joystick
+	if (no_native_linux_realjoystick.v==0) {
+		realjoystick_init=realjoystick_linux_init;
+		realjoystick_main=realjoystick_linux_main;
+	}
+#endif	
+
+
+
+
 	debug_printf (VERBOSE_INFO,"Starting emulator");
 
 
@@ -7740,22 +7743,12 @@ init_randomize_noise_value();
 	mid_reset_export_buffers();
 
 
-	//Si estamos en Linux , el driver de joystick es el nativo, a no ser que se especifique lo contrario
-#ifdef USE_LINUXREALJOYSTICK
 
-	if (no_native_linux_realjoystick.v==0) {
-		realjoystick_init=realjoystick_linux_init;
-		realjoystick_main=realjoystick_linux_main;
-		//realjoystick_hit=realjoystick_linux_hit;
+	//Inicializar joystick en caso de linux native o simulador
+	if (realjoystick_is_linux_native() || simulador_joystick) {
+		realjoystick_initialize_joystick();
 	}
-#endif	
 
-
-	if (realjoystick_present.v==1) {
-			if (realjoystick_init()) {
-				realjoystick_present.v=0;
-			}
-	}
 
 	if (aofilename!=NULL) {
 			init_aofile();

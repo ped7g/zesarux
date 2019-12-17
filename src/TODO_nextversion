@@ -2,49 +2,24 @@
 
 -Quiza darle mas buffer a disassemble en debug cpu: motorola tiene opcodes muy largos a veces. ir por ejemplo a direccion F0H
 
+
+-Luego no se si tiene sentido el setting:
+cleareventlist
+Quizá solo tiene sentido en juegos con auto config file. O no , en juegos de debería usar joystick to key, 
+y no alterar tabla de eventos
+
+ 
+-Waveform que vaya haciendo fade out (sin scroll) de píxeles anteriores. Para esto require tener varios niveles de color de un pixel
+
+-Mejora para first aid:
+Un tercer botón que diga “take me there” para cuando sugiere menús, que te lleve al menú en cuestión 
+(por ejemplo cuando detecta joystick y dice que vayas al menú de real joystick para configurarlo)
+
+
 -Menú debug cpu extra debug con extended debug, cpu history, code coverage etc
 
--Joystick en windows (SDL). Fases
-
-*parametro de calibrado tambien en linux nativo
-
-*test de joystick que muestre incrementos en raw en sdl tambien
-->para ello, hay que tener funcion especial de hit, que no considere parametro de umbral de autocalibrado (realjoystick_autocalibrate_value)
-
-
-* Simulador de joystick deberia ser siempre accesible tanto si hay como si no soporte joystick 
-
-
-http://brightrain.aerifal.cx/~niklata/files/unix/fceu-sdlusbjoy.patch
-
-Leer nombre en Linux:
-
-https://www.kernel.org/doc/Documentation/input/joystick-api.txt
-
-
-
-
-
-SDL_API - SDL Documentation Wiki
-http://sdl.beuc.net/sdl.wiki/SDL_API
-
-* revisar TODO de realjoystick y de realjoystick_sdl
-
-* meterlo en documentacion, etc
-
--Fin joystick en windows
-
-
--First aid de ZRCP no tiene que decir lo de Windows Thread
-Ya que todas las versiones Windows serán con pthreads 
 
 -Extended stack inicializado con ceros
-
-
--para probar reset permisos carpetas mac:
-tccutil reset SystemPolicyDocumentsFolder com.cesarhernandez.zesarux
-tccutil reset SystemPolicyDownloadsFolder com.cesarhernandez.zesarux
-tccutil reset SystemPolicyDesktopFolder com.cesarhernandez.zesarux
 
 
 -ZENG: eliminar debug de zeng y zrcp al pulsar teclas, joystick, envio snapshot
@@ -69,7 +44,7 @@ Pero eso debe coincidir con version.h de código
 -Compilar windows con:
 export CFLAGS "-I/c/openssl-1.1.1d-win32-mingw/include"
 export LDFLAGS "-L/c/openssl-1.1.1d-win32-mingw/lib"
-./configure --enable-ssl --enable-memptr --enable-visualmem --enable-cpustats
+./configure --enable-ssl --enable-memptr --enable-visualmem --enable-cpustats --enable-ssl
 
 -probar ssl en windows. Descargando prebuilds de ssl para mingw
 https://wiki.openssl.org/index.php/Binaries
@@ -211,6 +186,7 @@ https://www.binarytides.com/socket-programming-c-linux-tutorial/
 --ZENG:
 
 -probar doom mania (juego a dobles al doom)
+
 
 
 

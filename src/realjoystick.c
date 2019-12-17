@@ -90,7 +90,15 @@ void (*realjoystick_main)(void);
 int realjoystick_hit=0;
 
 
+int realjoystick_total_buttons=0;
+int realjoystick_total_axes=0;
+char realjoystick_joy_name[REALJOYSTICK_MAX_NAME+1]=""; //+1 por si acaso no me acuerdo del 0 final...
+char realjoystick_driver_name[REALJOYSTICK_MAX_DRIVER_NAME+1]="";
+
+
 //Parametro de "autocalibrado". Valores de axis entre -VALOR y +VALOR, se consideran 0
+//v>-realjoystick_autocalibrate_value && v<realjoystick_autocalibrate_value ->0
+//De momento solo se usa en driver SDL. En nativo linux no usarlo: hasta ahora nunca ha hecho falta, mejor no meterlo
 int realjoystick_autocalibrate_value=16383;
 
 
@@ -147,10 +155,10 @@ int realjoystick_get_event_string(char *texto)
         int i;
 
         for (i=0;i<MAX_EVENTS_JOYSTICK;i++) {
-		if (!strcasecmp(texto,realjoystick_event_names[i])) {
-			debug_printf (VERBOSE_DEBUG,"Event %s has event number: %d",texto,i);
-			return i;
-		}
+			if (!strcasecmp(texto,realjoystick_event_names[i])) {
+				debug_printf (VERBOSE_DEBUG,"Event %s has event number: %d",texto,i);
+				return i;
+			}
         }
 
 
@@ -204,15 +212,21 @@ void realjoystick_clear_events_array(void)
 
 }
 
-
-void realjoystick_set_default_functions(void)
+void realjoystick_init_events_keys_tables(void)
 {
-	//primero desasignamos todos
 	//eventos
 	realjoystick_clear_events_array();
 
 	//y teclas
-	realjoystick_clear_keys_array();
+	realjoystick_clear_keys_array();	
+}
+
+
+void realjoystick_new_set_default_functions(void)
+{
+	//primero desasignamos todos
+	//eventos
+	realjoystick_init_events_keys_tables();
 
 
 	//y luego asignamos algunos por defecto
@@ -305,45 +319,98 @@ int realjoystick_null_init(void)
 	return 1;
 }
 
+//Null se encarga de driver de joystick cuando no hay joystick pero tambien de gestionar el simulador de joystick
 void realjoystick_null_main(void)
 {
+	if (realjoystick_present.v==0) return;
+	//printf ("realjoystick_null_main\n");
+
+
+
+	//El null al final le hacemos que desactive el joystick, para que no aparezca joystick en menu
+	//El tema es que se podria hacer cuando se llama a null_init, pero no se llama a realjoystick_null_init
+	//dado que el init del joystick lo tiene que hacer el driver de video (caso de sdl ejemplo), o el linux joystick nativo
+	//en caso del null no llama nadie al init
+	debug_printf (VERBOSE_DEBUG,"Disabling joystick support as we are using the default null driver");
+	realjoystick_present.v=0;
+
 
 }
 
-/*
-int realjoystick_null_hit(void)
+
+int realjoystick_simulador_init(void)
 {
+	debug_printf (VERBOSE_DEBUG,"realjoystick_simulador_init");
+
+
+
+		printf ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+		        "WARNING: using joystick simulator. Don't enable it on production version. Use F7 key to simulate joystick event\n"
+			"!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		sleep(4);
+	
+
+
+	strcpy(realjoystick_joy_name,"Joystick simulator");
+	realjoystick_total_axes=255;
+	realjoystick_total_buttons=255;
+	strcpy(realjoystick_driver_name,"Simulator");
 	return 0;
 }
-*/
 
 
-void read_simulador_joystick(int fd,struct js_event *e,int bytes)
+void read_simulador_joystick(void)
 {
-
-	int value,type,number;
-
-	printf ("button number: ");
-	scanf ("%d",&number);
-
-        printf ("button type: (%d=button, %d=axis)",REALJOYSTICK_INPUT_EVENT_BUTTON,REALJOYSTICK_INPUT_EVENT_AXIS);
-        scanf ("%d",&type);
-
-        printf ("button value: ");
-        scanf ("%d",&value);
-
-	e->number=number;
-	e->type=type;
-	e->value=value;
-
 	simulador_joystick_forzado=0;
 
-	//para que no salte warning de no usado
-	fd++;
-	bytes++;
+	int value,type,button;
+
+	printf ("Button number: ");
+	scanf ("%d",&button);
+	if (button<0 || button>255) {
+		printf ("Invalid button number\n");
+		return;
+	}
+
+	printf ("Button type: (%d=button, %d=axis)",REALJOYSTICK_INPUT_EVENT_BUTTON,REALJOYSTICK_INPUT_EVENT_AXIS);
+	scanf ("%d",&type);
+
+	printf ("Button value: ");
+	scanf ("%d",&value);
+
+	if (value<-32767 || value>32767) {
+		printf ("Invalid value\n");
+		return;
+	}	
+
+	printf ("OK simulating joystick button/axis: button: %d type: %d value: %d\n",button,type,value);
+
+	realjoystick_hit=1;
+
+	menu_info_joystick_last_raw_value=value;
+
+	realjoystick_common_set_event(button,type,value);
+
+
+
+
 
 
 }
+
+
+//Null se encarga de driver de joystick cuando no hay joystick pero tambien de gestionar el simulador de joystick
+void realjoystick_simulador_main(void)
+{
+	if (realjoystick_present.v==0) return;
+	//printf ("realjoystick_simulador_main\n");
+
+	if (simulador_joystick_forzado) {
+		read_simulador_joystick();
+	}
+
+}
+
 
 
 
@@ -485,24 +552,7 @@ void realjoystick_send_f_function(int accion)
       menu_button_f_function.v=1;
       menu_button_f_function_action=accion;
       menu_abierto=1;
-	  /*
 
-		//Entrada
-		//menu_espera_no_tecla();
-		osd_kb_no_mostrar_desde_menu=0; //Volver a permitir aparecer teclado osd
-
-		//Procesar comandos F
-
-		//menu_button_f_function.v=1;
-      	//menu_button_f_function_index=F_FUNCION_QUICKSAVE;
-      	menu_abierto=1;
-		menu_process_f_functions_by_action(accion);
-
-		menu_muestra_pending_error_message(); //Si se genera un error derivado de funcion F
-		cls_menu_overlay();
-
-		menu_abierto=0;
-	*/
 }
 
 //si value=0, es reset
@@ -651,12 +701,7 @@ void realjoystick_set_reset_action(int index,int value)
 }
 
 
-//Variables leidas desde menu para el comprobador de joystick
-int realjoystick_last_button;
-int realjoystick_last_type;
-int realjoystick_last_value;
-int realjoystick_last_index;
-int realjoystick_last_raw_value;
+
 
 
 
@@ -689,7 +734,7 @@ int realjoystick_redefine_event_key(realjoystick_events_keys_function *tabla,int
 
 	debug_printf (VERBOSE_DEBUG,"Redefine action: %d",indice);
 
-	printf ("Redefine action: %d\n",indice);
+	//printf ("Redefine action: %d\n",indice);
 
 	simulador_joystick_forzado=1;
 
@@ -702,7 +747,7 @@ int realjoystick_redefine_event_key(realjoystick_events_keys_function *tabla,int
 	//si no se ha pulsado joystick, pues se habra pulsado tecla
 	if (!realjoystick_hit ) {
 		debug_printf (VERBOSE_DEBUG,"Pressed key, not joystick");
-		printf ("Pressed key, not joystick\n");
+		//printf ("Pressed key, not joystick\n");
 		return 0;
 	}
 
@@ -710,17 +755,17 @@ int realjoystick_redefine_event_key(realjoystick_events_keys_function *tabla,int
 	debug_printf (VERBOSE_DEBUG,"Pressed joystick");
 
 
-			button=realjoystick_last_button;
+			button=menu_info_joystick_last_button;
 
-			type=realjoystick_last_type;
-			value=realjoystick_last_value;
+			type=menu_info_joystick_last_type;
+			value=menu_info_joystick_last_value;
 
-	if (1) {
+	//if (1) {
 	//if (realjoystick_read_event(&button,&type,&value) ==1 ) {
 		debug_printf (VERBOSE_DEBUG,"redefine for button: %d type: %d value: %d",button,type,value);
-		printf ("redefine for button: %d type: %d value: %d\n",button,type,value);
+		//printf ("redefine for button: %d type: %d value: %d\n",button,type,value);
                 //eventos de init no hacerles caso, de momento
-                if ( (type&REALJOYSTICK_INPUT_EVENT_INIT)!=REALJOYSTICK_INPUT_EVENT_INIT) {
+		if ( (type&REALJOYSTICK_INPUT_EVENT_INIT)!=REALJOYSTICK_INPUT_EVENT_INIT) {
 			debug_printf (VERBOSE_DEBUG,"redefine for button: %d type: %d value: %d",button,type,value);
 
 			int button_type=0;
@@ -749,19 +794,19 @@ int realjoystick_redefine_event_key(realjoystick_events_keys_function *tabla,int
 				return 0;
 			}
 
-                        tabla[indice].asignado.v=1;
+			tabla[indice].asignado.v=1;
 			tabla[indice].button=button;
 			tabla[indice].button_type=button_type;
 
-                }
+			}
 
 
-        }
+    //}
 
 	return 1;
 }
 
-//redefinir evento
+
 //redefinir evento
 //Devuelve 1 si ok
 //0 si salimos con ESC
@@ -833,22 +878,22 @@ int realjoystick_set_button_event(char *text_button, char *text_event)
 
 //--joystickevent but evt    Set a joystick button or axis to an event (changes joystick to event table)
 
-                                //obtener boton
-                                int button,button_type;
-                                realjoystick_get_button_string(text_button,&button,&button_type);
+				//obtener boton
+				int button,button_type;
+				realjoystick_get_button_string(text_button,&button,&button_type);
 
-                                //obtener evento
-                                int evento=realjoystick_get_event_string(text_event);
-                                if (evento==-1) {
+				//obtener evento
+				int evento=realjoystick_get_event_string(text_event);
+				if (evento==-1) {
 					debug_printf (VERBOSE_ERR,"Unknown event %s",text_event);
 					return 1;
-                                }
+				}
 
 
-                                //Y definir el evento
-                                realjoystick_events_array[evento].asignado.v=1;
-                                realjoystick_events_array[evento].button=button;
-                                realjoystick_events_array[evento].button_type=button_type;
+				//Y definir el evento
+				realjoystick_events_array[evento].asignado.v=1;
+				realjoystick_events_array[evento].button=button;
+				realjoystick_events_array[evento].button_type=button_type;
 
 	return 0;
 }
@@ -935,15 +980,14 @@ void realjoystick_common_set_event(int button,int type,int value)
 		if ( (type&REALJOYSTICK_INPUT_EVENT_INIT)!=REALJOYSTICK_INPUT_EVENT_INIT) {
 
 
-			/*if (button>20) {
-				printf ("!!!!!!!Boton %d\n",button);
-				sleep(5);
-			}*/
+	
 
-			realjoystick_last_button=button;
+			menu_info_joystick_last_button=button;
 
-			realjoystick_last_type=type;
-			realjoystick_last_value=value;
+			menu_info_joystick_last_type=type;
+			menu_info_joystick_last_value=value;
+
+			menu_info_joystick_last_index=-1; //de momento suponemos ningun evento
 			
 
 			//buscamos el evento
@@ -951,12 +995,12 @@ void realjoystick_common_set_event(int button,int type,int value)
 			do  {
 
 				index=realjoystick_find_event(index+1,button,type,value);
-				//realjoystick_last_index=index;
-				//printf ("last index: %d\n",realjoystick_last_index);
+				//menu_info_joystick_last_index=index;
+				//printf ("last index: %d\n",menu_info_joystick_last_index);
 				if (index>=0) {
 					debug_printf (VERBOSE_DEBUG,"Event found on index: %d",index);
 
-					realjoystick_last_index=index;
+					menu_info_joystick_last_index=index;
 
 					//ver tipo boton normal
 
@@ -1028,6 +1072,46 @@ void realjoystick_common_set_event(int button,int type,int value)
 
 		}
 
-	//}
+
 
 }
+
+
+
+
+
+void realjoystick_initialize_joystick(void)
+{
+
+
+
+	//Si viene desactivado por config, decir que no esta
+	if (realjoystick_disabled.v) realjoystick_present.v=0;
+
+	else {
+
+		//Si tenemos el simulador de joystick, decir que esta presente y usar funciones del simulador
+		if (simulador_joystick) {
+			realjoystick_init=realjoystick_simulador_init;
+			realjoystick_main=realjoystick_simulador_main;
+		}
+
+
+			if (realjoystick_init()) {
+				realjoystick_present.v=0;
+			}
+	}	
+}
+
+
+int realjoystick_is_linux_native(void)
+{
+#ifdef USE_LINUXREALJOYSTICK
+
+	if (no_native_linux_realjoystick.v==0) return 1;
+
+#endif
+
+	return 0;
+}
+

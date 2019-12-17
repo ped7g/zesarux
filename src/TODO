@@ -1,4 +1,4 @@
-  
+   
 --- expression parser
 
 
@@ -169,6 +169,14 @@ ver que hace zxpand aqui....
 -------------
 
 Otros TODO menos prioritarios, de aqui hasta el final del archivo:
+
+
+
+
+
+Joystick simulation que se pueda lanzar por ZRCP también (y sin tener que activar —realjoystick-simulator). O quizá sí que necesita el setting, dado que necesita que real Joystick este activado 
+
+
 
 
 *** Proceso compilacion ***

@@ -363,6 +363,8 @@ echo $SISTEMA
 
 if [ "$SISTEMA" == "Msys" ]; then
 	CFLAGS="$CFLAGS -DMINGW"
+	#winmm son las librerias multimedia de windows, para usar el Midi
+	LDFLAGS="$LDFLAGS -lwinmm"
 fi
 
 echo -n "Checking for gcc compiler ... "
@@ -1113,7 +1115,7 @@ _EOF
 				LDFLAGS="$LDFLAGS -framework $LIBSDL -F/Library/Frameworks"
 			elif [ "$SISTEMA" == "Msys" ]; then
                                 CFLAGS="$CFLAGS -I/c/mingw/$LIBSDL/include"
-                                LDFLAGS="$LDFLAGS -L/c/mingw/$LIBSDL/lib -l$LIBSDL -lwinmm"
+                                LDFLAGS="$LDFLAGS -L/c/mingw/$LIBSDL/lib -l$LIBSDL"
 			else
 		                LDFLAGS="$LDFLAGS -l$LIBSDL"
 			fi

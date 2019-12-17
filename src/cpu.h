@@ -47,9 +47,9 @@ Examples
 //#define EMULATOR_VERSION "8.-RC"
 #define SNAPSHOT_VERSION
 
-#define EMULATOR_DATE "07 November 2019"
-#define EMULATOR_SHORT_DATE "07/11/2019"
-#define EMULATOR_GAME_EDITION "xxx"
+#define EMULATOR_DATE "16 December 2019"
+#define EMULATOR_SHORT_DATE "16/12/2019"
+#define EMULATOR_GAME_EDITION "The Great Escape"
 #define EMULATOR_EDITION_NAME EMULATOR_GAME_EDITION " edition"
 
 //8 bits

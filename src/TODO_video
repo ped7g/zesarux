@@ -5,6 +5,7 @@ Otros TODO menos prioritarios, de aqui hasta el final del archivo:
 
 -nombre ultimo juego cargado en titulo ventana
 
+-Joystick SDL: Soporte joystick SDL2
 
 -Modo sin colores que ya hay ahora pero cogiendo 4 o 16 colores del pixel tal cual
 

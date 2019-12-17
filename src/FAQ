@@ -195,6 +195,9 @@ There are two good examples which use ZRCP:
 https://github.com/maziac/z80-debug
 This plugin enables VSCode to debug ZEsarUX by using ZRCP
 Please read the documentation on its web site to know how it works
+Also, there's one document made by Cesar Wagener which explains how to configure it, plus other useful plugins. See file
+IDE Spectrum v1.3.pdf
+On the extras/docs folder. Note the original file is in Spanish but there's another one translated to English (thanks to Derek Bolli for the translation)
 
 2)
 https://github.com/Tenebrous/vscode-zx-debugger

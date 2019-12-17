@@ -601,7 +601,7 @@ estilos_gui definiciones_estilos_gui[ESTILOS_GUI]={
 		1,7,7,1, 	//Colores para opcion no disponible
 		7+8,0,        	//Colores para el titulo y linea recuadro ventana
 		7,0,        	//Colores para el titulo y linea recuadro ventana inactiva
-		1,		//Color waveform
+		4,		//Color waveform
 		7,		//Color para zona no usada en visualmem
 		2,7+8,		//Color para opcion marcada
 		'*',
@@ -710,8 +710,14 @@ int menu_first_aid_startup=0;
 
 int menu_first_aid_must_show_startup=0;
 
+
+
+
 //El texto a disparar al startup
-char *string_config_key_aid_startup;
+char *string_config_key_aid_startup=NULL;
+
+
+int realjoystick_detected_startup=0;
 
 
 //Si se refresca en color gris cuando menu abierto y multitask es off
@@ -13300,7 +13306,8 @@ void menu_hardware_realjoystick_keys_button(MENU_ITEM_PARAMETERS)
 
 	if (tipo==1) { //Definir por boton
 
-
+			//Uso una simple ventana dado que por zxvision_window no puedo dejarla ahi de fondo y leer el joystick
+			//TODO: probar esto porque quiza si se puede...
         	menu_simple_ventana("Redefine key","Please press the button/axis");
         	menu_refresca_pantalla();
 
@@ -13324,6 +13331,9 @@ void menu_hardware_realjoystick_keys_button(MENU_ITEM_PARAMETERS)
         }
 
 
+	//Ya que estamos usando una simple_ventana en vez de zxwindow_vision
+	cls_menu_overlay();
+	menu_refresca_pantalla();
 
 }
 
@@ -13476,19 +13486,21 @@ void menu_hardware_realjoystick_event(MENU_ITEM_PARAMETERS)
 }
 
 
-#define REALJOYSTICK_TEST_X 1
-#define REALJOYSTICK_TEST_Y 8
-#define REALJOYSTICK_TEST_ANCHO 30
-#define REALJOYSTICK_TEST_ALTO 6
+//Variables leidas desde menu para el comprobador de joystick
+int menu_info_joystick_last_button;
+int menu_info_joystick_last_type;
+int menu_info_joystick_last_value;
+int menu_info_joystick_last_index;
+int menu_info_joystick_last_raw_value;
 
 
 void menu_hardware_realjoystick_test_reset_last_values(void)
 {
-	realjoystick_last_button=-1;
-	realjoystick_last_type=-1;
-	realjoystick_last_value=-1;
-	realjoystick_last_index=-1;
-	realjoystick_last_raw_value=-1;
+	menu_info_joystick_last_button=-1;
+	menu_info_joystick_last_type=-1;
+	menu_info_joystick_last_value=-1;
+	menu_info_joystick_last_index=-1;
+	menu_info_joystick_last_raw_value=-1;
 }
 
 
@@ -13533,34 +13545,43 @@ void menu_hardware_realjoystick_test_fill_bars(int valor,char *string,int limite
 
 }
 
+
+
+#define REALJOYSTICK_TEST_ANCHO 30
+#define REALJOYSTICK_TEST_ALTO 15
+
 void menu_hardware_realjoystick_test(MENU_ITEM_PARAMETERS)
 {
 
-        menu_espera_no_tecla();
+	menu_espera_no_tecla();
     
 
 	zxvision_window ventana;
 
-	zxvision_new_window(&ventana,REALJOYSTICK_TEST_X,REALJOYSTICK_TEST_Y-1,REALJOYSTICK_TEST_ANCHO,REALJOYSTICK_TEST_ALTO+3,
-							REALJOYSTICK_TEST_ANCHO-1,REALJOYSTICK_TEST_ALTO+3-2,"Joystick test");
+	int alto_ventana=REALJOYSTICK_TEST_ALTO;
+	int ancho_ventana=REALJOYSTICK_TEST_ANCHO;	
+	int x_ventana=menu_center_x()-ancho_ventana/2; 
+	int y_ventana=menu_center_y()-alto_ventana/2; 	
+
+	zxvision_new_window(&ventana,x_ventana,y_ventana,ancho_ventana,alto_ventana,
+							ancho_ventana-1,alto_ventana-2,"Joystick Information");
 	zxvision_draw_window(&ventana);			
 
 
-
-        z80_byte acumulado;
-
+	z80_byte acumulado;
 
 
-                               int valor_contador_segundo_anterior;
 
-                                valor_contador_segundo_anterior=contador_segundo;
+	int valor_contador_segundo_anterior;
+
+	valor_contador_segundo_anterior=contador_segundo;
 
 	menu_hardware_realjoystick_test_reset_last_values();
 
 	int salir_por_boton=0;
 
 
-        do {
+	do {
 
 		menu_cpu_core_loop();
                 acumulado=menu_da_todas_teclas();
@@ -13572,90 +13593,101 @@ void menu_hardware_realjoystick_test(MENU_ITEM_PARAMETERS)
 
 
 		//Si es evento de salir, forzar el mostrar la info y luego salir
-		if (realjoystick_last_button>=0 && realjoystick_last_index==REALJOYSTICK_EVENT_ESC_MENU) {
+		if (menu_info_joystick_last_button>=0 && menu_info_joystick_last_index==REALJOYSTICK_EVENT_ESC_MENU) {
 			//printf ("Salir por boton\n");
 			salir_por_boton=1;
 		}
 
-        if ( ((contador_segundo%100) == 0 && valor_contador_segundo_anterior!=contador_segundo) || menu_multitarea==0 || salir_por_boton) {
-                                                                        valor_contador_segundo_anterior=contador_segundo;
-                                                                        //printf ("Refrescando. contador_segundo=%d\n",contador_segundo);
-                       if (menu_multitarea==0) menu_refresca_pantalla();
+        if ( ((contador_segundo%50) == 0 && valor_contador_segundo_anterior!=contador_segundo) || menu_multitarea==0 || salir_por_boton) {
+            valor_contador_segundo_anterior=contador_segundo;
+			//printf ("Refrescando. contador_segundo=%d\n",contador_segundo);
+			if (menu_multitarea==0) menu_refresca_pantalla();
 
 
-
-
-
-
-                        char buffer_texto_medio[40];
+			char buffer_texto_medio[40];
 
 			int linea=0;
-			//int realjoystick_last_button,realjoystick_last_type,realjoystick_last_value,realjoystick_last_index;
-				//menu_escribe_linea_opcion(linea++,-1,1,"Last joystick button/axis:");
-				zxvision_print_string_defaults_fillspc(&ventana,1,linea++,"Last joystick button/axis:");
-				linea++;
+			//int menu_info_joystick_last_button,menu_info_joystick_last_type,menu_info_joystick_last_value,menu_info_joystick_last_index;
+			//menu_escribe_linea_opcion(linea++,-1,1,"Last joystick button/axis:");
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,"Last joystick button/axis:");
+			linea++;
 
+		
 
+			//printf ("nuevo evento test joystick\n");
 
-
-
-			if (realjoystick_last_button>=0) {
-
-				char buffer_type[40];
+			char buffer_type[40];
 #define LONGITUD_BARRAS 6
-				char fill_bars[(LONGITUD_BARRAS*2)+2];
-				fill_bars[0]=0;
-				if (realjoystick_last_type==REALJOYSTICK_INPUT_EVENT_BUTTON) {
-					strcpy(buffer_type,"Button");
-				}
-				else if (realjoystick_last_type==REALJOYSTICK_INPUT_EVENT_AXIS) {
-					strcpy(buffer_type,"Axis");
-					menu_hardware_realjoystick_test_fill_bars(realjoystick_last_raw_value,fill_bars,LONGITUD_BARRAS);
-				}
-				else strcpy(buffer_type,"Unknown");
-
-				/*if (realjoystick_last_button>20) {
-					printf ("!!!!!boton %d\n",realjoystick_last_button);
-					sleep(5);
-				}*/
-
-				sprintf (buffer_texto_medio,"Button: %d",realjoystick_last_button);
-				//menu_escribe_linea_opcion(linea++,-1,1,buffer_texto_medio);
-				zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
-
-				sprintf (buffer_texto_medio,"Type: %d (%s)",realjoystick_last_type,buffer_type);
-				//menu_escribe_linea_opcion(linea++,-1,1,buffer_texto_medio);
-				zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
-
-
-				//type JS_EVENT_BUTTON, JS_EVENT_AXIS
-
-
-				char buffer_event[40];
-				if (realjoystick_last_index>=0 && realjoystick_last_index<MAX_EVENTS_JOYSTICK) {
-					strcpy(buffer_event,realjoystick_event_names[realjoystick_last_index]);
-				}
-				else {
-					strcpy(buffer_event,"None");
-				}
-
-	
-				sprintf (buffer_texto_medio,"Value: %6d %s",realjoystick_last_raw_value,fill_bars);
-				//menu_escribe_linea_opcion(linea++,-1,1,buffer_texto_medio);
-				zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
-
-				sprintf (buffer_texto_medio,"Index: %d Event: %s",realjoystick_last_index,buffer_event);
-				//menu_escribe_linea_opcion(linea++,-1,1,buffer_texto_medio);
-				zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
-
-
-				//realjoystick_ultimo_indice=-1;
-				menu_hardware_realjoystick_test_reset_last_values();
-
-				zxvision_draw_window_contents(&ventana);
-
-
+			char fill_bars[(LONGITUD_BARRAS*2)+2];
+			fill_bars[0]=0;
+			if (menu_info_joystick_last_type==REALJOYSTICK_INPUT_EVENT_BUTTON) {
+				strcpy(buffer_type,"Button");
 			}
+			else if (menu_info_joystick_last_type==REALJOYSTICK_INPUT_EVENT_AXIS) {
+				strcpy(buffer_type,"Axis");
+				menu_hardware_realjoystick_test_fill_bars(menu_info_joystick_last_raw_value,fill_bars,LONGITUD_BARRAS);
+			}
+			else strcpy(buffer_type,"Unknown");
+
+		
+			if (menu_info_joystick_last_button<0) strcpy(buffer_texto_medio,"Button: None");
+			else sprintf (buffer_texto_medio,"Button: %d",menu_info_joystick_last_button);
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
+
+			if (menu_info_joystick_last_type<0) strcpy(buffer_texto_medio,"Type: None");
+			else sprintf (buffer_texto_medio,"Type: %d (%s)",menu_info_joystick_last_type,buffer_type);
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
+
+
+
+			char buffer_event[40];
+			if (menu_info_joystick_last_index>=0 && menu_info_joystick_last_index<MAX_EVENTS_JOYSTICK) {
+				strcpy(buffer_event,realjoystick_event_names[menu_info_joystick_last_index]);
+			}
+			else {
+				strcpy(buffer_event,"None");
+			}
+
+
+			sprintf (buffer_texto_medio,"Value: %6d %s",menu_info_joystick_last_raw_value,fill_bars);
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
+
+			sprintf (buffer_texto_medio,"Index: %d Event: %s",menu_info_joystick_last_index,buffer_event);
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);
+
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,"");	
+
+			sprintf (buffer_texto_medio,"Driver: %s",realjoystick_driver_name);
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);	
+
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,"Name:");	
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,realjoystick_joy_name);	
+
+			sprintf (buffer_texto_medio,"Total buttons: %d",realjoystick_total_buttons);
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);	
+
+			sprintf (buffer_texto_medio,"Total axis: %d",realjoystick_total_axes);
+			zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);	
+
+ 			if (!realjoystick_is_linux_native() ) {
+				sprintf (buffer_texto_medio,"Autocalibrate value: %d",realjoystick_autocalibrate_value);
+				zxvision_print_string_defaults_fillspc(&ventana,1,linea++,buffer_texto_medio);			
+			}
+
+
+
+			//realjoystick_ultimo_indice=-1;
+			//menu_hardware_realjoystick_test_reset_last_values();
+			//menu_info_joystick_last_button=-1;
+			//menu_info_joystick_last_type=-1;
+			//menu_info_joystick_last_value=-1;
+			//menu_info_joystick_last_index=-1;
+			//menu_info_joystick_last_raw_value=-1;
+
+			zxvision_draw_window_contents(&ventana);
+
+
+			
         }
 
 		
@@ -13691,51 +13723,116 @@ void menu_hardware_realjoystick_test(MENU_ITEM_PARAMETERS)
 }
 
 
+void menu_hardware_realjoystick_autocalibrate(MENU_ITEM_PARAMETERS)
+{
+    char string_calibrate[6];
+	int valor;
+
+
+    sprintf (string_calibrate,"%d",realjoystick_autocalibrate_value);
+
+	menu_ventana_scanf("Autocalibrate value",string_calibrate,6);
+
+	valor=parse_string_to_number(string_calibrate);
+
+	
+	if (valor<0 || valor>32000) {
+		debug_printf (VERBOSE_ERR,"Value out of range. Minimum: 0 Maximum: 32000");
+        return;
+    }
+
+	realjoystick_autocalibrate_value=valor;
+
+
+}
+
+void menu_hardware_realjoystick_set_defaults(MENU_ITEM_PARAMETERS)
+{
+	if (menu_confirm_yesno_texto("Set to defaults","Sure?")==1) {
+        realjoystick_new_set_default_functions();
+		menu_generic_message("Set to defaults","OK. Events and keys tables set to default values");
+    }
+}
+
+
+void menu_hardware_realjoystick_native(MENU_ITEM_PARAMETERS)
+{
+	no_native_linux_realjoystick.v ^=1;
+	menu_generic_message("Linux native driver","OK. You must reopen ZEsarUX to apply this setting");
+}
+
 void menu_hardware_realjoystick(MENU_ITEM_PARAMETERS)
 {
-        menu_item *array_menu_hardware_realjoystick;
-        menu_item item_seleccionado;
-        int retorno_menu;
-        do {
+	menu_item *array_menu_hardware_realjoystick;
+	menu_item item_seleccionado;
+	int retorno_menu;
+	do {
 
-                menu_add_item_menu_inicial_format(&array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_event,NULL,"Joystick to events");
-
-                menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Define which events generate every button/movement of the joystick");
-                menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Define which events generate every button/movement of the joystick");
-
-
-
-		menu_add_item_menu_format(array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_keys,NULL,"Joystick to keys");
-
-                menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Define which press key generate every button/movement of the joystick");
-                menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Define which press key generate every button/movement of the joystick");
-
-
-		menu_add_item_menu_format(array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_test,NULL,"Test joystick");
-		menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Test joystick buttons");
-		menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Test joystick buttons");
+		menu_add_item_menu_inicial_format(&array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_event,NULL,"Joystick to ~~events");
+		menu_add_item_menu_shortcut(array_menu_hardware_realjoystick,'e');
+		menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Define which events generate every button/movement of the joystick");
+		menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Define which events generate every button/movement of the joystick");
 
 
 
+		menu_add_item_menu_format(array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_keys,NULL,"Joystick to ~~keys");
+		menu_add_item_menu_shortcut(array_menu_hardware_realjoystick,'k');
+		menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Define which press key generate every button/movement of the joystick");
+		menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Define which press key generate every button/movement of the joystick");
 
-                menu_add_item_menu(array_menu_hardware_realjoystick,"",MENU_OPCION_SEPARADOR,NULL,NULL);
-                //menu_add_item_menu(array_menu_hardware_realjoystick,"ESC Back",MENU_OPCION_NORMAL|MENU_OPCION_ESC,NULL,NULL);
-                menu_add_ESC_item(array_menu_hardware_realjoystick);
 
-                retorno_menu=menu_dibuja_menu(&hardware_realjoystick_opcion_seleccionada,&item_seleccionado,array_menu_hardware_realjoystick,"Real joystick emulation" );
+		menu_add_item_menu_format(array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_test,NULL,"Joystick ~~information");
+		menu_add_item_menu_shortcut(array_menu_hardware_realjoystick,'i');
+		menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Joystick information");
+		menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Joystick information and test tool");
 
-                
+		if (!realjoystick_is_linux_native() ) {
+			menu_add_item_menu(array_menu_hardware_realjoystick,"",MENU_OPCION_SEPARADOR,NULL,NULL);
+			menu_add_item_menu_format(array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_autocalibrate,NULL,"[%5d] Auto~~calibrate value",realjoystick_autocalibrate_value);
+			menu_add_item_menu_shortcut(array_menu_hardware_realjoystick,'c');
+			menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Autocalibrate value");
+			menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Parameter to autocalibrate joystick axis. "
+										"Axis values read from joystick less than n and greater than -n are considered as 0. "
+										" Default: 16384. Not used on native linux real joystick");
+		}
 
-                if ((item_seleccionado.tipo_opcion&MENU_OPCION_ESC)==0 && retorno_menu>=0) {
-                        //llamamos por valor de funcion
-                        if (item_seleccionado.menu_funcion!=NULL) {
-                                //printf ("actuamos por funcion\n");
-                                item_seleccionado.menu_funcion(item_seleccionado.valor_opcion);
-                                
-                        }
-                }
 
-        } while ( (item_seleccionado.tipo_opcion&MENU_OPCION_ESC)==0 && retorno_menu!=MENU_RETORNO_ESC && !salir_todos_menus);
+		//En linux, poder decir si usamos driver nativo o no
+
+#ifdef USE_LINUXREALJOYSTICK
+
+	menu_add_item_menu_format(array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_native,NULL,"[%c] Linux native driver",(no_native_linux_realjoystick.v ? ' ' : 'X'));
+	menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Use or not the native linux real joystick support. Instead use the video driver joystick support (currently only SDL)");
+	menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Use or not the native linux real joystick support. Instead use the video driver joystick support (currently only SDL)");
+
+#endif		
+
+
+		menu_add_item_menu(array_menu_hardware_realjoystick,"",MENU_OPCION_SEPARADOR,NULL,NULL);
+
+		menu_add_item_menu_format(array_menu_hardware_realjoystick,MENU_OPCION_NORMAL,menu_hardware_realjoystick_set_defaults,NULL,"Set events&keys to default");
+		menu_add_item_menu_tooltip(array_menu_hardware_realjoystick,"Reset events & keys table to default values");
+		menu_add_item_menu_ayuda(array_menu_hardware_realjoystick,"Reset events & keys table to default values");
+
+
+		menu_add_item_menu(array_menu_hardware_realjoystick,"",MENU_OPCION_SEPARADOR,NULL,NULL);
+		//menu_add_item_menu(array_menu_hardware_realjoystick,"ESC Back",MENU_OPCION_NORMAL|MENU_OPCION_ESC,NULL,NULL);
+		menu_add_ESC_item(array_menu_hardware_realjoystick);
+
+		retorno_menu=menu_dibuja_menu(&hardware_realjoystick_opcion_seleccionada,&item_seleccionado,array_menu_hardware_realjoystick,"Real joystick support" );
+
+			
+
+		if ((item_seleccionado.tipo_opcion&MENU_OPCION_ESC)==0 && retorno_menu>=0) {
+				//llamamos por valor de funcion
+				if (item_seleccionado.menu_funcion!=NULL) {
+						//printf ("actuamos por funcion\n");
+						item_seleccionado.menu_funcion(item_seleccionado.valor_opcion);
+						
+				}
+		}
+
+	} while ( (item_seleccionado.tipo_opcion&MENU_OPCION_ESC)==0 && retorno_menu!=MENU_RETORNO_ESC && !salir_todos_menus);
 }
 
 void menu_hardware_joystick(MENU_ITEM_PARAMETERS)
@@ -17095,7 +17192,7 @@ void menu_hardware_settings(MENU_ITEM_PARAMETERS)
 
 	if (MACHINE_IS_SPECTRUM || MACHINE_IS_ZX8081 || MACHINE_IS_SAM) {
 	
-			menu_add_item_menu_format(array_menu_hardware_settings,MENU_OPCION_NORMAL,menu_hardware_realjoystick,menu_hardware_realjoystick_cond,"~~Real joystick emulation");
+			menu_add_item_menu_format(array_menu_hardware_settings,MENU_OPCION_NORMAL,menu_hardware_realjoystick,menu_hardware_realjoystick_cond,"~~Real joystick support");
 			menu_add_item_menu_shortcut(array_menu_hardware_settings,'r');
 			menu_add_item_menu_tooltip(array_menu_hardware_settings,"Settings for the real joystick");
 			menu_add_item_menu_ayuda(array_menu_hardware_settings,"Settings for the real joystick");
@@ -23477,7 +23574,7 @@ void menu_interface_border(MENU_ITEM_PARAMETERS)
 
 	//printf ("--antes de init pantalla\n");
 
-	screen_init_pantalla_and_others();
+	screen_init_pantalla_and_others_and_realjoystick();
 
 	//printf ("--despues de init pantalla\n");
 
@@ -23507,7 +23604,7 @@ void menu_interface_hidemouse(MENU_ITEM_PARAMETERS)
 
 	mouse_pointer_shown.v ^=1;
 
-	screen_init_pantalla_and_others();
+	screen_init_pantalla_and_others_and_realjoystick();
 
     debug_printf(VERBOSE_INFO,"Creating Screen");
 
@@ -23863,7 +23960,7 @@ void menu_interface_footer(MENU_ITEM_PARAMETERS)
         modificado_border.v=1;
         debug_printf(VERBOSE_INFO,"Creating Screen");
         //scr_init_pantalla();
-	screen_init_pantalla_and_others();
+	screen_init_pantalla_and_others_and_realjoystick();
 
 
 	if (menu_footer) menu_init_footer();
@@ -24415,6 +24512,11 @@ void menu_accessibility_settings(MENU_ITEM_PARAMETERS)
 	screen_bw_no_multitask_menu.v ^=1;
 }*/
 
+void menu_interface_force_confirm_yes(MENU_ITEM_PARAMETERS)
+{
+	force_confirm_yes.v ^=1;
+}
+
 void menu_interface_settings(MENU_ITEM_PARAMETERS)
 {
         menu_item *array_menu_interface_settings;
@@ -24472,8 +24574,13 @@ void menu_interface_settings(MENU_ITEM_PARAMETERS)
 
 
 		menu_add_item_menu_format(array_menu_interface_settings,MENU_OPCION_NORMAL,menu_interface_force_atajo,NULL,"[%c] Force visible hotkeys",(menu_force_writing_inverse_color.v ? 'X' : ' ') );
-                menu_add_item_menu_tooltip(array_menu_interface_settings,"Force always show hotkeys");
-                menu_add_item_menu_ayuda(array_menu_interface_settings,"Force always show hotkeys. By default it will only be shown after a timeout or wrong key pressed");
+		menu_add_item_menu_tooltip(array_menu_interface_settings,"Force always show hotkeys");
+		menu_add_item_menu_ayuda(array_menu_interface_settings,"Force always show hotkeys. By default it will only be shown after a timeout or wrong key pressed");
+
+		menu_add_item_menu_format(array_menu_interface_settings,MENU_OPCION_NORMAL,menu_interface_force_confirm_yes,NULL,"[%c] Force confirm yes",(force_confirm_yes.v ? 'X' : ' ') );
+		menu_add_item_menu_tooltip(array_menu_interface_settings,"Force confirmation dialogs yes/no always to yes");
+		menu_add_item_menu_ayuda(array_menu_interface_settings,"Force confirmation dialogs yes/no always to yes");
+
 
 		int fps;
 		int divisor=frameskip+1;
@@ -27397,9 +27504,9 @@ void menu_about_about(MENU_ITEM_PARAMETERS)
 	else {
 		//mensaje con n en vez de enye
 		letra_enye='n';
-	}
+	} 
 
-	sprintf (mensaje_about,"ZEsarUX V." EMULATOR_VERSION " (" EMULATOR_SHORT_DATE ")\n"
+	sprintf (mensaje_about,"ZEsarUX v." EMULATOR_VERSION " (" EMULATOR_SHORT_DATE ")\n"
                         " - " EMULATOR_EDITION_NAME " - \n"
 
 #ifdef SNAPSHOT_VERSION
@@ -28862,6 +28969,12 @@ void menu_inicio(void)
 		//No mostrara nada mas que esto y luego volvera del menu
 	}	
 
+    //Si detectado joystick real y
+    if (realjoystick_detected_startup) {
+        realjoystick_detected_startup=0;          
+        menu_first_aid_title("realjoystick_detected","Joystick detected");
+    }
+
 
 	if (menu_button_osdkeyboard.v) {
 		//menu_espera_no_tecla();
@@ -29439,6 +29552,17 @@ void reset_splash_text(void)
 			//Para que aparezca el mensaje del dia, tiene que estar habilitado el setting de welcome message
 			//Si no, no llegara aqui nunca
 			if (menu_first_aid_startup) menu_first_aid_random_startup();
+
+
+			//Si detectado real joystick
+			//Si detectado joystick real y si hay autoguardado de config
+			if (save_configuration_file_on_exit.v) {
+					if (realjoystick_present.v) {
+							menu_set_menu_abierto(1);
+							//printf ("decir menu abierto\n");
+							realjoystick_detected_startup=1;
+					}
+			}			
 		}
 
 		else {
@@ -29971,10 +30095,10 @@ extern int convert_p_to_rwa_tmpdir(char *origen, char *destino);
                 char *opciones[]={
 					"PZX to TAP",
                         "PZX to RWA",
-			"PZX to WAV",
+						"PZX to WAV",
                         NULL};
 
-                int opcion=menu_ask_list_texto("File converter","Select conversion",opciones);
+        int opcion=menu_ask_list_texto("File converter","Select conversion",opciones);
 		if (opcion<0) {
 			//Salido con ESC
 			return;
@@ -29999,6 +30123,27 @@ extern int convert_p_to_rwa_tmpdir(char *origen, char *destino);
         }		
 
 
+		else if (!util_compare_file_extension(archivo,"scr")) {
+                char *opciones[]={
+					"SCR to TAP",
+                        NULL};
+
+        int opcion=menu_ask_list_texto("File converter","Select conversion",opciones);
+		if (opcion<0) {
+			//Salido con ESC
+			return;
+		}				
+                switch (opcion) {
+                        case 0:
+                                sprintf(archivo_destino,"%s/%s.tap",directorio,archivo);
+								convert_scr_to_tap(fullpath,archivo_destino);
+                        break;
+
+ 
+                } 
+        }		
+
+
         else if (!util_compare_file_extension(archivo,"hdf")) {
                 char *opciones[]={
                         "HDF to IDE",
@@ -30007,7 +30152,7 @@ extern int convert_p_to_rwa_tmpdir(char *origen, char *destino);
 
                 int opcion=menu_ask_list_texto("File converter","Select conversion",opciones);
 		if (opcion<0) {
-			//Salido con ESC
+			//Salido con ESC 
 			return;
 		}				
                 switch (opcion) {
@@ -31174,8 +31319,8 @@ char *first_aid_string_documentation="You can find a lot of info, videos, docume
 int first_aid_no_zrcp=0;
 char *first_aid_string_zrcp="You can connect to ZEsarUX by using a telnet client using the ZEsarUX Remote Control Protocol (ZRCP). "
 	"This protocol allows you to interact, debug and do a lot of internal actions to ZEsarUX. "
-	"Just enable it on Settings-> Debug and use a telnet client to port 10000. "
-	"Note: Windows users must use the pthreads version of ZEsarUX";
+	"Just enable it on Settings-> Debug and use a telnet client to connect to port 10000. ";
+	
 
 int first_aid_no_votext=0;
 char *first_aid_string_votext="Do you know you can run ZEsarUX using a Text mode video driver? There are ncurses, aalib, cacalib, "
@@ -31215,6 +31360,11 @@ char *first_aid_string_spaceexpand="Do you know you can navigate inside files, l
 	"Use the fileselector and press space over that kind of file.\n"
 	"Remember to change fileselector filter to show all contents";
 
+
+int first_aid_no_realjoystick_detected=0;
+char *first_aid_string_realjoystick_detected="A real joystick has been detected\n"
+							"You can go to menu Settings->Hardware->Real joystick support and set your buttons configuration";	
+
 void menu_first_aid_init(void)
 {
 	total_first_aid=0;
@@ -31225,6 +31375,7 @@ void menu_first_aid_init(void)
 	menu_first_aid_add("smartload",&first_aid_no_smartload,first_aid_string_smartload,0);
 	menu_first_aid_add("initial_menu",&first_aid_no_initial_menu,first_aid_string_initial_menu,0);
 	menu_first_aid_add("no_ssl_wos",&first_aid_no_ssl_wos,first_aid_string_no_ssl_wos,0);
+	menu_first_aid_add("realjoystick_detected",&first_aid_no_realjoystick_detected,first_aid_string_realjoystick_detected,0);
 
 	//Items que se disparan en startup
 	menu_first_aid_add("startup_aid",&first_aid_no_startup_aid,first_aid_string_startup_aid,1);
@@ -31279,7 +31430,7 @@ void menu_first_aid_random_startup(void)
 		}
 	}	
 
-	debug_printf (VERBOSE_DEBUG,"Set first aid of the day to: %s",string_config_key_aid_startup);
+	if (string_config_key_aid_startup!=NULL) debug_printf (VERBOSE_DEBUG,"Set first aid of the day to: %s",string_config_key_aid_startup);
 
 }
 

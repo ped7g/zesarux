@@ -494,7 +494,7 @@ void init_cpc_line_display_table(void)
 	for (y=0;y<200;y++) {
 		offset=((y / 8) * 80) + ((y % 8) * 2048);
 		cpc_line_display_table[y]=offset;
-		debug_printf (VERBOSE_DEBUG,"Line: %d Offset: 0x%04X",y,offset);
+		debug_printf (VERBOSE_PARANOID,"CPC Line: %d Offset: 0x%04X",y,offset);
 	}
 }
 

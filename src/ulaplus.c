@@ -161,7 +161,7 @@ void init_ulaplus_table(void)
 		color32=(r8<<16)|(g8<<8)|b8;
 		ulaplus_rgb_table[color]=color32;
 
-		debug_printf (VERBOSE_DEBUG,"ULAplus RGB 0x%02X is 0x%06X 32 bit RGB",color,color32);
+		debug_printf (VERBOSE_PARANOID,"ULAplus RGB 0x%02X is 0x%06X 32 bit RGB",color,color32);
 	}
 
 	debug_printf (VERBOSE_DEBUG,"Initializing ULAplus 64 colour table to black");

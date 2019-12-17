@@ -1,4 +1,4 @@
-Version 8.1. 07 November 2019 - xxx edition
+Version 8.1 - The Great Escape edition. 16 December 2019 
 
 
 Added ZEsarUX Network Gaming protocol (ZENG), which allows you to play to any emulated game, using two ZEsarUX instances, 
@@ -33,6 +33,7 @@ Added ZRCP commands:
 -write-port: write value to a port
 
 Added internal zip decompressor: no more need to use external unzip program
+Added scr to tap file converter
 Added setting to reset configuration file to default values
 Added setting to choose cpu type
 
@@ -63,6 +64,7 @@ Improved accesibility:
 
 Improved assembler: added defs command
 Improved AY Sheet: now you can select which AY Chip to show
+Improved Waveform: new scroll type
 Improved file selector: when asking for a directory, only shows directories, not files
 Improved curses driver: symbol @ simulates ESC on menu
 Improved snapshot loading: now setting "--sna-no-change-machine" becomes "--snap-no-change-machine" and applies to .sna and .z80
@@ -82,6 +84,7 @@ Fixed kempston mouse emulation on Next machine: wheel bits always return 0
 Fixed bug extracting PAWS words when a word is a pronoun
 Fixed undocumented opcode ED76: I had IM0 but it's IM1
 Fixed RETI behaviour
+Fixed Real Joystick support: buttons to event table is not set to defaults automatically anymore
 Fixed loading and saving +3 .z80 snapshots
 Fixed placing menu windows when using zx desktop and machines TSConf, TBBlue, CPC and QL
 Fixed bug loading .sna files when rom 1 paged in

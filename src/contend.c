@@ -1308,7 +1308,7 @@ void inicializa_tabla_contend(void)
 			contend_table[i]=0;
 		}
 
-		if (i>14300 && i<14400) debug_printf (VERBOSE_DEBUG,"Contended table. T-state: %d:  %d . no_mreq: %d",i,contend_table[i],contend_table_no_mreq[i]);
+		if (i>14300 && i<14400) debug_printf (VERBOSE_PARANOID,"Contended table. T-state: %d:  %d . no_mreq: %d",i,contend_table[i],contend_table_no_mreq[i]);
         }
 
 

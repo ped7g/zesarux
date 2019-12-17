@@ -8143,7 +8143,7 @@ G  G   R   R   B   B
 
 			spectra_colortable_original[spectra_color]=(spectra_int_red<<16)|(spectra_int_green<<8)|spectra_int_blue;
 
-			debug_printf (VERBOSE_DEBUG,"Initializing Spectra Colour. Index: %d Value: 0x%06X",spectra_color,spectra_colortable_original[spectra_color]);
+			debug_printf (VERBOSE_PARANOID,"Initializing Spectra Colour. Index: %d Value: 0x%06X",spectra_color,spectra_colortable_original[spectra_color]);
 
 		}
 
@@ -8300,7 +8300,7 @@ G  G   R   R   B   B
 				color32=paleta[i];
 				//debug_printf(VERBOSE_DEBUG,"Initializing Standard Spectrum Color. Index: %i  Value: %06XH",i,spectrum_colortable_original[i]);
 				//screen_set_colour_normal(i,spectrum_colortable_original[i]);
-				debug_printf(VERBOSE_DEBUG,"Initializing Standard Spectrum Color. Index: %i  Value: %06XH",i,color32);
+				debug_printf(VERBOSE_PARANOID,"Initializing Standard Spectrum Color. Index: %i  Value: %06XH",i,color32);
 				screen_set_colour_normal(i,color32);
 			}
 
@@ -8326,20 +8326,20 @@ G  G   R   R   B   B
 
 			for (i=0;i<256;i++) {
 				color32=ulaplus_rgb_table[i];
-				debug_printf(VERBOSE_DEBUG,"Initializing ULAPlus Color. Index: %i  Value: %06XH",i,color32);
+				debug_printf(VERBOSE_PARANOID,"Initializing ULAPlus Color. Index: %i  Value: %06XH",i,color32);
 				screen_set_colour_normal(ULAPLUS_INDEX_FIRST_COLOR+i, color32);
 			}
 
 			//Colores spectra
                         for (i=0;i<64;i++) {
-                        	debug_printf(VERBOSE_DEBUG,"Initializing Spectra Color. Index: %i  Value: %06XH",i,spectra_colortable_original[i]);
+                        	debug_printf(VERBOSE_PARANOID,"Initializing Spectra Color. Index: %i  Value: %06XH",i,spectra_colortable_original[i]);
                                 screen_set_colour_normal(SPECTRA_INDEX_FIRST_COLOR+i,spectra_colortable_original[i]);
                         }
 
 			//Colores CPC
 			for (i=0;i<32;i++) {
                                 color32=cpc_rgb_table[i];
-                                debug_printf(VERBOSE_DEBUG,"Initializing CPC Color. Index: %i  Value: %06XH",i,color32);
+                                debug_printf(VERBOSE_PARANOID,"Initializing CPC Color. Index: %i  Value: %06XH",i,color32);
                                 screen_set_colour_normal(CPC_INDEX_FIRST_COLOR+i, color32);
                         }
 
@@ -8360,7 +8360,7 @@ G  G   R   R   B   B
                                 g=(i >> 4 ) & 0xF;
                                 r=(i >> 8 ) & 0xF;
 
-				debug_printf (VERBOSE_DEBUG,"Prism color: %d. 12 bit: r: %d g: %d b: %d",i,r,g,b);
+				debug_printf (VERBOSE_PARANOID,"Prism color: %d. 12 bit: r: %d g: %d b: %d",i,r,g,b);
 
 				r=prism_4_to_8[r];
 				g=prism_4_to_8[g];
@@ -8369,7 +8369,7 @@ G  G   R   R   B   B
 
                                 color32=(r<<16)|(g<<8)|b;
 
-				debug_printf (VERBOSE_DEBUG,"32 bit: r: %d g: %d b: %d",
+				debug_printf (VERBOSE_PARANOID,"32 bit: r: %d g: %d b: %d",
 					r,g,b);
 
                                 screen_set_colour_normal(PRISM_INDEX_FIRST_COLOR+i, color32);
@@ -8396,12 +8396,12 @@ Bit 6 GRN1 most  significant bit of green.
 
 
 
-                                debug_printf (VERBOSE_DEBUG,"Sam color: %d. 6 bit: r: %d g: %d b: %d",i,r,g,b);
+                                debug_printf (VERBOSE_PARANOID,"Sam color: %d. 6 bit: r: %d g: %d b: %d",i,r,g,b);
 
 
                                 color32=(r<<16)|(g<<8)|b;
 
-                                debug_printf (VERBOSE_DEBUG,"32 bit: r: %d g: %d b: %d",
+                                debug_printf (VERBOSE_PARANOID,"32 bit: r: %d g: %d b: %d",
                                         r,g,b);
 
                                 screen_set_colour_normal(SAM_INDEX_FIRST_COLOR+i, color32);
@@ -8410,7 +8410,7 @@ Bit 6 GRN1 most  significant bit of green.
 
 				//Colores RGB9
 				for (i=0;i<512;i++) {
-					debug_printf (VERBOSE_DEBUG,"RGB9 color: %02XH 32 bit: %06XH",i,get_rgb9_color(i));
+					debug_printf (VERBOSE_PARANOID,"RGB9 color: %02XH 32 bit: %06XH",i,get_rgb9_color(i));
 					screen_set_colour_normal(RGB9_INDEX_FIRST_COLOR+i,get_rgb9_color(i));
 				}
 
@@ -8429,7 +8429,7 @@ Bit 6 GRN1 most  significant bit of green.
 					g=(i >> 5 ) & 0x1F;
 					r=(i >> 10 ) & 0x1F;
 
-					debug_printf (VERBOSE_DEBUG,"tsconf color: %d. 15 bit: r: %d g: %d b: %d",i,r,g,b);
+					debug_printf (VERBOSE_PARANOID,"tsconf color: %d. 15 bit: r: %d g: %d b: %d",i,r,g,b);
 
 //r=tsconf_5_to_8[r];
 //g=tsconf_5_to_8[g];
@@ -8443,7 +8443,7 @@ Bit 6 GRN1 most  significant bit of green.
 
 					color32=(r<<16)|(g<<8)|b;
 
-					debug_printf (VERBOSE_DEBUG,"32 bit: r: %d g: %d b: %d",r,g,b);
+					debug_printf (VERBOSE_PARANOID,"32 bit: r: %d g: %d b: %d",r,g,b);
 
 					screen_set_colour_normal(TSCONF_INDEX_FIRST_COLOR+i, color32);
 
@@ -8453,7 +8453,7 @@ Bit 6 GRN1 most  significant bit of green.
 				//Colores HEATMAP
 				for (i=0;i<256;i++) {
 					int colorheat=i<<16;
-					debug_printf (VERBOSE_DEBUG,"Heatmap color: %02XH 32 bit: %06XH",i,colorheat);
+					debug_printf (VERBOSE_PARANOID,"Heatmap color: %02XH 32 bit: %06XH",i,colorheat);
 					screen_set_colour_normal(HEATMAP_INDEX_FIRST_COLOR+i,colorheat);
 				}
 
@@ -11466,7 +11466,7 @@ void enable_interlace(void)
         video_interlaced_mode.v=1;
 
         if (reinicia_ventana) {
-					screen_init_pantalla_and_others();			
+					screen_init_pantalla_and_others_and_realjoystick();
 				}
 
         set_putpixel_zoom();
@@ -13775,7 +13775,7 @@ void screen_set_window_zoom(int z)
 
 	//Guardar funcion de texto overlay activo, para desactivarlo temporalmente. No queremos que se salte a realloc_layers simultaneamente,
 	//mientras se hace putpixel desde otro sitio -> provocaria escribir pixel en layer que se esta reasignando
-  void (*previous_function)(void);
+  	void (*previous_function)(void);
 	int menu_antes;
 
 	screen_end_pantalla_save_overlay(&previous_function,&menu_antes);
@@ -13787,7 +13787,7 @@ void screen_set_window_zoom(int z)
 	zoom_x=zoom_y=z;
 	modificado_border.v=1;
 
-	screen_init_pantalla_and_others();
+	screen_init_pantalla_and_others_and_realjoystick();
 	set_putpixel_zoom();
 
 
@@ -14549,6 +14549,26 @@ int screen_init_pantalla_and_others(void)
 	//menu_init_footer();
 
 	return retorno;
+}
+
+
+void screen_init_pantalla_and_others_and_realjoystick(void)
+{
+
+
+
+	screen_init_pantalla_and_others();
+
+	/*
+	Al iniciar driver video, en el caso de SDL por ejemplo, apunta a las funciones de realjoystick sdl. Si no inicializamos dicho joystick,
+	sucedera que al hacer el poll de joystick, usara un joystick no inicializado y petara 
+
+	TODO: hacer que el init de sdl de video, tambien inicialice el joystick (en el caso que no usemos driver linux nativo)
+	*/
+
+	//Ya no hace falta
+
+    //realjoystick_reopen_driver();
 }
 
 

@@ -598,6 +598,13 @@ extern void menu_espera_tecla_o_joystick(void);
 extern void menu_espera_no_tecla(void);
 extern void menu_get_dir(char *ruta,char *directorio);
 
+
+extern int menu_info_joystick_last_button;
+extern int menu_info_joystick_last_type;
+extern int menu_info_joystick_last_value;
+extern int menu_info_joystick_last_index;
+extern int menu_info_joystick_last_raw_value;
+
 extern int menu_da_ancho_titulo(char *titulo);
 
 extern int menu_tooltip_counter;
