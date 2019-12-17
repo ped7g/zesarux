@@ -40,9 +40,10 @@
 struct s_zxndma_port {
 	// wr_address is set by WR0/WR4, address is the working register (RR3..RR6)
 	z80_int		wr_address, address;
-	// 0vAAT000 AA=increment type, T = type, v = variable timing
+	// config: 0vAAT00s AA=increment type, T = type, v = variable timing, s = standard timing (internal only)
 	z80_byte	config;
-	// when v=1: **s0**cc s = prescalar (port B only), cc = fixed timing, * = Zilog DMA specific
+	// timing: **s0**cc (can be written when v=1 in config is written through WR1/WR2)
+	// s = prescalar (port B only), cc = fixed timing, * = Zilog DMA specific
 	z80_byte	timing;
 };
 //public API for `s_zxndma_port` structure

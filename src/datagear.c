@@ -77,7 +77,13 @@ static void set_address_high(struct s_zxndma_port* const port, const z80_byte ms
 }
 
 static void set_port_config(struct s_zxndma_port* const port, const z80_byte wr1_or_wr2) {
-	port->config = wr1_or_wr2 & 0b01111000;
+	if (wr1_or_wr2 & 0x40) {
+		// custom variable timing will be set, clear internal "standard timing" bit
+		port->config = wr1_or_wr2 & 0b01111000;
+	} else {
+		// preserve "standard" timing internal bit otherwise (do NOT set it, that's RESET thing)
+		port->config = (port->config&0x01) | (wr1_or_wr2 & 0b01111000);
+	}
 }
 
 static void set_port_cycles(struct s_zxndma_port* const port, const z80_byte cycles) {
@@ -94,7 +100,7 @@ static void set_length_high(struct s_zxndma* const dma, const z80_byte msb) {
 
 static void reset_port_timing(struct s_zxndma_port* const port) {
 	port->config &= ~0b01000000;		// clear "variable timing" bit in config
-	port->timing = 3;					// set timing to 3T
+	port->config |= 0x01;				// set internal "standard" timing bit
 }
 
 static void adjust_port_address(struct s_zxndma_port* const port) {
@@ -164,7 +170,8 @@ static void do_command(struct s_zxndma* const dma, const z80_byte command) {
 			dma->status &= ~0b00000001;		// clear status "any byte transferred"
 			dma->status |=  0b00100000;		// set "not end-of-block"
 			if (dma->emulate_Zilog.v && dma->emulate_UA858D.v) {
-				dma->read_mask = 0;			// real UA858D will clear the read sequence when LOAD
+				// real UA858D and ZilogDMA will clear the read sequence when LOAD
+				dma->read_mask = 0;
 			}
 			break;
 		case COMMAND_REINIT_STATUS_BYTE:
@@ -218,7 +225,12 @@ int zxndma_get_port_increment_type(const struct s_zxndma_port* const port) {
 
 // amount of cycles specified in config (or default 3T)
 int zxndma_get_port_cycles(const struct s_zxndma_port* const port) {
-	return 4 - (port->timing & 0b11);	// 0b11 will produce timing "1" which is illegal, but..
+	if (port->config&0x01) {			// "standard" timing is still active
+		return zxndma_is_port_io(port) ? 4 : 3;		// 4T for I/O, 3T for memory
+	}
+	// custom set variable timing (0b11 produces timing 1T, Zilog docs say it's illegal,
+	// but it is actually known to work for certain combinations of DMA chips and memory/IO HW)
+	return 4 - (port->timing & 0b11);
 }
 
 int zxndma_is_transfering(const struct s_zxndma* const dma) {
@@ -240,7 +252,7 @@ void zxndma_reset(struct s_zxndma* const dma) {
 	dma->portA.address = dma->portB.address = dma->counter = 0;	// internal trasnfer variables
 	dma->length = dma->wr0 = dma->wr3 = dma->wr4 = dma->wr5 = dma->wr6 = 0;
 	dma->portA.wr_address = dma->portB.wr_address = 0;
-	dma->portA.config = dma->portB.config = 0;
+	dma->portA.config = dma->portB.config = 0x01;	// "standard timing" internal bit set
 	dma->wr6_read_mask = 0b01111111;		// return all RR0-RR6 by default (after power-on)
 	// internal emulation related variables (mask==0 is enough, no need to init mode/index vars)
 	dma->write_mask = dma->read_mask = 0;	// no extra bytes are expected
@@ -356,15 +368,9 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 			expect_extra_bytes(dma, WRITE_MODE_WR0, (value >> 3) & 0b1111);
 		} else if (value & 0x04) {		// WR1 (0b0xxxx100)
 			set_port_config(&dma->portA, value);
-			//TODO if Zilog DMA does actively reset time config when D6=0, then do it *here*
-			// zxnDMA and UA858D use D6 only as mere flag to expect another byte written
-			// (keeping previous timing for D6=0)
 			expect_extra_bytes(dma, WRITE_MODE_WR1, (value >> 6) & 0b1);
 		} else {						// WR2 (0b0xxxx000)
 			set_port_config(&dma->portB, value);
-			//TODO if Zilog DMA does actively reset time config when D6=0, then do it *here*
-			// zxnDMA and UA858D use D6 only as mere flag to expect another byte written
-			// (keeping previous timing for D6=0)
 			expect_extra_bytes(dma, WRITE_MODE_WR2, (value >> 6) & 0b1);
 		}
 	}
@@ -373,6 +379,7 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 
 z80_byte zxndma_read_value(struct s_zxndma* const dma) {
 	if (0 == dma->read_mask) {
+		// ZilogDMA chip does read non-zero, but it's not valid status either! So zero in emulation.
 		if (dma->emulate_Zilog.v) return 0;		// nothing to be seen here, proceed further
 		return dma->status;						// zxnDMA returns status on every unrequested read
 	}
@@ -465,7 +472,6 @@ void zxndma_emulate(struct s_zxndma* const dma) {
 	dma->bus_master.v = 1;	// reserve bus to DMA (no CPU)
 
 	t_estados += zxndma_get_port_cycles(src);
-	//TODO add I/O contention for particular ports? (maybe also mem contention?)
 
 	// read byte
 	z80_byte value = zxndma_is_port_io(src) ?
@@ -475,7 +481,6 @@ void zxndma_emulate(struct s_zxndma* const dma) {
 	++reg_r;
 
 	t_estados += zxndma_get_port_cycles(dst);
-	//TODO add I/O contention for particular ports? (maybe also mem contention?)
 
 	// write byte
 	if (zxndma_is_port_io(dst)) {
@@ -523,7 +528,6 @@ static void zxndma_emulate_zilog(struct s_zxndma* const dma, const int mode GCC_
 	dma->bus_master.v = 1;	// reserve bus to DMA (no CPU)
 
 	t_estados += zxndma_get_port_cycles(src);
-	//TODO add I/O contention for particular ports? (maybe also mem contention?)
 
 	// read byte
 	z80_byte value = zxndma_is_port_io(src) ?
@@ -533,7 +537,6 @@ static void zxndma_emulate_zilog(struct s_zxndma* const dma, const int mode GCC_
 	++reg_r;
 
 	t_estados += zxndma_get_port_cycles(dst);
-	//TODO add I/O contention for particular ports? (maybe also mem contention?)
 
 	// write byte
 	if (zxndma_is_port_io(dst)) {
