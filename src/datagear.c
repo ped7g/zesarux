@@ -323,6 +323,9 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 			case 0:						//WR3 (0b1xxxxx00)
 				dma->wr3 = value;
 				expect_extra_bytes(dma, WRITE_MODE_WR3, (value >> 3) & 0b11);
+				// make sure the enable/disable goes through the helper function
+				// - to do internal emulation setup properly
+				set_is_transfering(dma, (0x40 & value));
 				// if the transfer is enabled by bit 6 and extra bytes are expected:
 				// - the transfer will probably happen before reading extra bytes (!) (TODO check real HW chip?)
 				break;
