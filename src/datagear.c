@@ -107,16 +107,11 @@ static void adjust_port_address(struct s_zxndma_port* const port) {
 static void set_is_transfering(struct s_zxndma* const dma, const int enable) {
 	if (enable) {
 		dma->wr3 |= 0x40;
-		dma->transfer_start_t = t_estados;
-		//FIXME reset also next prescalar (to transfer 1B instantly before waiting)
+		dma->write_28Mhz_ticks = dma->prescalar_28Mhz_ticks;	// make next read happen instantly
 	} else {
 		dma->wr3 &= ~0x40;
 		dma->bus_master.v = 0;
 	}
-}
-
-static int is_transfering(const struct s_zxndma* const dma) {
-	return 0 != (0x40 & dma->wr3);
 }
 
 static void expect_extra_bytes(struct s_zxndma* const dma, const z80_byte mode, const z80_byte mask) {
@@ -226,6 +221,10 @@ int zxndma_get_port_cycles(const struct s_zxndma_port* const port) {
 	return 4 - (port->timing & 0b11);	// 0b11 will produce timing "1" which is illegal, but..
 }
 
+int zxndma_is_transfering(const struct s_zxndma* const dma) {
+	return 0 != (0x40 & dma->wr3);
+}
+
 // 1 = A->B, 0 = B->A
 int zxndma_is_direction_a_to_b(const struct s_zxndma* const dma) {
 	return 0 < (0b100 & dma->wr0);
@@ -248,6 +247,8 @@ void zxndma_reset(struct s_zxndma* const dma) {
 	dma->emulate_Zilog.v = 0;				// default to "zxnDMA" mode
 	dma->emulate_UA858D.v = 0;
 	dma->bus_master.v = 0;
+	dma->prescalar_28Mhz_ticks = 0;
+	dma->menu_enabled.v = 1;
 }
 
 void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
@@ -285,7 +286,10 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 						set_port_cycles(&dma->portB, value);
 						if (0b00100000 & value) dma->write_mask = 1;	// extra prescalar byte following
 						break;
-					case 2: dma->prescalar = value;					break;
+					case 2:
+						dma->prescalar = value;
+						dma->prescalar_28Mhz_ticks = ((int)dma->prescalar)<<5;	// pre-calculate compare value
+						break;
 				}
 				break;
 
@@ -368,7 +372,10 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 }
 
 z80_byte zxndma_read_value(struct s_zxndma* const dma) {
-	if (0 == dma->read_mask) return 0;		// nothing to be seen here, proceed further
+	if (0 == dma->read_mask) {
+		if (dma->emulate_Zilog.v) return 0;		// nothing to be seen here, proceed further
+		return dma->status;						// zxnDMA returns status on every unrequested read
+	}
 
 	// search for some bit in mask set (keep advancing index, so index is 1..n when mask is hit)
 	int current_mask_bit0;
@@ -391,9 +398,11 @@ z80_byte zxndma_read_value(struct s_zxndma* const dma) {
 	}
 }
 
+extern z80_byte tbblue_registers[];
+
 void zxndma_emulate(struct s_zxndma* const dma) {
 
-	if (!is_transfering(dma)) return;
+	if (!zxndma_is_transfering(dma)) return;
 
 	int mode = zxndma_transfer_mode(dma);
 	if (ZXNDMA_MODE_BYTE == mode || ZXNDMA_MODE_INVALID == mode) {
@@ -414,24 +423,43 @@ void zxndma_emulate(struct s_zxndma* const dma) {
 	struct s_zxndma_port* const dst = zxndma_is_direction_a_to_b(dma) ? &dma->portB : &dma->portA;
 // 	printf("Copying %d bytes from %04XH to %04XH counter %d\n", dma->length, src->address, dst->address, dma->counter);
 
-	//TODO verify:
-	// - final values after full block is transfered (RR1-6)
+// 	printf("Before transfer: dma->write_28Mhz_ticks %d vs dma->prescalar_28Mhz_ticks %d t_estados %d mode %d length %d\n",
+// 		dma->write_28Mhz_ticks, dma->prescalar_28Mhz_ticks, t_estados, mode, dma->length);
 
-// 	int remaining = t_estados - dma->transfer_start_t;
-// 	if (remaining < 0) remaining += screen_testados_total;
-
-// 	if (ZXNDMA_MODE_CONTINUOUS == mode)
-// 	printf("Before transfer: dma->transfer_start_t %d t_estados %d remaining %d length %d t_per_byte %d\n",
-// 		dma->transfer_start_t, t_estados, remaining, dma->length, t_per_byte);
-
-	//FIXME quick hack preventing BURST mode to go back to CPU when prescalar == 0 (for CORE305.SNA)
-	// remove it after burst will correctly recognize when it should give back time to CPU
-	if (!dma->emulate_Zilog.v && dma->prescalar) {
-		//FIXME do the waiting thing
-		// eventually releasing bus_master if there is enough time to wait = burst mode
-		// the first pass through this test after LOAD or CONTINUE should always transfer at least 1B
-		// (and reserve bus_master after this test)
+	if (dma->write_28Mhz_ticks < dma->prescalar_28Mhz_ticks) {
+		const int turbo_shift = 3 - (tbblue_registers[7] & 3);
+		const int current_28Mhz_ticks = t_estados<<turbo_shift;
+		int diff_ticks = current_28Mhz_ticks - dma->old_28Mhz_ticks;
+		dma->old_28Mhz_ticks = current_28Mhz_ticks;
+		if (diff_ticks < 0) {
+			diff_ticks += screen_testados_total<<turbo_shift;
+		}
+		// advance write time by whatever else emulator was doing
+		dma->write_28Mhz_ticks += diff_ticks;
+		if (dma->write_28Mhz_ticks < dma->prescalar_28Mhz_ticks) {
+			// not advanced enough - yet
+			// in burst mode, give CPU control back, in continuous mode just burn time
+			int t_states_to_next_write = dma->prescalar_28Mhz_ticks - dma->write_28Mhz_ticks;
+			t_states_to_next_write >>= turbo_shift;
+			if (ZXNDMA_MODE_BURST == mode && 4 <= t_states_to_next_write ) {
+				// release bus for CPU and let it burn t-states on its own
+				dma->bus_master.v = 0;
+				return;
+			} else {
+				// in continuous mode, or very near the next write, acquire the bus and wait
+				dma->bus_master.v = 1;	// reserve bus to DMA (no CPU)
+				if (t_states_to_next_write <= 0) t_states_to_next_write = 1;
+				if (64 < t_states_to_next_write) t_states_to_next_write = 64;
+				t_estados += t_states_to_next_write;
+				dma->old_28Mhz_ticks += (t_states_to_next_write<<turbo_shift);
+				dma->write_28Mhz_ticks += (t_states_to_next_write<<turbo_shift);
+				// give emulator chance to process the long wait and draw screen/etc
+				if (8 < t_states_to_next_write) return;
+			}
+		}
 	}
+	// write should be done now
+	dma->write_28Mhz_ticks -= dma->prescalar_28Mhz_ticks;
 
 	dma->status |= 1;		// some byte will be surely transferred this time
 	dma->bus_master.v = 1;	// reserve bus to DMA (no CPU)
@@ -456,22 +484,21 @@ void zxndma_emulate(struct s_zxndma* const dma) {
 		poke_byte_no_time(dst->address, value);
 	}
 
-	int t_per_byte = zxndma_get_port_cycles(src) + zxndma_get_port_cycles(dst);
-	//TODO add I/O contention for particular ports? (maybe also mem contention?)
-	//ULA port 254 is NOT contended and 4T is possible on real HW (UA858D + toastrack + 0x0E timing settings)
-
-	dma->transfer_start_t += t_per_byte;	//FIXME prescalar delay implementation
-	if (screen_testados_total <= dma->transfer_start_t) {
-		dma->transfer_start_t -= screen_testados_total;
-	}
-
 	adjust_port_address(src);
 	adjust_port_address(dst);
 	++dma->counter;
 
+// 	if (dma->prescalar) {	//DEBUG
+// 		static int last_border = 0;
+// 		out_port_spectrum_no_time(254, last_border>>2);
+// 		last_border = (last_border + 1) & 0x1F;
+// 	}
+
 	//zxnDMA length compare (length == transferred bytes)
 	if (dma->counter == dma->length) {
 		counter_reached_length(dma);
+		// zxnDMA does report in core3.0.5 the "counter" value after transfer as 0
+		dma->counter = 0;	//TODO verify with newer versions of core, this will hopefully change
 	}
 }
 

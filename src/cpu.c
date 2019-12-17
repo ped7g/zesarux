@@ -2970,7 +2970,7 @@ void set_machine_params(void)
 		if (scr_z88_cpc_load_keymap!=NULL) scr_z88_cpc_load_keymap();
 
 
-		if (MACHINE_IS_TBBLUE) zxndma.emulate.v = zxndma.menu_enabled.v = 1;
+		if (MACHINE_IS_TBBLUE) zxndma.emulate.v = 1;
 // 		if (MACHINE_IS_TBBLUE) datagear_dma_enable();
 
 		//Quitar mensajes de footer establecidos con autoselectoptions.c

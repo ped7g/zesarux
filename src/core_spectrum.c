@@ -802,7 +802,10 @@ void core_spectrum_ciclo_fetch(void)
 
 	//Soporte TBBlue DMA & copper
 	if (MACHINE_IS_TBBLUE) {
-		if (zxndma.emulate.v && zxndma.menu_enabled.v) zxndma_emulate(&zxndma);
+		if (zxndma.emulate.v) {
+			if (zxndma.menu_enabled.v) zxndma_emulate(&zxndma);
+			else zxndma.bus_master.v = 0;		// force bus release when DMA is disabled from menu
+		}
 		//Si esta activo copper
 		tbblue_copper_handle_next_opcode();
 	}

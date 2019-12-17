@@ -6547,6 +6547,58 @@ void menu_debug_dma_tsconf_zxuno_overlay(void)
 
 	else {
 
+	if (MACHINE_IS_TBBLUE) {
+
+		sprintf (texto_dma,"Port A:   %04XH WR: %04XH",zxndma.portA.address,zxndma.portA.wr_address);
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+
+		sprintf (texto_dma,"Port B:   %04XH WR: %04XH",zxndma.portB.address,zxndma.portB.wr_address);
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+
+		sprintf (texto_dma,"Length:   %5d WR: %5d",zxndma.counter,zxndma.length);
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+
+		const char* portAincrement = "fix";
+		switch (zxndma_get_port_increment_type(&zxndma.portA)) {
+			case 0:		portAincrement = "-- ";	break;
+			case 1:		portAincrement = "++ ";	break;
+		}
+		const char* portBincrement = "fix";
+		switch (zxndma_get_port_increment_type(&zxndma.portB)) {
+			case 0:		portBincrement = "-- ";	break;
+			case 1:		portBincrement = "++ ";	break;
+		}
+		sprintf (texto_dma, "A %s %s  %s  B %s %s",
+				 zxndma_is_port_io(&zxndma.portA) ? "I/O" : "mem", portAincrement,
+				 zxndma_is_direction_a_to_b(&zxndma) ? "->" : "<-",
+				 zxndma_is_port_io(&zxndma.portB) ? "I/O" : "mem", portBincrement);
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+
+		const char* autoRestartTxt = (zxndma.wr5 & 0b00100000) ? " restart" : "";
+		const z80_byte modo_transferencia=zxndma_transfer_mode(&zxndma);
+		const char* modeTxt = "";
+		switch (modo_transferencia) {
+			case 0:		modeTxt = "Byte mode (invalid)";	autoRestartTxt = "";	break;
+			case 1:		modeTxt = "Continuous";	break;
+			case 2:		modeTxt = "Burst";		break;
+			case 3:		modeTxt = "Do not use";				autoRestartTxt = "";	break;
+		}
+		sprintf (texto_dma, "Mode: %s%s", modeTxt, autoRestartTxt);
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+
+		sprintf (texto_dma, "Port timing:  A %dT  B %dT", zxndma_get_port_cycles(&zxndma.portA), zxndma_get_port_cycles(&zxndma.portB));
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+
+		int prescalarFrequency = zxndma.prescalar ? (875000 / zxndma.prescalar) : 0;
+		sprintf (texto_dma, "Prescalar: %3d =%7dHz", zxndma.prescalar, prescalarFrequency);
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+
+		sprintf (texto_dma, "Status: %02XH %s",
+				 zxndma.status,
+				 zxndma_is_transfering(&zxndma) ? "running" : "idle");
+		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
+	}
+
 	if (MACHINE_IS_TSCONF) {
 		//Construimos 16 valores posibles segun rw (bit bajo) y ddev (bits altos)
 		int dma_type=debug_tsconf_dma_ddev*2+debug_tsconf_dma_rw;
@@ -6649,6 +6701,7 @@ void menu_debug_dma_tsconf_zxuno_disable(MENU_ITEM_PARAMETERS)
 	if (datagear_dma_emulation.v) datagear_dma_is_disabled.v ^=1;
 
 	else {
+		if (MACHINE_IS_TBBLUE) zxndma.menu_enabled.v ^=1;
 		if (MACHINE_IS_TSCONF) tsconf_dma_disabled.v ^=1;
 		if (MACHINE_IS_ZXUNO) zxuno_dma_disabled.v ^=1;
 	}
@@ -6676,6 +6729,8 @@ void menu_debug_dma_tsconf_zxuno(MENU_ITEM_PARAMETERS)
 	}
 
 	if (MACHINE_IS_TSCONF) strcpy(texto_ventana,"TSConf DMA");
+
+	if (MACHINE_IS_TBBLUE) strcpy(texto_ventana,"TBBlue zxnDMA");
 
 	if (datagear_dma_emulation.v) strcpy(texto_ventana,"Datagear DMA");	
 
@@ -6723,6 +6778,10 @@ void menu_debug_dma_tsconf_zxuno(MENU_ITEM_PARAMETERS)
 			if (MACHINE_IS_ZXUNO) {
 				lin++;	
 				condicion_dma_disabled=zxuno_dma_disabled.v;
+			}
+
+			if (MACHINE_IS_TBBLUE) {
+				condicion_dma_disabled=!zxndma.menu_enabled.v;
 			}
 
 			if (datagear_dma_emulation.v) condicion_dma_disabled=datagear_dma_is_disabled.v;

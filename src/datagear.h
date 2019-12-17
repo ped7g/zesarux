@@ -27,6 +27,11 @@
 #define DATAGEAR_DMA_FIRST_PORT 0x0b
 #define DATAGEAR_DMA_SECOND_PORT 0x6b
 
+///////////////////////////////////////////////////////////////////
+// zxnDMA emulation rewritten by Peter Helcmanovsky (Ped7g)
+// - original datagear-like emulation written by Cesar is below
+///////////////////////////////////////////////////////////////////
+
 #define ZXNDMA_MODE_BYTE		0
 #define ZXNDMA_MODE_CONTINUOUS	1
 #define ZXNDMA_MODE_BURST		2
@@ -82,12 +87,15 @@ struct s_zxndma {
 	z80_byte				write_mask;		// which further values are expected to be written to
 	z80_byte				read_index;		// index of next read (corresponding to bit0 of read_mask)
 	z80_byte				read_mask;		// further values to be read
-	int						transfer_start_t;	// start "t_estados" for next transfer-chunk
+	int						prescalar_28Mhz_ticks;	// value ready to be compared
+	int						write_28Mhz_ticks;	// how old is last finished write (for prescalar slow transfers)
+	int						old_28Mhz_ticks;	// previous emulation call was done at
 		// whole continuous transfer may be broken into multiple chunks by emulator (to refresh screen)
 		// so the "transfer_start_t" will be advancing every call to zxndma_emulate during active transfer
 };
 
 //public API for `s_zxndma` structure
+extern int zxndma_is_transfering(const struct s_zxndma* const dma);
 extern int zxndma_is_direction_a_to_b(const struct s_zxndma* const dma);
 extern int zxndma_transfer_mode(const struct s_zxndma* const dma);
 extern void zxndma_reset(struct s_zxndma* const dma);
@@ -98,7 +106,9 @@ extern z80_byte zxndma_read_value(struct s_zxndma* const dma);
 // single global instance of the zxnDMA chip (enough for core3.00.5 emulation)
 extern struct s_zxndma zxndma;
 
-///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+// original DMA emulation written by Cesar Hernandez Bano
+///////////////////////////////////////////////////////////////////
 
 extern void datagear_reset(void);
 extern void datagear_write_value(z80_byte value);
