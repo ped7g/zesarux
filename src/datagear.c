@@ -131,6 +131,10 @@ static void counter_reached_length(struct s_zxndma* const dma) {
 		dma->portA.address = dma->portA.wr_address;
 		dma->portB.address = dma->portB.wr_address;
 		dma->counter = 0;
+
+		// this is not in Zilog docs (= probably inaccurate), but I need it to prevent destination
+		// increment ahead of first byte transferred in Zilog-compatibility mode
+		dma->status &= ~1;
 	} else {						// no auto-restart
 		set_is_transfering(dma, 0);
 	}
