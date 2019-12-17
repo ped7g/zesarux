@@ -633,6 +633,11 @@ void cpu_set_turbo_speed(void)
 
 	debug_printf (VERBOSE_INFO,"Changing turbo mode from %dX to %dX",cpu_turbo_speed_antes,cpu_turbo_speed);
 
+	if (cpu_turbo_speed>MAX_CPU_TURBO_SPEED) {
+		debug_printf (VERBOSE_INFO,"Turbo mode higher than maximum. Setting to %d",MAX_CPU_TURBO_SPEED);
+		cpu_turbo_speed=MAX_CPU_TURBO_SPEED;
+	}
+
 	//Ajustes previos de t_estados. En estos ajustes, solo las variables t_estados, antes_t_estados se usan. Las t_estados_en_linea, t_estados_percx son para debug
 	//printf ("Turbo was %d, setting turbo %d\n",cpu_turbo_speed_antes,cpu_turbo_speed);
 
@@ -642,10 +647,10 @@ void cpu_set_turbo_speed(void)
 
 	//printf ("Before changing turbo, t-scanline: %d, t-states: %d, t-states in line: %d, percentaje column: %d%%\n",t_scanline,t_estados,t_estados_en_linea,t_estados_percx);
 
-	int antes_t_estados=t_estados / cpu_turbo_speed_antes;
+	//Ajustar t_estados para que se quede en mismo "sitio"
+	int converted_t_estados = t_estados * cpu_turbo_speed / cpu_turbo_speed_antes;
 
 	//printf ("Before changing turbo, t-states at turbo 1X: %d\n",antes_t_estados);
-
 
 	z80_bit antes_debug_breakpoints_enabled;
 	antes_debug_breakpoints_enabled.v=debug_breakpoints_enabled.v;
@@ -668,11 +673,6 @@ void cpu_set_turbo_speed(void)
 	
 	
 	
-
-	if (cpu_turbo_speed>MAX_CPU_TURBO_SPEED) {
-		debug_printf (VERBOSE_INFO,"Turbo mode higher than maximum. Setting to %d",MAX_CPU_TURBO_SPEED);
-		cpu_turbo_speed=MAX_CPU_TURBO_SPEED;
-	}
 
 	//Si esta divmmc/divide, volver a aplicar funciones poke
 	if (diviface_enabled.v) diviface_restore_peek_poke_functions();
@@ -700,8 +700,7 @@ void cpu_set_turbo_speed(void)
 
 
 	//Ajustes posteriores de t_estados
-	//Ajustar t_estados para que se quede en mismo "sitio"
-	t_estados=antes_t_estados * cpu_turbo_speed;
+	t_estados=converted_t_estados;
 
 
 	//t_estados_en_linea=t_estados % screen_testados_linea;
