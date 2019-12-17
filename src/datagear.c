@@ -66,6 +66,8 @@ struct s_zxndma zxndma;
 #define COMMAND_ENABLE					0x87
 #define COMMAND_READ_MASK_FOLLOWS		0xBB
 
+static void zxndma_emulate_zilog(struct s_zxndma* const dma, const int mode);
+
 static void set_address_low(struct s_zxndma_port* const port, const z80_byte lsb) {
 	port->wr_address = (port->wr_address & 0xFF00) | lsb;
 }
@@ -92,6 +94,7 @@ static void set_length_high(struct s_zxndma* const dma, const z80_byte msb) {
 
 static void reset_port_timing(struct s_zxndma_port* const port) {
 	port->config &= ~0b01000000;		// clear "variable timing" bit in config
+	port->timing = 3;					// set timing to 3T
 }
 
 static void adjust_port_address(struct s_zxndma_port* const port) {
@@ -103,22 +106,34 @@ static void adjust_port_address(struct s_zxndma_port* const port) {
 
 static void set_is_transfering(struct s_zxndma* const dma, const int enable) {
 	if (enable) {
-		dma->status |= 0x80;
+		dma->wr3 |= 0x40;
 		dma->transfer_start_t = t_estados;
 		//FIXME reset also next prescalar (to transfer 1B instantly before waiting)
 	} else {
-		dma->status &= ~0x80;
+		dma->wr3 &= ~0x40;
+		dma->bus_master.v = 0;
 	}
 }
 
 static int is_transfering(const struct s_zxndma* const dma) {
-	return (0x80 <= dma->status);
+	return 0 != (0x40 & dma->wr3);
 }
 
 static void expect_extra_bytes(struct s_zxndma* const dma, const z80_byte mode, const z80_byte mask) {
 	dma->write_index = 0;
 	dma->write_mode = mode;
 	dma->write_mask = mask;
+}
+
+static void counter_reached_length(struct s_zxndma* const dma) {
+	dma->status &= ~0b00100000;		// whole block transferred at least once
+	if (dma->wr5 & 0b00100000) {	// auto-restart feature (very limited LOAD command)
+		dma->portA.address = dma->portA.wr_address;
+		dma->portB.address = dma->portB.wr_address;
+		dma->counter = 0;
+	} else {						// no auto-restart
+		set_is_transfering(dma, 0);
+	}
 }
 
 static void do_command(struct s_zxndma* const dma, const z80_byte command) {
@@ -149,6 +164,9 @@ static void do_command(struct s_zxndma* const dma, const z80_byte command) {
 			dma->counter = 0;
 			dma->status &= ~0b00000001;		// clear status "any byte transferred"
 			dma->status |=  0b00100000;		// set "not end-of-block"
+			if (dma->emulate_Zilog.v && dma->emulate_UA858D.v) {
+				dma->read_mask = 0;			// real UA858D will clear the read sequence when LOAD
+			}
 			break;
 		case COMMAND_REINIT_STATUS_BYTE:
 			// set "not end-of-block" and "match-not-found" (matching is not implemented in zxnDMA)
@@ -199,12 +217,9 @@ int zxndma_get_port_increment_type(const struct s_zxndma_port* const port) {
 	return (port->config>>4) & 0b11;
 }
 
-// 0 = default Z80 timing, otherwise amount of cycles specified in config
+// amount of cycles specified in config (or default 3T)
 int zxndma_get_port_cycles(const struct s_zxndma_port* const port) {
-	if (0b01000000 & port->config) {	// variable timing
-		return 4 - (port->timing & 0b11);	// 0b11 will produce timing "1" which is illegal, but..
-	}
-	return 3;	// standard Z80 timing (wild guess done in chat with Allen A., may be wrong)
+	return 4 - (port->timing & 0b11);	// 0b11 will produce timing "1" which is illegal, but..
 }
 
 // 1 = A->B, 0 = B->A
@@ -226,10 +241,14 @@ void zxndma_reset(struct s_zxndma* const dma) {
 	dma->wr6_read_mask = 0b01111111;		// return all RR0-RR6 by default (after power-on)
 	// internal emulation related variables (mask==0 is enough, no need to init mode/index vars)
 	dma->write_mask = dma->read_mask = 0;	// no extra bytes are expected
+	dma->emulate_Zilog.v = 0;				// default to "zxnDMA" mode
+	dma->emulate_UA858D.v = 0;
+	dma->bus_master.v = 0;
 }
 
 void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 
+// 	printf("DMA port write byte: 0x%02X (internal w_mask %02X r_mask %02X)\n", value, dma->write_mask, dma->read_mask);
 	// check if some extra bytes in particular register group is expected, handle it if yes
 	if (dma->write_mask) {
 
@@ -271,8 +290,6 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 					case 1:	dma->_mask_byte = value;				break;
 					case 2: dma->_match_byte = value;				break;
 				}
-				// if no extra bytes are expected and bit ENABLE is flipped, start transfer
-				if (!dma->write_mask && dma->wr3&0x40) do_command(dma, COMMAND_ENABLE);
 				break;
 
 			case WRITE_MODE_WR4:
@@ -306,9 +323,8 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 			case 0:						//WR3 (0b1xxxxx00)
 				dma->wr3 = value;
 				expect_extra_bytes(dma, WRITE_MODE_WR3, (value >> 3) & 0b11);
-				// if no extra bytes are expected and bit ENABLE is flipped, start transfer
-				if (!dma->write_mask && dma->wr3&0x40) do_command(dma, COMMAND_ENABLE);
-					// maybe too smart, maybe Zilog DMA will start without waiting for extra bytes?
+				// if the transfer is enabled by bit 6 and extra bytes are expected:
+				// - the transfer will probably happen before reading extra bytes (!) (TODO check real HW chip?)
 				break;
 			case 1:						//WR4 (0b1xxxxx01)
 				dma->wr4 = value;
@@ -329,9 +345,15 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 			expect_extra_bytes(dma, WRITE_MODE_WR0, (value >> 3) & 0b1111);
 		} else if (value & 0x04) {		// WR1 (0b0xxxx100)
 			set_port_config(&dma->portA, value);
+			//TODO if Zilog DMA does actively reset time config when D6=0, then do it *here*
+			// zxnDMA and UA858D use D6 only as mere flag to expect another byte written
+			// (keeping previous timing for D6=0)
 			expect_extra_bytes(dma, WRITE_MODE_WR1, (value >> 6) & 0b1);
 		} else {						// WR2 (0b0xxxx000)
 			set_port_config(&dma->portB, value);
+			//TODO if Zilog DMA does actively reset time config when D6=0, then do it *here*
+			// zxnDMA and UA858D use D6 only as mere flag to expect another byte written
+			// (keeping previous timing for D6=0)
 			expect_extra_bytes(dma, WRITE_MODE_WR2, (value >> 6) & 0b1);
 		}
 	}
@@ -349,8 +371,8 @@ z80_byte zxndma_read_value(struct s_zxndma* const dma) {
 		dma->read_mask >>= 1;
 	} while (0 == current_mask_bit0);
 
-	switch (dma->write_index) {
-		case 1:	return dma->status & 0x7F;	// hide bit7 which is used internally for emulation
+	switch (dma->read_index) {
+		case 1:	return dma->status;
 		case 2:	return dma->counter & 0xFF;
 		case 3:	return dma->counter>>8;
 		case 4:	return dma->portA.address & 0xFF;
@@ -374,81 +396,125 @@ void zxndma_emulate(struct s_zxndma* const dma) {
 		return;
 	}
 
+	if (dma->emulate_Zilog.v) {
+		zxndma_emulate_zilog(dma, mode);
+		return;
+	}
+
+	// zxnDMA variant emulation: simpler, more logical results, transfering N bytes instead of N+1
+
 	struct s_zxndma_port* const src = zxndma_is_direction_a_to_b(dma) ? &dma->portA : &dma->portB;
 	struct s_zxndma_port* const dst = zxndma_is_direction_a_to_b(dma) ? &dma->portB : &dma->portA;
-// 	printf("Copying %d bytes from %04XH to %04XH\n", dma->length, src->address, dst->address);
+// 	printf("Copying %d bytes from %04XH to %04XH counter %d\n", dma->length, src->address, dst->address, dma->counter);
 
-	int t_per_byte = zxndma_get_port_cycles(src) + zxndma_get_port_cycles(dst);
-// 	if (zxndma_is_port_io(dst)) ++t_per_byte;		// I/O out is costing +1 extra in Cesar's old version
-	//TODO verify with Allen:
-	// - the timings vs contention
-	// - timing is port+port?
-	// - final values after full block is transfered (RR1-6) (Zilog doc has nice table)
+	//TODO verify:
+	// - final values after full block is transfered (RR1-6)
 
-	int remaining = t_estados - dma->transfer_start_t;
-	if (remaining < 0) remaining += screen_testados_total;
-	
-	//FIXME seems like DMA is not advancing t_estados by itself, which it probably should
-	// or find out what kind of hack is Cesar using
-	// -> after DMA will advance states correctly and reserve bus from CPU correctly, modify "while"
-	//    below to use available states in all modes, to give emulation time to refresh also Copper/screen
-	//    but it has to kill CPU between when in continuous or burst+ready!
-	//// currently the "continuous" mode transfers are basically "instant" from t_estados point of view
+// 	int remaining = t_estados - dma->transfer_start_t;
+// 	if (remaining < 0) remaining += screen_testados_total;
 
 // 	if (ZXNDMA_MODE_CONTINUOUS == mode)
 // 	printf("Before transfer: dma->transfer_start_t %d t_estados %d remaining %d length %d t_per_byte %d\n",
 // 		dma->transfer_start_t, t_estados, remaining, dma->length, t_per_byte);
 
-	if (ZXNDMA_MODE_CONTINUOUS == mode || t_per_byte <= remaining) {
-		dma->status |= 1;		// some byte will be surely transferred this time
-	}
-
 	//FIXME quick hack preventing BURST mode to go back to CPU when prescalar == 0 (for CORE305.SNA)
 	// remove it after burst will correctly recognize when it should give back time to CPU
-	if (ZXNDMA_MODE_BURST == mode && 0 == dma->prescalar) mode = ZXNDMA_MODE_CONTINUOUS;
+	if (!dma->emulate_Zilog.v && dma->prescalar) {
+		//FIXME do the waiting thing
+		// eventually releasing bus_master if there is enough time to wait = burst mode
+		// the first pass through this test after LOAD or CONTINUE should always transfer at least 1B
+		// (and reserve bus_master after this test)
+	}
 
-	while (ZXNDMA_MODE_CONTINUOUS == mode || t_per_byte <= remaining) {
+	dma->status |= 1;		// some byte will be surely transferred this time
+	dma->bus_master.v = 1;	// reserve bus to DMA (no CPU)
 
-		// read byte
-		z80_byte value = zxndma_is_port_io(src) ?
-			lee_puerto_spectrum_no_time((src->address>>8)&0xFF,src->address & 0xFF) :
-			peek_byte_no_time(src->address);
+	t_estados += zxndma_get_port_cycles(src);
+	//TODO add I/O contention for particular ports? (maybe also mem contention?)
 
-		// write byte
-		if (zxndma_is_port_io(dst)) {
-			out_port_spectrum_no_time(dst->address, value);
-		} else {
-			poke_byte_no_time(dst->address, value);
-		}
+	// read byte
+	z80_byte value = zxndma_is_port_io(src) ?
+		lee_puerto_spectrum_no_time((src->address>>8)&0xFF,src->address & 0xFF) :
+		peek_byte_no_time(src->address);
 
-		dma->transfer_start_t += t_per_byte;
-		if (screen_testados_total <= dma->transfer_start_t) {
-			dma->transfer_start_t -= screen_testados_total;
-		}
+	++reg_r;
 
-		remaining -= t_per_byte;
+	t_estados += zxndma_get_port_cycles(dst);
+	//TODO add I/O contention for particular ports? (maybe also mem contention?)
 
-		adjust_port_address(src);
+	// write byte
+	if (zxndma_is_port_io(dst)) {
+		out_port_spectrum_no_time(dst->address, value);
+	} else {
+		poke_byte_no_time(dst->address, value);
+	}
 
-		// Zilog DMA length compare would be here (doing +1 byte transfer, and reading src.adr+1, dst.adr, counter)
+	int t_per_byte = zxndma_get_port_cycles(src) + zxndma_get_port_cycles(dst);
+	//TODO add I/O contention for particular ports? (maybe also mem contention?)
+	//ULA port 254 is NOT contended and 4T is possible on real HW (UA858D + toastrack + 0x0E timing settings)
 
+	dma->transfer_start_t += t_per_byte;	//FIXME prescalar delay implementation
+	if (screen_testados_total <= dma->transfer_start_t) {
+		dma->transfer_start_t -= screen_testados_total;
+	}
+
+	adjust_port_address(src);
+	adjust_port_address(dst);
+	++dma->counter;
+
+	//zxnDMA length compare (length == transferred bytes)
+	if (dma->counter == dma->length) {
+		counter_reached_length(dma);
+	}
+}
+
+static void zxndma_emulate_zilog(struct s_zxndma* const dma, const int mode GCC_UNUSED) {
+
+	struct s_zxndma_port* const src = zxndma_is_direction_a_to_b(dma) ? &dma->portA : &dma->portB;
+	struct s_zxndma_port* const dst = zxndma_is_direction_a_to_b(dma) ? &dma->portB : &dma->portA;
+// 	printf("Copying %d bytes from %04XH to %04XH counter %d\n", dma->length, src->address, dst->address, dma->counter);
+
+// 	printf("Before transfer: dma->transfer_start_t %d t_estados %d mode %d length %d t_per_byte %d\n",
+// 		dma->transfer_start_t, t_estados, mode, dma->length, t_per_byte);
+
+	if (dma->status&1) {
+		// adjust destination port if some byte was already transfered
 		adjust_port_address(dst);
+		// this is skipped right after LOAD to not modify freshly loaded address
+		// but has to happen before transfer for the CONTINUE+ENABLE type of transfer
+	} else {
+		dma->status |= 1;	// some byte will be surely transferred this time
+	}
 
+	dma->bus_master.v = 1;	// reserve bus to DMA (no CPU)
+
+	t_estados += zxndma_get_port_cycles(src);
+	//TODO add I/O contention for particular ports? (maybe also mem contention?)
+
+	// read byte
+	z80_byte value = zxndma_is_port_io(src) ?
+		lee_puerto_spectrum_no_time((src->address>>8)&0xFF,src->address & 0xFF) :
+		peek_byte_no_time(src->address);
+
+	++reg_r;
+
+	t_estados += zxndma_get_port_cycles(dst);
+	//TODO add I/O contention for particular ports? (maybe also mem contention?)
+
+	// write byte
+	if (zxndma_is_port_io(dst)) {
+		out_port_spectrum_no_time(dst->address, value);
+	} else {
+		poke_byte_no_time(dst->address, value);
+	}
+
+	adjust_port_address(src);
+
+	// Zilog DMA length compare is here (doing +1 byte transfer, and reading src.adr+1, dst.adr, counter)
+	if (dma->counter == dma->length) {
+		counter_reached_length(dma);
+	} else {
 		++dma->counter;
-
-		//zxnDMA length compare (length == transferred bytes)
-		if (dma->counter == dma->length) {
-			dma->status &= ~0b00100000;		// whole block transferred at least once
-			if (dma->wr5 & 0b00100000) {	// auto-restart feature (very limited LOAD command)
-				dma->portA.address = dma->portA.wr_address;
-				dma->portB.address = dma->portB.wr_address;
-				dma->counter = 0;
-			} else {						// no auto-restart
-				set_is_transfering(dma, 0);
-				break;
-			}
-		}
-
 	}
 }
 

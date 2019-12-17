@@ -73,6 +73,9 @@ struct s_zxndma {
 	// emulator related values
 	z80_bit					emulate;	// global flag if zxnDMA is emulated at all
 	z80_bit					menu_enabled;	// enable/disable in options menu
+	z80_bit					emulate_Zilog;	// 1 = Zilog DMA (+1 length of transfers), 0 = zxnDMA
+	z80_bit					bus_master;		// 1 = DMA holds bus, no CPU operation allowed
+	z80_bit					emulate_UA858D;	// 1 = UA858D (only when emulate_Zilog is already set)
 	// emulation related internal values
 	z80_byte				write_mode;		// which group of registers is being written to (by write_mask)
 	z80_byte				write_index;	// index of next write (corresponding to bit0 of write_mask)
