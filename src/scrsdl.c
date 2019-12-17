@@ -94,7 +94,7 @@ int scrsdl_crea_ventana(void)
         scr_reallocate_layers_menu(ancho,alto);
 
         //establecer titulo ventana
-        SDL_WM_SetCaption("ZEsarUX " EMULATOR_VERSION , "ZEsarUX");
+        SDL_WM_SetCaption("ZESERUse " EMULATOR_VERSION , "ZEsarUX");
 
 	if (mouse_pointer_shown.v==0) SDL_ShowCursor(0);
 

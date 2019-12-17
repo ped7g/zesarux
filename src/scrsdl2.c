@@ -106,7 +106,7 @@ int scrsdl_crea_ventana(void)
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
-    SDL_SetWindowTitle(window,"ZEsarUX "EMULATOR_VERSION);
+    SDL_SetWindowTitle(window,"ZESERUse "EMULATOR_VERSION);
 
 
     scrsdl_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, ancho, SDL_ALTO_VENTANA);
