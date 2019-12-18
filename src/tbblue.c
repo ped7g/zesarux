@@ -1446,22 +1446,8 @@ Register:
  bit 1 = Over border (1 = yes)
  bit 0 = Sprites visible (1 = visible)
 */
-void tbsprite_put_color_line(int x,z80_byte color,int rangoxmin,int rangoxmax)
+void tbsprite_put_color_line(int x,z80_byte color)
 {
-
-	//Si coordenadas invalidas, volver
-	//if (x<0 || x>=MAX_X_SPRITE_LINE) return;
-
-	//Si coordenadas fuera de la parte visible (border si o no), volver
-	if (x<rangoxmin || x>rangoxmax) return;
-
-
-	//Si fuera del viewport. Clip window on Sprites only work when the "over border bit" is disabled
-	int clipxmin=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][0]+TBBLUE_SPRITE_BORDER;
-	int clipxmax=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][1]+TBBLUE_SPRITE_BORDER;
-	z80_byte sprites_over_border=tbblue_registers[21]&2;
-	if (sprites_over_border==0 && (x<clipxmin || x>clipxmax)) return;
-
 	//Si index de color es transparente, no hacer nada
 /*
 The sprites have now a new register for sprite transparency. Unlike the Global Transparency Colour register this refers to an index and  should be set when using indices other than 0xE3:
@@ -1469,10 +1455,6 @@ The sprites have now a new register for sprite transparency. Unlike the Global T
 (R/W) 0x4B (75) => Transparency index for Sprites
 bits 7-0 = Set the index value. (0XE3 after a reset)
 	*/
-	//if (color==tbblue_registers[75]) return;
-
-	z80_int color_final=tbblue_get_palette_active_sprite(color);
-
 
 	int xfinal=x;
 
@@ -1482,22 +1464,25 @@ bits 7-0 = Set the index value. (0XE3 after a reset)
 	xfinal *=2; //doble de ancho
 
 
+
 	//Ver si habia un color y activar bit colision
-	z80_int color_antes=tbblue_layer_sprites[xfinal];
+	const z80_int color_antes=tbblue_layer_sprites[xfinal];
 
 	//if (!tbblue_si_transparent(color_antes)) {
 	if (!tbblue_si_sprite_transp_ficticio(color_antes) ) {
 		//colision
 		tbblue_port_303b |=1;
 		//printf ("set colision flag. result value: %d\n",tbblue_port_303b);
-	}
-	
 
+		// NextReg 0x15 bit6 = rendering priority: 1 = Sprite 0 on top, 0 = Sprite 0 at bottom
+		const int rendering_priority = tbblue_registers[21]&0x40;
+		if (rendering_priority) return;			// keep pixel of previous sprite rendered
+	}
+
+	const z80_int color_final=tbblue_get_palette_active_sprite(color);
 	//sprite_line[x]=color;
 	tbblue_layer_sprites[xfinal]=color_final;
 	tbblue_layer_sprites[xfinal+1]=color_final; //doble de ancho
-
-	//if (xfinal<0 || xfinal>TBBLUE_LAYERS_PIXEL_WIDTH) printf ("out of range x sprites: %d\n",xfinal);
 
 }
 
@@ -1548,29 +1533,52 @@ struct s_tbsprite_anchor_data {
 	z80_byte	visible : 1, unified_anchor : 1, x_mirror : 1, y_mirror : 1, rotate : 1;
 };
 
-void tbsprite_do_overlay(void)
+int tbsprite_do_overlay(void)
 {
 
+		if (!tbblue_if_sprites_enabled() ) return 0;
 
-		if (!tbblue_if_sprites_enabled() ) return;
+        int y=t_scanline_draw-screen_indice_inicio_pant+TBBLUE_SPRITE_BORDER;
+			//first paper line is +32
+			// sprites have coordinate system going +-32px around paper area, i.e. y=0..255 (x=0..319)
+			// with top-left pixel of paper being at sprite coordinates [32,32]
 
-				//printf ("tbblue sprite chip activo\n");
+		int rangoxmin, rangoxmax, rangoymin, rangoymax;
 
+		if (tbblue_registers[21]&2) {
+			// sprites over border are by default not clipped ([0,0]->[319,255] area)
+			rangoxmin=0;
+			rangoxmax=TBBLUE_SPRITE_BORDER+255+TBBLUE_SPRITE_BORDER;
+			rangoymin=0;
+			rangoymax=TBBLUE_SPRITE_BORDER+191+TBBLUE_SPRITE_BORDER;
+			if (tbblue_registers[21]&0x20) {
+				// sprite clipping "over border" enabled, double the X coordinate of clip window
+				rangoxmin=2*clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][0];
+				rangoxmax=2*clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][1] + 1;
+				rangoymin=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][2];
+				rangoymax=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][3];
+				if (TBBLUE_SPRITE_BORDER+255+TBBLUE_SPRITE_BORDER < rangoxmax) {
+					// clamp rangoxmax to 319
+					rangoxmax = TBBLUE_SPRITE_BORDER+255+TBBLUE_SPRITE_BORDER;
+				}
+			}
+		} else {
+			// take clip window coordinates, but limit them to [0,0]->[255,191] (and offset them +32,+32)
+			rangoxmin=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][0] + TBBLUE_SPRITE_BORDER;
+			rangoxmax=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][1] + TBBLUE_SPRITE_BORDER;
+			rangoymin=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][2] + TBBLUE_SPRITE_BORDER;
+			rangoymax=clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][3] + TBBLUE_SPRITE_BORDER;
+			if (TBBLUE_SPRITE_BORDER+191 < rangoymax) {
+				// clamp rangoymax to 32+191 (bottom edge of PAPER)
+				rangoymax = TBBLUE_SPRITE_BORDER+191;
+			}
+		}
 
-        //int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
-        int y=t_scanline_draw; //0..63 es border (8 no visibles)
+		if (y < rangoymin || rangoymax < y) return 0;
 
-				int border_no_visible=screen_indice_inicio_pant-TBBLUE_SPRITE_BORDER;
-
-				y -=border_no_visible;
-
-				//Ejemplo: scanline_draw=32 (justo donde se ve sprites). border_no_visible=64-32 =32
-				//y=y-32 -> y=0
-
-
-				//Situamos el 0 32 pixeles por encima de dentro de pantalla, tal cual como funcionan las cordenadas de sprite de tbblue
-
-				//Aqui tenemos el y=0 arriba del todo del border
+		int total_sprites=0;
+		struct s_tbsprite_anchor_data anchor = { 0 };
+		int is_4bpp = 0;
 
         //Bucle para cada sprite
         int conta_sprites;
@@ -1578,35 +1586,6 @@ void tbsprite_do_overlay(void)
 
 		int i;
 		//int offset_pattern;
-
-		z80_byte sprites_over_border=tbblue_registers[21]&2;
-
-
-		int rangoxmin, rangoxmax;
-
-		if (sprites_over_border) {
-			rangoxmin=0;
-			rangoxmax=TBBLUE_SPRITE_BORDER+255+TBBLUE_SPRITE_BORDER;
-		} else {
-			rangoxmin=TBBLUE_SPRITE_BORDER;
-			rangoxmax=TBBLUE_SPRITE_BORDER+255;
-		}
-
-		int rangoymin, rangoymax;
-
-		if (sprites_over_border) {
-			rangoymin=0;
-			rangoymax=TBBLUE_SPRITE_BORDER+191+TBBLUE_SPRITE_BORDER;
-		} else {
-			rangoymin=TBBLUE_SPRITE_BORDER;
-			rangoymax=TBBLUE_SPRITE_BORDER+191;
-		}
-
-		if (y < rangoymin || rangoymax < y) return;
-
-		int total_sprites=0;
-		struct s_tbsprite_anchor_data anchor = { 0 };
-		int is_4bpp = 0;
 
         for (conta_sprites=0;conta_sprites<TBBLUE_MAX_SPRITES && total_sprites<MAX_SPRITES_PER_LINE;conta_sprites++) {
 			int sprite_x;
@@ -1634,7 +1613,7 @@ void tbsprite_do_overlay(void)
 			With 5byte type both X and Y for anchor sprites are signed 9bit, i.e. "0x1FF" is -1 coordinate.
 			Relative sprites have signed 8bit X/Y, i.e. -128..+127 only (X8 and Y8 have different meaning)
 
-			If the display of the sprites on the border is disabled, the coordinates of the sprites range from (32,32) to (287,223).
+			If the display of the sprites on the border is disabled, the visible coordinates of the sprites range from (32,32) to (287,223).
 			*/
 
 			const z80_byte attr4 = tbsprite_sprites[conta_sprites][3]&0x40 ? tbsprite_sprites[conta_sprites][4] : 0;
@@ -1834,16 +1813,20 @@ bits 7-0 = Set the index value. (0XE3 after a reset)
 					if (scaleX) {
 						const int scaleImax = (1<<scaleX);
 						for (int scaleI = 0; scaleI < scaleImax; ++scaleI) {
-							tbsprite_put_color_line(sprite_x+scaleI,index_color,rangoxmin,rangoxmax);
+							if (sprite_x+scaleI < rangoxmin) continue;
+							if (rangoxmax < sprite_x+scaleI) break;
+							tbsprite_put_color_line(sprite_x+scaleI,index_color);
 						}
 					} else {
-						tbsprite_put_color_line(sprite_x,index_color,rangoxmin,rangoxmax);
+						if (rangoxmin <= sprite_x && sprite_x <= rangoxmax) {
+							tbsprite_put_color_line(sprite_x,index_color);
+						}
 					}
 
 				}
 				sprite_x += (1<<scaleX);
-
-			}
+				if (rangoxmax < sprite_x) break;
+			} //end of for (i=0;i<TBBLUE_SPRITE_WIDTH;i++)
 
 			total_sprites++;
 			//printf ("total sprites in this line: %d\n",total_sprites);
@@ -1855,7 +1838,7 @@ bits 7-0 = Set the index value. (0XE3 after a reset)
 
 		}
 
-
+	return 1;
 }
 
 z80_byte tbblue_get_port_layer2_value(void)
@@ -5385,24 +5368,14 @@ the central 256×192 display. The X coordinates are internally doubled to cover 
 
 
 
-	//capa sprites. Si clip window y corresponde:
-	z80_byte sprites_over_border=tbblue_registers[21]&2;
-	//Clip window on Sprites only work when the "over border bit" is disabled
-	int mostrar_sprites=1;
-	if (sprites_over_border==0) {
-		int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
-		if (scanline_copia<clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][2] || scanline_copia>clip_windows[TBBLUE_CLIP_WINDOW_SPRITES][3]) mostrar_sprites=0;
-	}
-
-	
-	if (mostrar_sprites && !tbblue_force_disable_layer_sprites.v) {
+	// the tbsprite_do_overlay returns 0 when the line is completely clipped or sprites are disabled
+	if (!tbblue_force_disable_layer_sprites.v && tbsprite_do_overlay()) {
+		// else some sprite is active and maybe visible on screen
 		capasprites=1;
-		tbsprite_do_overlay();
 
-						if (tbblue_reveal_layer_sprites.v) {
-								tbblue_reveal_layer_draw(tbblue_layer_sprites);
-						}
-
+		if (tbblue_reveal_layer_sprites.v) {
+				tbblue_reveal_layer_draw(tbblue_layer_sprites);
+		}
 	}
 
 
