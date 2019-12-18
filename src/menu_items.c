@@ -6589,8 +6589,12 @@ void menu_debug_dma_tsconf_zxuno_overlay(void)
 		sprintf (texto_dma, "Port timing:  A %dT  B %dT", zxndma_get_port_cycles(&zxndma.portA), zxndma_get_port_cycles(&zxndma.portB));
 		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
 
-		int prescalarFrequency = zxndma.prescalar ? (875000 / zxndma.prescalar) : 0;
-		sprintf (texto_dma, "Prescalar: %3d =%7dHz", zxndma.prescalar, prescalarFrequency);
+		if (zxndma.emulate_Zilog.v) {
+			strcpy (texto_dma, "ZilogDMA compatibility ON");
+		} else {
+			int prescalarFrequency = zxndma.prescalar ? (875000 / zxndma.prescalar) : 0;
+			sprintf (texto_dma, "Prescalar: %3d =%7dHz", zxndma.prescalar, prescalarFrequency);
+		}
 		zxvision_print_string_defaults_fillspc(menu_debug_dma_tsconf_zxuno_overlay_window,1,linea++,texto_dma);
 
 		sprintf (texto_dma, "Status: %02XH %s",
