@@ -4971,6 +4971,7 @@ z80_bit tbblue_reveal_layer_sprites={0};
 void tbblue_do_ula_standard_overlay()
 {
 
+	if (tbblue_force_disable_layer_ula.v) return;
 
 	//Render de capa standard ULA (normal, timex) 
 
@@ -4979,7 +4980,9 @@ void tbblue_do_ula_standard_overlay()
 	//linea que se debe leer
 	int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
 
-
+	if (scanline_copia < clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] || clip_windows[TBBLUE_CLIP_WINDOW_ULA][3] < scanline_copia) {
+		return;		// clipped on Y-position
+	}
 
 	int x,bit;
 	z80_int direccion;
@@ -5006,8 +5009,6 @@ void tbblue_do_ula_standard_overlay()
 	int pixelOffset=(ula_offset_x&7);
 
 	z80_byte tbblue_scroll_y=tbblue_registers[0x27];
-	//FIXME clip-window is also scrolled -> should be display coordinates based
-	
 
 	scanline_copia +=tbblue_scroll_y;
 	scanline_copia=scanline_copia % 192;
@@ -5160,15 +5161,12 @@ void tbblue_do_ula_standard_overlay()
 			//Tener en cuenta valor clip window
 			
 			//(W) 0x1A (26) => Clip Window ULA/LoRes
-			if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1] && scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][3]) {
-				if (!tbblue_force_disable_layer_ula.v) {
-					//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
-					if (tbblue_si_transparent(color)) color=TBBLUE_SPRITE_TRANS_FICT;
+			if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1]) {
+				//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
+				if (tbblue_si_transparent(color)) color=TBBLUE_SPRITE_TRANS_FICT;
 
-					tbblue_layer_ula[posicion_array_layer-pixelOffset*2]=color;
-					if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer-pixelOffset*2+1]=color; //doble de ancho
-
-				}
+				tbblue_layer_ula[posicion_array_layer-pixelOffset*2]=color;
+				if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer-pixelOffset*2+1]=color; //doble de ancho
 			}
 
 		
