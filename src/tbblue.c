@@ -4737,7 +4737,9 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		if (!estamos_borde_supinf) {
 			tbblue_render_blended_rainbow(puntero_final_rainbow, final_borde_izquierdo, inicio_borde_derecho, ancho_rainbow, fallbackcolour);
 		}
-		return;
+		if (!estamos_borde_supinf || !capasprites) {	// inside paper area, or no sprites -> enough was done
+			return;
+		}
 	}
 
 	//printf ("ancho total: %d size layers: %d\n",get_total_ancho_rainbow(),TBBLUE_LAYERS_PIXEL_WIDTH );
