@@ -519,8 +519,8 @@ static void zxndma_emulate_zilog(struct s_zxndma* const dma, const int mode GCC_
 	struct s_zxndma_port* const dst = zxndma_is_direction_a_to_b(dma) ? &dma->portB : &dma->portA;
 // 	printf("Copying %d bytes from %04XH to %04XH counter %d\n", dma->length, src->address, dst->address, dma->counter);
 
-// 	printf("Before transfer: dma->transfer_start_t %d t_estados %d mode %d length %d t_per_byte %d\n",
-// 		dma->transfer_start_t, t_estados, mode, dma->length, t_per_byte);
+// 	printf("Before transfer: t_estados %d mode %d length %d src %dT dst %dT\n",
+// 		t_estados, mode, dma->length, zxndma_get_port_cycles(src), zxndma_get_port_cycles(dst));
 
 	if (dma->status&1) {
 		// adjust destination port if some byte was already transfered
