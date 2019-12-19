@@ -153,6 +153,12 @@ static void do_command(struct s_zxndma* const dma, const z80_byte command) {
 			dma->status |= 0b00110000;
 			reset_port_timing(&dma->portA);
 			reset_port_timing(&dma->portB);
+			if (dma->emulate_Zilog.v) {
+				dma->portA.address--;	// Zilog DMA RESET seems to do single "--" to RR3-4 address
+				// this will affect sequence RESET, CONTINUE, ENABLE, which seems to be overall
+				// quite unstable, and this emulation doesn't really want to be 100% accurate even
+				// for cases when the code is requesting unstable/wrong combinations
+			}
 			break;
 		case COMMAND_RESET_PORT_A_TIMING:
 			reset_port_timing(&dma->portA);
