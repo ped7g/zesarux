@@ -5493,16 +5493,16 @@ void load_nex_snapshot(char *archivo)
 	//}
 
 
-	//Al cargar .nex lo pone en turbo x 4
-	debug_printf(VERBOSE_DEBUG,"Setting turbo x 4 because it's the usual speed when loading .nex files from NextOS");
+	//Al cargar .nex lo pone en turbo x 8
+	debug_printf(VERBOSE_DEBUG,"Setting turbo x 8 because it's the usual speed when loading .nex files from NextOS");
 
 	z80_byte reg7=tbblue_registers[7];
 	
 	reg7 &=(255-3); //Quitar los dos bits bajos
 
-	reg7 |=2;
+	reg7 |=3;
 	//(R/W)	07 => Turbo mode
-	//bit 1-0 = Turbo (00 = 3.5MHz, 01 = 7MHz, 10 = 14MHz)
+	//bit 1-0 = Turbo (00 = 3.5MHz, 01 = 7MHz, 10 = 14MHz, 11 = 28MHz)
 
 	tbblue_registers[7]=reg7;
 	tbblue_set_emulator_setting_turbo();
@@ -5537,6 +5537,95 @@ void load_nex_snapshot(char *archivo)
 	) {
 
 		debug_printf (VERBOSE_ERR,"Unsupported snapshot version. Loading it anyway");
+	}
+
+	// check if "preserve NextRegs" flag is zero -> reset Next to "default" state (as NEXLOAD2 does)
+	if (!nex_header[134]) {
+		z80_byte reg;
+		tbblue_set_value_port_position(0x62, 0);
+		tbblue_set_value_port_position(0x61, 0);
+        // keep F8 turbo key, set zxnDMA mode, keep F3 50/60Hz key
+		// divMMC autopaging off, multiface on, keep PS/2, set AY mode
+		reg = tbblue_registers[6];
+		reg = (reg | 0b00001001) & 0b10101101;
+		tbblue_set_value_port_position(6, reg);
+		// unlock 128k paging, disable contention, keep ABC/ACB stereo
+		// enable speaker, specdrum, timex and turbosound
+		reg = tbblue_registers[8];
+		reg = (reg | 0b11011110) & 0b11111110;
+		tbblue_set_value_port_position(8, reg);
+		// unlock sprite-id pairing, enable Kempston, enable divMMC, keep AY modes and scanlines
+		reg = tbblue_registers[9];
+		reg &= 0b11100011;
+		tbblue_set_value_port_position(9, reg);
+
+		// single-write registers (values copied from NEXLOAD2 project)
+		tbblue_set_value_port_position(0x1C, 0x0F);		// reset all clip-window indices to zero
+		tbblue_set_value_port_position(0x2D, 0);
+		tbblue_set_value_port_position(0x68, 0);		// ULA control
+		tbblue_set_value_port_position(0x12, 9);		// Layer 2 visible bank
+		tbblue_set_value_port_position(0x13, 12);		// "shadow" bank (Layer 2 port)
+		tbblue_set_value_port_position(0x14, 0xE3);		// global transparency
+		tbblue_set_value_port_position(0x15, 1);		// layer priorities SLU, sprites visible
+		tbblue_set_value_port_position(0x16, 0);		// Layer 2 offset
+		tbblue_set_value_port_position(0x17, 0);
+		tbblue_set_value_port_position(0x22, 0);		// raster interrupt control
+		tbblue_set_value_port_position(0x23, 0);
+		tbblue_set_value_port_position(0x2F, 0);		// Tilemap offset (three regs)
+		tbblue_set_value_port_position(0x30, 0);
+		tbblue_set_value_port_position(0x31, 0);
+		tbblue_set_value_port_position(0x32, 0);		// LoRes offset
+		tbblue_set_value_port_position(0x33, 0);
+		tbblue_set_value_port_position(0x34, 0);		// Sprite port mirror
+		tbblue_set_value_port_position(0x42, 0x0F);		// Enhanced ULA ink format 15
+		tbblue_set_value_port_position(0x43, 0);		// Enahnced ULA control
+		tbblue_set_value_port_position(0x4A, 0);		// Transparency fallback colour
+		tbblue_set_value_port_position(0x4B, 0xE3);		// Sprites transparency index
+		tbblue_set_value_port_position(0x4C, 0x0F);		// Tilemap transparency index
+
+		tbblue_set_value_port_position(0x50, 0xFF);		// MMU memory map
+		tbblue_set_value_port_position(0x51, 0xFF);
+		tbblue_set_value_port_position(0x52, 10);
+		tbblue_set_value_port_position(0x53, 11);
+		tbblue_set_value_port_position(0x54, 4);
+		tbblue_set_value_port_position(0x55, 5);
+		tbblue_set_value_port_position(0x56, 0);
+		tbblue_set_value_port_position(0x57, 1);
+
+		tbblue_set_value_port_position(0x6B, 0);		// Tilemap control
+		tbblue_set_value_port_position(0x6C, 0);		// Default tilemap attribute
+		tbblue_set_value_port_position(0x6E, 0);		// Base address of tilemap
+		tbblue_set_value_port_position(0x6F, 0);		// Base address of tile graphics
+
+		// multi-write registers (values copied from NEXLOAD2 project)
+		tbblue_set_value_port_position(0x18, 0);		// Layer 2 clip window
+		tbblue_set_value_port_position(0x18, 255);
+		tbblue_set_value_port_position(0x18, 0);
+		tbblue_set_value_port_position(0x18, 191);
+		tbblue_set_value_port_position(0x19, 0);		// Sprites clip window
+		tbblue_set_value_port_position(0x19, 255);
+		tbblue_set_value_port_position(0x19, 0);
+		tbblue_set_value_port_position(0x19, 191);
+		tbblue_set_value_port_position(0x1A, 0);		// ULA clip window
+		tbblue_set_value_port_position(0x1A, 255);
+		tbblue_set_value_port_position(0x1A, 0);
+		tbblue_set_value_port_position(0x1A, 191);
+		tbblue_set_value_port_position(0x1B, 0);		// Tilemap clip window
+		tbblue_set_value_port_position(0x1B, 159);
+		tbblue_set_value_port_position(0x1B, 0);
+		tbblue_set_value_port_position(0x1B, 255);
+
+		// set all sprites to invisible state
+		int spritei;
+		for (spritei = 0; spritei < 128; ++spritei) {
+			tbblue_set_value_port_position(0x78, 0);	// SPRITE_ATTR_3_INC
+		}
+		tbblue_set_value_port_position(0x34, 0);		// reset sprite index back to 0
+
+		tbblue_out_port_layer2_value(0);				// switch Layer2 off
+		// skipping CLS
+
+		tbblue_reset_palettes();						// reset palettes
 	}
 
 
