@@ -58,7 +58,7 @@
 #include "joystick.h"
 #include "snap_zsf.h"
 #include "autoselectoptions.h"
-
+#include "zeng.h"
 
 
 
@@ -869,6 +869,7 @@ struct s_items_ayuda items_ayuda[]={
 	{"write-memory","|wm","address value","Writes a sequence of bytes starting at desired address on memory. Bytes must be separated by one space each one"},
 	{"write-memory-raw",NULL,"address values","Writes a sequence of bytes starting at desired address on memory. Bytes must be in hexadecimal and not separated"},
 	{"write-port",NULL,"port value","Writes value at port"},
+	{"zeng-is-master",NULL,NULL,"Tells if ZENG is configured as master or not"},
 
  {"zxevo-get-nvram",NULL,"index","Get ZX-Evo NVRAM value at index"},
 
@@ -5843,6 +5844,13 @@ else if (!strcmp(comando_sin_parametros,"write-port") ) {
 
 	}
 }
+
+
+	else if (!strcmp(comando_sin_parametros,"zeng-is-master") ) {
+		escribir_socket_format(misocket,"%d",zeng_i_am_master);
+	}
+
+
 
 		else if (!strcmp(comando_sin_parametros,"zxevo-get-nvram") ) {
 

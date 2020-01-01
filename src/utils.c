@@ -6955,17 +6955,17 @@ void util_set_reset_key_continue_after_zeng(enum util_teclas tecla,int pressrele
                                 }
                         break;
 
-			                    //F4 pulsado. Volcar pantalla a speech
-			                       case UTIL_KEY_F4:
-				                         if (pressrelease) {
-                                   textspeech_enviar_speech_pantalla();
+			//F4 pulsado. Volcar pantalla a speech si el menu esta cerrado
+			case UTIL_KEY_F4:
+			if (pressrelease) {
+                                   if (!menu_abierto) textspeech_enviar_speech_pantalla();
                                    ql_keyboard_table[0] &= (255-1);
                                  }
 
                                  else {
                                    ql_keyboard_table[0] |= 1;
                                  }
-			                      break;
+		        break;
 
                         //F5 pulsado
                         case UTIL_KEY_F5:
@@ -14306,7 +14306,13 @@ void util_save_game_config(char *filename)
 */
 
 					ADD_STRING_CONFIG,"--clearredefinekey");
-					ADD_STRING_CONFIG,"--cleareventlist");
+
+                                        //Esto conviene meterlo en el .config, asi el usuario
+                                        //sabe que sus botones a eventos se inicializan en el juego
+                                        //y se establecen un poco mas abajo
+                                        //en caso que no quisiera, que lo quite
+
+					ADD_STRING_CONFIG,"--cleareventlist"); 
 
 
 						ADD_STRING_CONFIG,"--joystickemulated \"%s\"",joystick_texto[joystick_emulation]);

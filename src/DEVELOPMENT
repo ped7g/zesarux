@@ -193,7 +193,12 @@ Ver documento INSTALLWINDOWS, Native Windows (with mingw)
 
 Generar dos binarios, uno con pthreads y otro sin, con:
 
-./configure --enable-memptr --enable-visualmem --enable-cpustats
+
+export CFLAGS "-I/c/openssl-1.1.1d-win32-mingw/include"
+export LDFLAGS "-L/c/openssl-1.1.1d-win32-mingw/lib"
+
+
+./configure --enable-memptr --enable-visualmem --enable-cpustats --enable-ssl
 
 y
 

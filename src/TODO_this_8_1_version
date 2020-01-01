@@ -1,0 +1,162 @@
+--------Para ESTA versión 8.1:
+
+-Accesibilidad:
+--Al llamar a speech en Windows se pierde el foco de ventana. Ver si ocurre cuando hay consola de Windows abierta o no
+
+
+
+-Extended stack inicializado con ceros
+
+-Siguiente versión beta hay que decir en servidor versión.txt que es 8.1-B2
+Pero eso debe coincidir con version.h de código 
+
+-seguir probando speech menu con stdout y con drivers no-stdout
+
+-meter real tape en linea comandos siempre acelera la carga, aunque este desactivado
+ ejemplo: ./zesarux --realtape tetris2.pzx
+
+-Revisar al expulsar cinta si Windows lo libera 
+
+-En overscan con curses salen colores con ??? a la derecha fuera de pantalla 
+
+-Impresión caracteres en consola texto nunca debe mostrar el 127. Es Delete
+Quizá mostrar C en caso de 127
+
+-Opción para formato de grabación de autosave snap
+
+-decir que ssl mac requiere "brew install openssl"
+Habra otra libssl de sistema?
+-como incluir libreria ssl en mac? hace falta /usr/local/opt/openssl/lib/libssl.1.0.0.dylib
+
+-el compilado final de mac hay que hacerlo sin ssl? O ver si enlaza con la ssl del sistema operativo. Si no, igual se puede incluir la de homebrew de manera estática
+Parece que depende del de brew:
+~iMac-de-Cesar:src cesarhernandez$ ./zesarux --noconfigfile --ao null
+dyld: Library not loaded: /usr/local/opt/openssl/lib/libssl.1.0.0.dylib
+  Referenced from: /Users/cesarhernandez/Documents/ZEsarUX/zesarux/src/./zesarux
+  Reason: image not found
+Abort trap: 6
+
+-Alternativa para Mac con ssl: que copien la librería a mano. Que esté incluida y la tengan que copiar 
+
+
+-vertificar roms ifrom, lista que sea valida de distribucion
+
+---Cosas Next
+-tbblue: the "disable ULA" bit in $68 doesn't work, so ULA is visible over the tilemap ( https://specnext.dev/wiki/ULA_Control_Register )
+
+-aumentar tbblue mmc a 64 mb?
+-tbblue mmc no puede incluir archivos de cpm que hay que descargarse
+-tbblue. registro 6b bit 1: 1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
+-tbblue:NEW in core 3.0:
+Bit 3 enables "text mode" where the tile-graphic is defined as 1-bit B&W bitmap 
+(same as UDG = User Defined Graphic characters on original ZX Spectrum) => 
+one tile needs only 8 bytes to define graphics. The tile-map data are also interpreted differently, 
+the associated flag byte is 7:1 split, the bottom bit 0 being still "ULA over tm" or "ninth bit of tile number", 
+but the top 7 bits are extended palette offset. The transparency is then checked against the global transparency colour
+ (after the colour lookup in the palette), not against the four bit tilemap transparency colour-index.
+ -menu info video tbblue cuando son inks y papers no cabe entero. probar con angry floaters por ejemplo
+
+Tilemap Control Register - SpecNext official Wiki
+-tbblue modo turbo 28 MHz
+-warhawk no se ven sprites!!
+-Mantener archivo de especificaciones de next (la lista completa de los registros internos) tal cual como los emulo. Así es más fácil saber cuando agregan o modifican algo nuevo 
+-Ensamblador opcodes extendidos next
+-Puerto dffd next
+https://specnext.dev/wiki/Next_Memory_Bank_Select
+
+-Turbo spool setting en tbblue -> va relacionado con la funcion de peek_byte turbo que se ve alterada al cambiar 
+la velocidad de la cpu en nextos
+-copper transferencias de 16 bits 
+
+
+---Fin cosas Next
+
+-pulsar ESC en item que se esta escuchando en el menu, cierra el menu?
+
+-Semáforo en debug print tiene sentido??
+Quiza por el sprintf (pending_error_message
+ para que no se pudiera escribir desde dos sitios?
+
+-semáforos en Windows. Como? De momento no hace bloqueo si es Windows 
+
+
+
+-emular este bit de eff7 en pentagon:
+port EFF7: (adressation 1110xxxx xxxx0xxx )
+D3 = 1 - disable rom and connect ram page 0 in adress space 0-3FFF
+
+-preguntar si incluir algunas demos de 16C
+
+
+
+--RED:
+
+-Query zsock http que detecte si query es mayor que 1024 y de error
+
+-zsock http request: Buffer response en z80_byte y no char
+
+-rutinas zsock_read_all: deberia reintentar un par o dos de veces si no se ha alcanzado la longitud deseada
+o bien, que quien llame ahi, que mire si se ha llegado al final de lo esperado
+o bien que al principio se diga la longitud de lo que se envia-> util para get-snapshot
+
+-Quizá en Windows para saber si un socket tiene datos para leer, usar llamada a read con 0 bytes y devolverá error si no hay bytes para leer?
+Prueba en windows:
+-http browser y juegos funciona
+-zeng recibe conexiones pero peta al cabo de unos segundos
+-zeng haciendo como master inicia la conexion pero no parece recibir el prompt
+
+
+Ejemplos generales socket
+https://www.binarytides.com/socket-programming-c-linux-tutorial/
+
+
+--Fin RED
+
+
+
+--ZENG:
+
+
+*en remote.c, bufferes de longitud MAX_LENGTH_PROTOCOL_COMMAND deberian ser con malloc
+Ademas habria que hacer que MAX_LENGTH_PROTOCOL_COMMAND sea un poco mayor que ZRCP_GET_PUT_SNAPSHOT_MEM
+
+*Quizá en sigpipe puede averiguar que socket ha fallado?
+Quizá sigpipe se puede gestionar diferente para cada thread?
+*funciones de envio snapshot, teclas y mensajes, deberian ver si reciben remote prompt? al llamar a zsock_read_all_until_command
+
+
+Ampliar buffer de recepción y el de copia. Y asignarlos por malloc 
+
+*parar thread zeng y cerrar socket zeng al salir emulador
+*network: en windows siempre retorna datos disponibles. corregirlo. comentado en este TODO tambien
+*asegurarse que cuando conecte zeng contra remoto al principio, retorna el prompt esperado. Ya lee version pero quiza 
+habria que hacer que leyera el primer prompt correcto
+
+
+--Fin ZENG
+
+
+-Enter cpu step en ZRCP con drivers null stdout y simpletext. Se puede abrir menú con drivers null y simpletext? Con printf verbose error?
+
+-Incluir sonic y otros en juegos TSConf. Pedir permiso a autores 
+
+
+-para comprobar coordenada y footer, calcular desde abajo de alto ventana. Y usar funcion comun en screen.c
+-quiza funcion footer a scr_putchar_footer_comun_zoom se tiene que hacer con coordenadas 0,1 o 2 simplemente
+
+-file browser no muestra dispositivos. importante para uart
+Por alguna razón, en /dev no llega a leerlos ni entrando antes del filtro. Quiza algun parametro especial del directorio
+o algo que no hago bien al leer directorio. La solución pasa por escribir el nombre directamente en el file selector (pulsando TAB o click de raton
+arriba)
+
+
+-uso de settings.c y settings.h. revisar que tiene que ir ahi ?
+
+
+
+-quiza version mac debe tener dos versiones: una compilada con O2, otra sin
+Que hacemos con cocoa no opengl?
+
+
+
+

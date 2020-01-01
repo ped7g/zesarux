@@ -1,142 +1,5 @@
 --------Para próxima versión:
 
--Quiza darle mas buffer a disassemble en debug cpu: motorola tiene opcodes muy largos a veces. ir por ejemplo a direccion F0H
-
-
--Luego no se si tiene sentido el setting:
-cleareventlist
-Quizá solo tiene sentido en juegos con auto config file. O no , en juegos de debería usar joystick to key, 
-y no alterar tabla de eventos
-
- 
--Waveform que vaya haciendo fade out (sin scroll) de píxeles anteriores. Para esto require tener varios niveles de color de un pixel
-
--Mejora para first aid:
-Un tercer botón que diga “take me there” para cuando sugiere menús, que te lleve al menú en cuestión 
-(por ejemplo cuando detecta joystick y dice que vayas al menú de real joystick para configurarlo)
-
-
--Menú debug cpu extra debug con extended debug, cpu history, code coverage etc
-
-
--Extended stack inicializado con ceros
-
-
--ZENG: eliminar debug de zeng y zrcp al pulsar teclas, joystick, envio snapshot
-
--online browser . Búsquedas con . Como chase h.q. corta en el
-Primer punto como si fuera extensión 
-
--stdout file selector. Poder hacer ls, cd etc.
-
--Siguiente versión hay que decir en servidor versión.txt que es 8.1-beta2
-Pero eso debe coincidir con version.h de código 
-
-
-
--seguir probando speech menu con stdout y con drivers no-stdout
-
--meter real tape en linea comandos siempre acelera la carga, aunque este desactivado
- ejemplo: ./zesarux --realtape tetris2.pzx
-
--Revisar al expulsar cinta si Windows lo libera 
-
--Compilar windows con:
-export CFLAGS "-I/c/openssl-1.1.1d-win32-mingw/include"
-export LDFLAGS "-L/c/openssl-1.1.1d-win32-mingw/lib"
-./configure --enable-ssl --enable-memptr --enable-visualmem --enable-cpustats --enable-ssl
-
--probar ssl en windows. Descargando prebuilds de ssl para mingw
-https://wiki.openssl.org/index.php/Binaries
-https://bintray.com/vszakats/generic/openssl
-https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1d-win32-mingw.zip
-
-copiar libcrypto-1_1.dll y libssl-1_1.dll en ruta de ZEsarUX exe
-Incluir pthreadGC-3.DLL. Estará en carpeta bin de mingw?
-Funciona ssl en windows ok!
-->agregado de momento en configure
-
-
--En overscan con curses salen colores con ??? a la derecha fuera de pantalla 
-
--Impresión caracteres en consola texto nunca debe mostrar el 127. Es Delete
-Quizá mostrar C en caso de 127
-
--Opción para formato de grabación de autosave snap
-
-
-
--decir que ssl mac requiere "brew install openssl"
-Habra otra libssl de sistema?
--como incluir libreria ssl en mac? hace falta /usr/local/opt/openssl/lib/libssl.1.0.0.dylib
-
--el compilado final de mac hay que hacerlo sin ssl? O ver si enlaza con la ssl del sistema operativo. Si no, igual se puede incluir la de homebrew de manera estática
-Parece que depende del de brew:
-~iMac-de-Cesar:src cesarhernandez$ ./zesarux --noconfigfile --ao null
-dyld: Library not loaded: /usr/local/opt/openssl/lib/libssl.1.0.0.dylib
-  Referenced from: /Users/cesarhernandez/Documents/ZEsarUX/zesarux/src/./zesarux
-  Reason: image not found
-Abort trap: 6
-
--Comentar que se compile con ssl para soportar descargas completas de spectrum
-
-
--vertificar roms ifrom, lista que sea valida de distribucion
-
----Cosas Next
--tbblue: the "disable ULA" bit in $68 doesn't work, so ULA is visible over the tilemap ( https://specnext.dev/wiki/ULA_Control_Register )
-
--aumentar tbblue mmc a 64 mb?
--tbblue mmc no puede incluir archivos de cpm que hay que descargarse
--tbblue. registro 6b bit 1: 1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
--tbblue:NEW in core 3.0:
-Bit 3 enables "text mode" where the tile-graphic is defined as 1-bit B&W bitmap 
-(same as UDG = User Defined Graphic characters on original ZX Spectrum) => 
-one tile needs only 8 bytes to define graphics. The tile-map data are also interpreted differently, 
-the associated flag byte is 7:1 split, the bottom bit 0 being still "ULA over tm" or "ninth bit of tile number", 
-but the top 7 bits are extended palette offset. The transparency is then checked against the global transparency colour
- (after the colour lookup in the palette), not against the four bit tilemap transparency colour-index.
- -menu info video tbblue cuando son inks y papers no cabe entero. probar con angry floaters por ejemplo
-
-Tilemap Control Register - SpecNext official Wiki
--tbblue modo turbo 28 MHz
--warhawk no se ven sprites!!
--Mantener archivo de especificaciones de next (la lista completa de los registros internos) tal cual como los emulo. Así es más fácil saber cuando agregan o modifican algo nuevo 
--Ensamblador opcodes extendidos next
--Puerto dffd next
-https://specnext.dev/wiki/Next_Memory_Bank_Select
----Fin cosas Next
-
-
-
--tabla de joystick to event siempre se resetea??
-
--pulsar ESC en item que se esta escuchando en el menu, cierra el menu?
-
--opción nueva para curses, stout y simpletext para forzar render gráfico tipo tsconf
-
-
--Semáforo en debug print tiene sentido??
-Quiza por el sprintf (pending_error_message
- para que no se pudiera escribir desde dos sitios?
-
--semáforos en Windows. Como? De momento no hace bloqueo si es Windows 
-
-
-
--Quizá problema de sonido y threads en Windows no es cosa del threads en audio, sino threads en timer?
-Desactivar threads en uno u otro caso según lo que corrija el sonido 
-->aplicado en timer.c no usar threads en windows solo en caso de timer.c
-
-
--emular este bit de eff7 en pentagon:
-port EFF7: (adressation 1110xxxx xxxx0xxx )
-D3 = 1 - disable rom and connect ram page 0 in adress space 0-3FFF
-
--preguntar si incluir algunas demos de 16C
-
--no lee enlaces simbolicos en filesystem: ejemplo /home/pi/PREPARADOS de raspiboy
-
 
 -Error unpaws????
 Thread 8 Crashed:
@@ -148,104 +11,17 @@ Thread 8 Crashed:
 5   zesarux                       	0x0000000106703a08 util_unpawsetc_dump_words + 104 (utils.c:14074)
 6   zesarux                       	0x00000001066a1c5e menu_unpaws_ungac + 46 (menu.c:22138)
 
- 
--Interceptar salida midi chip ay y enviarlo a midi real. Probar con programa de addon midi de zxuno
-
--Selección de instrumento midi en midi export y midi output, para cada canal
-
-
--en audiosdl, si en MINGW, desactivar threads. Asi podemos hacer compilacion de Windows, usando threads, pero el audio sin threads
-Esto hará que el audio se escuche bien en windows en la versión con threads (porque actualmente no se escucha bien en windows con threads)
-
-
---RED:
-
--Query zsock http que detecte si query es mayor que 1024 y de error
-
--zsock http request: Buffer response en z80_byte y no char
-
--rutinas zsock_read_all: deberia reintentar un par o dos de veces si no se ha alcanzado la longitud deseada
-o bien, que quien llame ahi, que mire si se ha llegado al final de lo esperado
-o bien que al principio se diga la longitud de lo que se envia-> util para get-snapshot
-
--Quizá en Windows para saber si un socket tiene datos para leer, usar llamada a read con 0 bytes y devolverá error si no hay bytes para leer?
-Prueba en windows:
--http browser y juegos funciona
--zeng recibe conexiones pero peta al cabo de unos segundos
--zeng haciendo como master inicia la conexion pero no parece recibir el prompt
-
-
-Ejemplos generales socket
-https://www.binarytides.com/socket-programming-c-linux-tutorial/
-
-
---Fin RED
-
-
-
---ZENG:
-
--probar doom mania (juego a dobles al doom)
-
-
-
-
-*en remote.c, bufferes de longitud MAX_LENGTH_PROTOCOL_COMMAND deberian ser con malloc
-Ademas habria que hacer que MAX_LENGTH_PROTOCOL_COMMAND sea un poco mayor que ZRCP_GET_PUT_SNAPSHOT_MEM
-
-*Quizá en sigpipe puede averiguar que socket ha fallado?
-Quizá sigpipe se puede gestionar diferente para cada thread?
-*funciones de envio snapshot, teclas y mensajes, deberian ver si reciben remote prompt? al llamar a zsock_read_all_until_command
-
-:mirando estado local y remoto. Avisar si el estado no es 1 master y 1 slave. comando nuevo ZRCP para esto
-:quiza se puede permitir ningun master, pero lo que no deberia ser es dos master. Al menos avisar de esto y que el usuario ya decida
-
-Ampliar buffer de recepción y el de copia. Y asignarlos por malloc 
-
-*parar thread zeng y cerrar socket zeng al salir emulador
-*network: en windows siempre retorna datos disponibles. corregirlo. comentado en este TODO tambien
-*asegurarse que cuando conecte zeng contra remoto al principio, retorna el prompt esperado. Ya lee version pero quiza 
-habria que hacer que leyera el primer prompt correcto
-
-
-
-
---Fin ZENG
-
-
-
--página man de ZEsarUX. que no diga opciones, que haga referencia a --help y --experthelp
-
-
 
 -Probar malloc en 32 bit de 2 gb
 
--Joystick en Mac
-Parece que en Mac es complicado
-Ver
-https://stackoverflow.com/questions/2234364/how-to-detect-a-gamepad-button-press-on-osx-10-5-and-higher
-y
-https://code.google.com/archive/p/ddribin/
+-En snapshot poder guardar notas. Visibles desde menú snapshot. Se pierden al cargar otro snapshot
+Esto es un nuevo tipo de campo en ZSF
 
-https://github.com/suzukiplan/gamepad-osx
-
-https://github.com/ThemsAllTook/libstem_gamepad
-
-
-Quizá en OSX superiores lo han simplificado. Pero hace falta swift o funciona con C?
-
-Y Windows sdl?
-
--Fin Joystick en Mac
-
+Como se pide? Al guardar un snapshot o desde menú snapshot? Quizá desde menú y con un first aid que lo explique
 
 
 -separar los extras en otro repo? Reinicializar repositorio de ZEsarUX?
 
-
--Enter cpu step en ZRCP con drivers null stdout y simpletext. Se puede abrir menú con drivers null y simpletext? Con printf verbose error?
-
--Incluir sonic y otros en juegos TSConf. Pedir permiso a autores 
 
 -utils.c: In function ‘util_extract_hdf’:
 utils.c:11099:18: warning: this decimal constant is unsigned only in ISO C90
@@ -258,21 +34,8 @@ utils.c:11248:9: warning: this decimal constant is unsigned only in ISO C90
 Puede dar problemas?
 
 
--hex editor: muestra pagina entera cuando una zona de memoria por ejemplo solo es de 2 bytes. Probar por ejemplo con debug memory zone
-
--para comprobar coordenada y footer, calcular desde abajo de alto ventana. Y usar funcion comun en screen.c
--quiza funcion footer a scr_putchar_footer_comun_zoom se tiene que hacer con coordenadas 0,1 o 2 simplemente
-
--file browser no muestra dispositivos. importante para uart
-Por alguna razón, en /dev no llega a leerlos ni entrando antes del filtro. Quiza algun parametro especial del directorio
-o algo que no hago bien al leer directorio. La solución pasa por escribir el nombre directamente en el file selector (pulsando TAB o click de raton
-arriba)
-
 -ventana debug cpu: si se estaba en vista 8, y luego cargamos un juego que no sea de paws/daad/quill,
 la vista 1 sera ventana grande pero con alto total reducido. Parecido a lo que sucedia al cambiar de vista
-
-
--uso de settings.c y settings.h. revisar que tiene que ir ahi ?
 
 
 -unpaws con quill:
@@ -282,36 +45,16 @@ la vista 1 sera ventana grande pero con alto total reducido. Parecido a lo que s
 *compression tokens no siempre estan hasta el 255
 
 
--Turbo spool setting en tbblue -> va relacionado con la funcion de peek_byte turbo que se ve alterada al cambiar la velocidad de la cpu en nextos
-
 -ejemplos para spool, como:
 ./txt_to_basic_lines.sh FAQ 3 si si no > pruebaspool2.txt
+
 
 -al salir emulador desde exit-emulator de ZRCP no acaba de salir del todo. Luego salgo con ctrl-c y el footer luego arranca desactivado
 
 
--leer audio casette
-
-
-
 -cpuid ("zxid") según especificación de mcleod
 
--al cargar smartload, por ejemplo ultimo cargado es thelosttapesofalbion. situa el cursor ahi bien, pero al subir para arriba desplaza desde scroll sin mover
+
+-al cargar smartload, por ejemplo ultimo cargado es thelosttapesofalbion. situa el cursor ahi bien, 
+pero al subir para arriba desplaza desde scroll sin mover
 cursor hasta que esta arriba. O sea, deberia mover siempre cursor y no empezar a hacer scroll hasta que no esta arriba
-
--reorganizar capturas de pantalla del readme.md para que esten todas las maquinas
--en github, Screenshot sir Fred pixel y ascii todo junto. el de ascii, esta cortado
--Revisar archivo install. En caso de Linux y otros binarios ya compilados, enseñarlo más fácilmente. Otro documento quizá que diga cómo compilarlo  
-
-
-
-
-
--parece que cocoa no opengl no redibuja... que hago? lo corrijo o solo dejo cocoa opengl?
-
--quiza version mac debe tener dos versiones: una compilada con O2, otra sin
-Que hacemos con cocoa no opengl?
-
-
--------- Fin cosas para la siguiente version
-

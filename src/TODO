@@ -174,9 +174,12 @@ Otros TODO menos prioritarios, de aqui hasta el final del archivo:
 
 
 
-Joystick simulation que se pueda lanzar por ZRCP también (y sin tener que activar —realjoystick-simulator). O quizá sí que necesita el setting, dado que necesita que real Joystick este activado 
+-Joystick simulation que se pueda lanzar por ZRCP también (y sin tener que activar —realjoystick-simulator).
+ O quizá sí que necesita el setting, dado que necesita que real Joystick este activado 
 
 
+
+-página man de ZEsarUX. que no diga opciones, que haga referencia a --help y --experthelp
 
 
 *** Proceso compilacion ***
@@ -271,6 +274,14 @@ como descubrir rutinas de pintado de sprites
 -Posible ocr con traducción de cirílico?
 
 -Si hay error en config file no hace experthelp
+
+
+-reorganizar capturas de pantalla del readme.md para que esten todas las maquinas
+-en github, Screenshot sir Fred pixel y ascii todo junto. el de ascii, esta cortado
+-Revisar archivo install. En caso de Linux y otros binarios ya compilados, enseñarlo más fácilmente. Otro documento quizá que diga cómo compilarlo  
+
+
+
 
 
 ***********

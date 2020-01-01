@@ -35,7 +35,34 @@ Unzip and copy all contents to c:\mingw\sdl\
 So on c:\mingw\sdl\lib you have some libSDL.dll* files, and
 on c:\mingw\sdl\include\ you have subfolder SDL and inside some .h files
 
-Run Windows Command Prompt (cmd.exe):
+
+(
+-Optional:
+You can install SSL library, to have a full speccy download browser (without ssl you'll have partial browser):
+Install prebuilds from
+https://wiki.openssl.org/index.php/Binaries
+https://bintray.com/vszakats/generic/openssl
+https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1d-win32-mingw.zip
+
+
+
+Uncompress it and copy to the include and lib folders of Mingw, in my example:
+c:\openssl-1.1.1d-win32-mingw\include
+c:\openssl-1.1.1d-win32-mingw\lib
+
+And copy libcrypto-1_1.dll y libssl-1_1.dll to the folder you downloaded ZEsarUX
+
+You will have to set the following environment variables before run configure command:
+
+export CFLAGS "-I/c/openssl-1.1.1d-win32-mingw/include"
+export LDFLAGS "-L/c/openssl-1.1.1d-win32-mingw/lib"
+
+and add setting --enable-ssl to the configure command
+)
+
+
+
+-Run Windows Command Prompt (cmd.exe):
 
 #set PATH to the gcc and make mingw binaries:
 set PATH=%PATH%;c:\mingw\bin;c:\mingw\msys\1.0\bin

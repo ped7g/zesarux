@@ -2,8 +2,6 @@
 
 --- Accesibilidad ---
 
--tecla para accessibilidad, para poder escuchar contenido de una ventana de menu: quiza misma tecla asociada a OCR. que ademas envie ese texto al portapapeles o algun archivo
-para poderlo inspeccionar despues
 
 -Speech:
 -enter le envia siempre speech pending. normal?

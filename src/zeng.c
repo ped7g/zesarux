@@ -246,7 +246,7 @@ int zeng_connect_remote(void)
 		int escritos=z_sock_write_string(indice_socket,"get-version\n");
 
 		if (escritos<0) {
-			debug_printf(VERBOSE_ERR,"ERROR. Can't send version: %s",z_sock_get_error(escritos));
+			debug_printf(VERBOSE_ERR,"ERROR. Can't send get-version: %s",z_sock_get_error(escritos));
 			return 0;	
 		}
 
@@ -266,7 +266,7 @@ int zeng_connect_remote(void)
 		//1 mas para eliminar el salto de linea anterior a "command>"
 		if (posicion_command>=1) {
 			buffer[posicion_command-1]=0;
-			debug_printf(VERBOSE_DEBUG,"ZENG: Receiver version: %s",buffer);
+			debug_printf(VERBOSE_DEBUG,"ZENG: Received version: %s",buffer);
 		}
 		else {
 			debug_printf (VERBOSE_ERR,"Error receiving ZEsarUX remote version");
@@ -278,6 +278,55 @@ int zeng_connect_remote(void)
 			debug_printf (VERBOSE_ERR,"Local and remote ZEsarUX versions do not match");
 			return 0;
 		}
+
+
+		//Comprobar que, si nosotros somos master, el remoto no lo sea
+		//El usuario puede activarlo, aunque no es recomendable. Yo solo compruebo y ya que haga lo que quiera
+
+
+		if (zeng_i_am_master) {
+
+			debug_printf(VERBOSE_DEBUG,"ZENG: Sending zeng-is-master");
+
+			//Enviar un zeng-is-master
+			escritos=z_sock_write_string(indice_socket,"zeng-is-master\n");
+
+			if (escritos<0) {
+				debug_printf(VERBOSE_ERR,"ERROR. Can't send zeng-is-master: %s",z_sock_get_error(escritos));
+				return 0;	
+			}
+
+	
+			//reintentar
+			leidos=zsock_read_all_until_command(indice_socket,(z80_byte *)buffer,ZENG_BUFFER_INITIAL_CONNECT,&posicion_command);
+			if (leidos>0) {
+				buffer[leidos]=0; //fin de texto
+				debug_printf(VERBOSE_DEBUG,"ZENG: Received text for zeng-is-master (length %d): \n[\n%s\n]",leidos,buffer);
+			}	
+
+			if (leidos<0) {
+				debug_printf(VERBOSE_ERR,"ERROR. Can't receive zeng-is-master: %s",z_sock_get_error(leidos));
+				return 0;	
+			}
+
+			//1 mas para eliminar el salto de linea anterior a "command>"
+			if (posicion_command>=1) {
+				buffer[posicion_command-1]=0;
+				debug_printf(VERBOSE_DEBUG,"ZENG: Received zeng-is-master: %s",buffer);
+			}
+			else {
+				debug_printf (VERBOSE_ERR,"Error receiving ZEsarUX zeng-is-master parameter");
+				return 0;
+			}
+
+			//Si somos master, que el remoto no lo sea tambien
+			int es_master_remoto=parse_string_to_number(buffer);
+			if (es_master_remoto) {
+				debug_printf (VERBOSE_ERR,"Local and remote ZEsarUX instances are both master. That is NOT recommended. Use at your own risk ;)");
+			}
+
+		}
+
 
 		//escribir_socket(misocket,"Waiting until command prompt final");
 		//printf("Waiting until command prompt final\n");

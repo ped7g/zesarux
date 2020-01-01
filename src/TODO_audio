@@ -67,7 +67,11 @@ o bien el mezclado de chip ay. Con que juegos se observa esto? O quiza con el te
 
 -Generador archivos .ay según lo enviado a chip de sonido. Soporte turbosound
 
+-Interceptar salida midi chip ay y enviarlo a midi real. Probar con programa de addon midi de zxuno
 
+-Selección de instrumento midi en midi export y midi output, para cada canal
+
+-leer audio casette
 
 -detector de silencio en sdl2, en 48k, genera zumbido en Linux
 ver de momento workaround audio_using_sdl2

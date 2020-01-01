@@ -4336,7 +4336,7 @@ void menu_dibuja_ventana(int x,int y,int ancho,int alto,char *titulo)
 
 	//Para draw below windows, no mostrar error pendiente cuando esta dibujando ventanas de debajo
 	if (!no_dibuja_ventana_muestra_pending_error_message) menu_muestra_pending_error_message();
-
+	
 	//En el caso de stdout, solo escribimos el texto
         if (!strcmp(scr_driver_name,"stdout")) {
                 printf ("%s\n",titulo);
@@ -4715,6 +4715,41 @@ void zxvision_destroy_window(zxvision_window *w)
 
 }
 
+void zxvision_speech_read_current_window(void)
+{
+	//Esto no deberia pasar, pero por si acaso
+	if (zxvision_current_window==NULL) return;
+
+	menu_espera_no_tecla();
+
+	//Decir que no hay tecla forzada, para releer el menu
+	menu_speech_tecla_pulsada=0;
+	//Y simplemente dibujamos la ventana y su contenido, y eso hará releerla
+	menu_textspeech_send_text("Reading the window contents");
+
+	//Guardamos valor overlay anterior. Ventanas que cambian overlay, como AY Registers, dicen que hay tecla
+	//pulsada y no salte el speech, sino estarian enviando a cada refresco de pantalla
+	//Nos aseguramos que esto no se hace temporalmente y asi se redibuja y se lee la ventana
+
+	void (*previous_function)(void);
+
+	previous_function=menu_overlay_function;
+
+	//restauramos modo normal de texto de menu
+	set_menu_overlay_function(normal_overlay_texto_menu);
+
+
+	menu_speech_tecla_pulsada=0;
+	zxvision_draw_window(zxvision_current_window);
+
+	menu_speech_tecla_pulsada=0;
+	zxvision_draw_window_contents(zxvision_current_window);
+
+
+	//Restauramos funcion anterior de overlay
+	set_menu_overlay_function(previous_function);	
+}
+
 
 z80_byte zxvision_read_keyboard(void)
 {
@@ -4738,6 +4773,13 @@ z80_byte zxvision_read_keyboard(void)
 		//printf ("Retornamos ESC pues se ha pulsado boton de cerrar ventana\n");
 		//mouse_pressed_close_window=0;
 		return 2;
+	}
+
+	//Si se ha pulsado F4, leer ventana
+	//z80_byte puerto_especial2=255; //   F5 F4 F3 F2 F1
+	if ((puerto_especial2 & 8)==0) {
+		//printf ("leer ventana de menu\n");
+		zxvision_speech_read_current_window();
 	}
 
 	return tecla;
@@ -4921,6 +4963,14 @@ int zxvision_scanf(zxvision_window *ventana,char *string,unsigned int max_length
 				menu_scanf_cursor_derecha(string,&pos_cursor_x,&offset_string,max_length_shown);
 
 				//printf ("offset_string %d pos_cursor %d\n",offset_string,pos_cursor_x);
+
+			}
+
+			else {
+				//printf ("llegado al maximo\n");
+				//-que diga "too long" en speech cuando llega al maximo de longitud en scanf
+				menu_speech_tecla_pulsada=0;
+        		menu_textspeech_send_text("Too long");				
 
 			}
 		}
@@ -5171,7 +5221,6 @@ int menu_ask_file_to_save(char *titulo_ventana,char *filtro,char *file_save)
 //por lo que agrega cierta altura a la ventana. Se agregan tantas lineas como diga el parametro return_after_print_text
 void zxvision_generic_message_tooltip(char *titulo, int return_after_print_text,int volver_timeout, int tooltip_enabled, int mostrar_cursor, generic_message_tooltip_return *retorno, int resizable, const char * texto_format , ...)
 {
-
 	//Buffer de entrada
 
         char texto[MAX_TEXTO_GENERIC_MESSAGE];
@@ -5190,7 +5239,7 @@ void zxvision_generic_message_tooltip(char *titulo, int return_after_print_text,
 	//int linea_cursor=0;
 
 	//En caso de stdout, es mas simple, mostrar texto y esperar tecla
-        if (!strcmp(scr_driver_name,"stdout")) {
+    if (!strcmp(scr_driver_name,"stdout")) {
 		//printf ("%d\n",strlen(texto));
 
 
@@ -5205,7 +5254,7 @@ void zxvision_generic_message_tooltip(char *titulo, int return_after_print_text,
 		menu_espera_tecla();
 
 		return;
-        }
+    }
 
 	//En caso de simpletext, solo mostrar texto sin esperar tecla
 	if (!strcmp(scr_driver_name,"simpletext")) {
@@ -8938,14 +8987,21 @@ int menu_dibuja_menu(int *opcion_inicial,menu_item *item_seleccionado,menu_item 
 	//Primera vez decir selected item. Luego solo el nombre del item
 	menu_active_item_primera_vez=1;
 
-        if (!strcmp(scr_driver_name,"stdout") ) {
+    if (!strcmp(scr_driver_name,"stdout") ) {
+
+		//Para que se envie a speech
+		//TODO: el texto se muestra dos veces en consola: 
+		//1- pues es un error y todos se ven en consola. 
+		//2- pues es una ventana de stdout y se "dibuja" tal cual en consola
+		menu_muestra_pending_error_message();
+
                 //se abre menu con driver stdout. Llamar a menu alternativo
 
 		//si hay menu tabulado, agregamos ESC (pues no se incluye nunca)
 		if (m->es_menu_tabulado) menu_add_ESC_item(m);
 
                 return menu_dibuja_menu_stdout(opcion_inicial,item_seleccionado,m,titulo);
-        }
+    }
 /*
         if (if_pending_error_message) {
                 if_pending_error_message=0;
@@ -13404,7 +13460,7 @@ void menu_hardware_realjoystick_keys(MENU_ITEM_PARAMETERS)
                 //menu_add_item_menu(array_menu_hardware_realjoystick_keys,"ESC Back",MENU_OPCION_NORMAL|MENU_OPCION_ESC,NULL,NULL);
                 menu_add_ESC_item(array_menu_hardware_realjoystick_keys);
 
-                retorno_menu=menu_dibuja_menu(&hardware_realjoystick_keys_opcion_seleccionada,&item_seleccionado,array_menu_hardware_realjoystick_keys,"Joystick to key" );
+                retorno_menu=menu_dibuja_menu(&hardware_realjoystick_keys_opcion_seleccionada,&item_seleccionado,array_menu_hardware_realjoystick_keys,"Joystick to keys" );
 
                 
 
@@ -13469,7 +13525,7 @@ void menu_hardware_realjoystick_event(MENU_ITEM_PARAMETERS)
                 //menu_add_item_menu(array_menu_hardware_realjoystick_event,"ESC Back",MENU_OPCION_NORMAL|MENU_OPCION_ESC,NULL,NULL);
                 menu_add_ESC_item(array_menu_hardware_realjoystick_event);
 
-                retorno_menu=menu_dibuja_menu(&hardware_realjoystick_event_opcion_seleccionada,&item_seleccionado,array_menu_hardware_realjoystick_event,"Joystick to event" );
+                retorno_menu=menu_dibuja_menu(&hardware_realjoystick_event_opcion_seleccionada,&item_seleccionado,array_menu_hardware_realjoystick_event,"Joystick to events" );
 
                 
 
@@ -21025,10 +21081,10 @@ void menu_snapshot_save(MENU_ITEM_PARAMETERS)
 	}
 
 	else if (MACHINE_IS_SPECTRUM_16_48) {
-		filtros[0]="zx";
-		filtros[1]="z80";
-		filtros[2]="sp";
-		filtros[3]="zsf";
+		filtros[0]="zsf";
+		filtros[1]="zx";
+		filtros[2]="z80";
+		filtros[3]="sp";
 		filtros[4]="sna";
 		filtros[5]=0;
 	}
@@ -21048,9 +21104,9 @@ void menu_snapshot_save(MENU_ITEM_PARAMETERS)
 
 
 	else {
-		filtros[0]="zx";
-		filtros[1]="z80";
-		filtros[2]="zsf";
+		filtros[0]="zsf";
+		filtros[1]="zx";
+		filtros[2]="z80";
 		filtros[3]="sna";
 		filtros[4]=0;
 	}
@@ -27178,11 +27234,25 @@ int menu_confirm_yesno(char *texto_ventana)
 void menu_ventana_scanf(char *titulo,char *texto,int max_length)
 {
 
-        //En caso de stdout, es mas simple, mostrar texto y esperar texto
-        if (!strcmp(scr_driver_name,"stdout")) {
+    //En caso de stdout, es mas simple, mostrar texto y esperar texto
+	if (!strcmp(scr_driver_name,"stdout")) {
 		printf ("%s\n",titulo);
 		scrstdout_menu_print_speech_macro(titulo);
-		scanf("%s",texto);
+
+		//Controlar maximo en cadena de texto aparte
+		char buffer_temporal[1024];
+		scanf("%s",buffer_temporal);
+		int l=strlen(buffer_temporal);
+		if (l>max_length-1) {
+			printf ("Too long\n");
+			scrstdout_menu_print_speech_macro("Too long");
+			return;
+		}
+
+
+		strcpy(texto,buffer_temporal);
+
+		//scanf("%s",texto);
 
 		return;
 	}
@@ -27615,7 +27685,8 @@ void menu_about_help(MENU_ITEM_PARAMETERS)
 			"CTRL/ALT: Symbol shift\n"
 			"TAB: Extended mode (symbol shift + caps shift)\n"
 			"\n"
-			"F4: Send display content to speech program, including only known characters (unknown characters are shown as a space)\n"
+			"F4: When menu is closed, send Spectrum display content to speech program, including only known characters (unknown characters are shown as a space). "
+			"When menu is opened, it will read the window contents and send it to speech program, even if it has already been read again\n"
 			"F5: Open menu\n"
 			"F8: Open On Screen Keyboard (only on Spectrum & ZX80/81)\n"
 			"F9: Open Smart Load window\n"

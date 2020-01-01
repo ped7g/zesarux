@@ -7,10 +7,10 @@ Accessibility
 Q: How can I run the emulator with text to speech facilities?
 A: Run the emulator specifying a text to speech program (with path) like the festival scripts or mac os say script, for example:
 
-./zesarux BSLEEZE1.TAP --enableprintchartrap --textspeechprogram speech_filters/festival_filter.sh --linewidth 100 --linewidthwaitspace 
+./zesarux BSLEEZE1.TAP --enableprintchartrap --textspeechprogram speech_filters/festival_filter.sh --linewidth 99 --linewidthwaitspace 
 
 Or, in Windows:
-zesarux BSLEEZE1.TAP --enableprintchartrap --textspeechprogram speech_filters\win_balabolka.bat --linewidth 100 --linewidthwaitspace
+zesarux BSLEEZE1.TAP --enableprintchartrap --textspeechprogram speech_filters\win_balabolka.bat --linewidth 99 --linewidthwaitspace
 
 Note: In Windows version, when you specify command line settings, the text console remains open. So speech programs start very fast.
 If you don't set command line settings, speech programs start slower.
@@ -74,6 +74,17 @@ Notice that it was recorded without enabling "Text Speech Stop program"
 
 Q: Is there any Spanish quick guide to know how to enable Accesibility on ZEsarUX?
 A: Yes, see file extras/docs/accesibilidad_instrucciones.txt 
+
+
+Q: Can I read the Spectrum display?
+A: Pressing key F4, when menu is closed, you run some kind of OCR function which tries to read the Spectrum display. It will succeed in the following two cases:
+1) The text is written in standard rom font
+2) The text is not written in standard rom font but the spectrum system font pointer is set accordingly to the used font
+(which may happen in some cases)
+
+
+Q: Can I read a menu window, which has already been read?
+A: Just press F4 when menu is open. In this case, the window will be read again
 
 
 ----------------------------------------------------------------------------

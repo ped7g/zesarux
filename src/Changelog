@@ -48,6 +48,7 @@ Improved TBBlue emulation:
 -added scroll x,y on ula layer
 -optimized ula,lores render routines: 2% less cpu on my computer
 -added 1-bit tile mode
+-added tbblue register 63H: copper 16 bit write 
 
 Improved Hex editor: can now copy to a different memory zone
 Improved menu: 
@@ -58,9 +59,11 @@ Improved menu:
 
 
 Improved accesibility: 
+-pressing F4 key on a window menu, it will read that window again
 -say when a selected menu item is not available
 -Mac OS speech filter doesn't fail anymore when message has "-"
 -selected item menu is called now "Selected item" (was called "Active item" before)
+-when an error is generated on stdout driver, the message is send to text-to-speech
 
 Improved assembler: added defs command
 Improved AY Sheet: now you can select which AY Chip to show
@@ -91,6 +94,10 @@ Fixed bug loading .sna files when rom 1 paged in
 Fixed bug on return flags from tape load trap. It only affected Rocman game and enabling "any flag loading" setting
 Fixed setting a configured memory breakpoint like this "--set-mem-breakpoint 0000H 2" which was fired on startup
 Fixed opening the menu on stdout driver on the first start of ZEsarUX
+
+Fixed tbblue emulation:
+-fixed clipping in 80x32 mode
+-fix error when paging rom in ram, on case pages 0,1,2,3
 
 Fixed Accessibility bugs: 
 -now menu settings (anything between square brackets []) are played at the end of the menu line

@@ -146,23 +146,23 @@ void tbblue_copper_write_data(z80_byte value)
 
 }
 
+//Escribe dato copper en posicion de escritura, 16 bits
 void tbblue_copper_write_data_16b(z80_byte value1, z80_byte value2)
 {
 	z80_int posicion=tbblue_copper_get_write_position();
 
 	posicion &=(TBBLUE_COPPER_MEMORY-1);
 
-	if (posicion&1) {	// odd address, write whole 16 bits at once
-
+	//After a write to an odd address, the entire 16-bits are written to Copper memory at once.
+	if (posicion&1) {	
 		tbblue_copper_memory[posicion-1]=value1;
 		tbblue_copper_memory[posicion]=value2;
-
 		//printf ("Writing copper 16b data index %d data %02X%02XH\n",posicion-1,value1,value2);
-
 	}
 
 	posicion++;
 	tbblue_copper_set_write_position(posicion);
+
 }
 
 //Devuelve el byte donde apunta indice
@@ -3068,6 +3068,7 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 	z80_byte last_register_21=tbblue_registers[21];
 	z80_byte last_register_66=tbblue_registers[66];
 	z80_byte last_register_67=tbblue_registers[67];
+	z80_byte last_register_99=tbblue_registers[99];
 
 	switch(index_position) {
 
@@ -3129,18 +3130,6 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 			tbblue_copper_write_control_hi_byte(value, tbblue_registers[98]);
 		break;
 
-		case 99:
-/*
-0x63 (99) => Copper Data 16-bit Write
-(W)
-  The 16-bit value is written in pairs.  The first 8-bits are the MSB and
-  are destined for an even copper instruction address.  The second 8-bits are
-  the LSB and are destined for an odd copper instruction address.
-  After each write, the copper address is auto-incremented to the next memory position
-  After a write to an odd address, the entire 16-bits is written to copper memory at once
-*/
-			tbblue_copper_write_data_16b(tbblue_registers[99], value);	// old value + new value
-		break;
 	}
 
 	/////////////////////////////////////////////////
@@ -3458,6 +3447,26 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 		//printf ("0x61 (97) => Copper control LO bit value %02XH\n",value);
 
 		break;
+
+
+		case 99:
+/*
+(W) 0x63 (99) => Copper Data 16-bit Write
+
+Similar to Copper Data ($60), allows to upload Copper instructions to the copper memory, 
+but the difference is that writes are committed to copper memory in 16-bit words 
+(only half-written instructions by using NextReg $60 may get executed, $63 prevents that).
+
+The first write to this register is MSB of Copper Instruction destined for even copper instruction address.
+The second write to this register is LSB of Copper Instruction destined for odd copper instruction address.
+After any write, the copper address is auto-incremented to the next memory position.
+After a write to an odd address, the entire 16-bits are written to Copper memory at once.
+
+*/
+
+		tbblue_copper_write_data_16b(last_register_99,value);
+
+		break;		
 
 		case 105:
 /*
