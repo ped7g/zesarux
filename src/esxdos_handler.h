@@ -111,6 +111,7 @@ FA_USE_HEADER   equ             %01000000                       ; Use +3DOS head
 #define ESXDOS_RST8_F_WRITE      0x9e
 
 #define ESXDOS_RST8_F_SEEK 0x9f
+#define ESXDOS_RST8_F_FGETPOS 0xa0
 
 #define ESXDOS_RST8_F_FSTAT 0xa1
 

@@ -885,6 +885,45 @@ On return BCDE=current file pointer. FIXME-Should return bytes actually seeked
 }
 
 
+void esxdos_handler_call_f_fgetpos(void)
+{
+/*
+F_FGETPOS ($a0): A=handle
+
+On return BCDE=current file pointer.
+*/
+
+	int file_handler=reg_a;
+
+	if (file_handler>=ESXDOS_MAX_OPEN_FILES) {
+		debug_printf (VERBOSE_DEBUG,"ESXDOS handler: Error from esxdos_handler_call_f_fgetpos. Handler %d out of range",file_handler);
+		esxdos_handler_error_carry(ESXDOS_ERROR_EBADF);
+		esxdos_handler_old_return_call();
+		return;
+	}
+
+	if (esxdos_fopen_files[file_handler].open_file.v==0) {
+		debug_printf (VERBOSE_DEBUG,"ESXDOS handler: Error from esxdos_handler_call_f_fgetpos. Handler %d not found",file_handler);
+		esxdos_handler_error_carry(ESXDOS_ERROR_EBADF);
+		esxdos_handler_old_return_call();
+		return;
+	}
+
+	long offset=ftell(esxdos_fopen_files[file_handler].esxdos_last_open_file_handler_unix);
+
+	debug_printf (VERBOSE_DEBUG,"ESXDOS handler: offset is at %ld",offset);
+
+	//Retornar BCDE
+	reg_b=(offset>>24)&0xFF;
+	reg_c=(offset>>16)&0xFF;
+	reg_d=(offset>>8)&0xFF;
+	reg_e= offset & 0xFF;
+
+	esxdos_handler_no_error_uncarry();
+	esxdos_handler_old_return_call();
+}
+
+
 void esxdos_handler_call_f_write(void)
 {
 
@@ -1959,6 +1998,12 @@ void esxdos_handler_begin_handling_commands(void)
 
 			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: ESXDOS_RST8_F_SEEK. Move %04X%04XH bytes mode %d from file handle %d",reg_bc,reg_de,f_seek_mode,reg_a);
 			esxdos_handler_call_f_seek();
+			esxdos_handler_new_return_call();
+		break;
+
+		case ESXDOS_RST8_F_FGETPOS:
+			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: ESXDOS_RST8_F_FGETPOS. Get current file position from file handle %d",reg_a);
+			esxdos_handler_call_f_fgetpos();
 			esxdos_handler_new_return_call();
 		break;
 
