@@ -961,9 +961,10 @@ int tbsprite_is_lockstep()
 
 void tbsprite_increment_index_303b() {	// increment the "port" index
 	tbsprite_index_sprite_subindex=0;
-	++tbsprite_index_sprite;
+	tbsprite_index_sprite++;
 	tbsprite_index_sprite %= TBBLUE_MAX_SPRITES;
 }
+
 
 
 /* Informacion relacionada con Layer2. Puede cambiar en el futuro, hay que ir revisando info en web de Next
@@ -3350,6 +3351,7 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 
 		break;
 
+
 		case 52:	//0x34 - sprite index
 			if (tbsprite_is_lockstep()) {
 				tbblue_out_port_sprite_index(value);
@@ -3375,6 +3377,7 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 			}
 		}
 		break;
+
 
 		case 64:
 			//palette index

@@ -49,6 +49,8 @@ Improved TBBlue emulation:
 -optimized ula,lores render routines: 2% less cpu on my computer
 -added 1-bit tile mode
 -added tbblue register 63H: copper 16 bit write 
+-added tbblue register 69H: display control 1 register
+-added tbblue registers 0x35-0x39, 0x75-0x79
 
 Improved Hex editor: can now copy to a different memory zone
 Improved menu: 

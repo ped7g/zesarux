@@ -29598,10 +29598,28 @@ void set_splash_text(void)
 
 int first_time_menu_footer_f5_menu=1;
 
+
+//2 segundos antes de que se avise si hay detectado joystick o no
+int menu_tell_if_realjoystick_detected_counter=2;
+
+void menu_tell_if_realjoystick_detected(void)
+{
+			//Si detectado real joystick
+			//Si detectado joystick real y si hay autoguardado de config
+			if (save_configuration_file_on_exit.v) {
+					if (realjoystick_present.v) {
+							menu_set_menu_abierto(1);
+							//printf ("decir menu abierto\n");
+							realjoystick_detected_startup=1;
+					}
+			}				
+}
+
 void reset_splash_text(void)
 {
 	if (menu_splash_text_active.v==1) {
 
+		//printf ("%d\n",menu_splash_segundos);
 		menu_splash_segundos--;
 		if (menu_splash_segundos==0) {
 			reset_splash_zesarux_logo();
@@ -29625,15 +29643,7 @@ void reset_splash_text(void)
 			if (menu_first_aid_startup) menu_first_aid_random_startup();
 
 
-			//Si detectado real joystick
-			//Si detectado joystick real y si hay autoguardado de config
-			if (save_configuration_file_on_exit.v) {
-					if (realjoystick_present.v) {
-							menu_set_menu_abierto(1);
-							//printf ("decir menu abierto\n");
-							realjoystick_detected_startup=1;
-					}
-			}			
+
 		}
 
 		else {

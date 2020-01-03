@@ -666,8 +666,16 @@ void timer_check_interrupt(void)
                                                 delete_generic_footertext();
                                         }
                                 }
-
-			
+			//Temporizador para decir si se ha detectado real joystick
+			//dado que si no hay joystick, por defecto está habilitado el bit de joystick presente, pero luego
+			//el realjoystick_null_main lo pondrá a 0, desactivandolo
+			//si llamamos a menu_tell_if_realjoystick_detected justo al arrancar ZEsarUX, no da tiempo a ejecutar
+			//realjoystick_null_main, por tanto el joystick aun seguira presente al inicio, y se dirá erroneamente que esta presente,
+			//cuando no lo esta
+			if (menu_tell_if_realjoystick_detected_counter>0) {
+				menu_tell_if_realjoystick_detected_counter--;
+				if (menu_tell_if_realjoystick_detected_counter==0) menu_tell_if_realjoystick_detected();
+			}
 				
 
 

@@ -58,7 +58,6 @@ but the top 7 bits are extended palette offset. The transparency is then checked
 
 Tilemap Control Register - SpecNext official Wiki
 -tbblue modo turbo 28 MHz
--warhawk no se ven sprites!!
 -Mantener archivo de especificaciones de next (la lista completa de los registros internos) tal cual como los emulo. Así es más fácil saber cuando agregan o modifican algo nuevo 
 -Ensamblador opcodes extendidos next
 -Puerto dffd next
@@ -66,7 +65,6 @@ https://specnext.dev/wiki/Next_Memory_Bank_Select
 
 -Turbo spool setting en tbblue -> va relacionado con la funcion de peek_byte turbo que se ve alterada al cambiar 
 la velocidad de la cpu en nextos
--copper transferencias de 16 bits 
 
 
 ---Fin cosas Next

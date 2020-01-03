@@ -1321,7 +1321,7 @@ screen.o: screen.c screen.h debug.h mem128.h chloe.h prism.h timex.h cpc.h prism
 mem128.o: mem128.c cpu.h mem128.h debug.h contend.h zxuno.h chloe.h prism.h timex.h sam.h ula.h tbblue.h superupgrade.h chrome.h zxevo.h tsconf.h baseconf.h
 	\$(CC) \$(CFLAGS) -c mem128.c
 
-timex.o: timex.c timex.h cpu.h debug.h contend.h tape.h mem128.h menu.h chloe.h prism.h zxuno.h
+timex.o: timex.c timex.h cpu.h debug.h contend.h tape.h mem128.h menu.h chloe.h prism.h zxuno.h tbblue.h
 	\$(CC) \$(CFLAGS) -c timex.c
 
 chloe.o: chloe.c chloe.h cpu.h timex.h mem128.h debug.h contend.h zxuno.h timex.h prism.h 
