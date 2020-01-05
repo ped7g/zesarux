@@ -1065,6 +1065,12 @@ int tbblue_is_active_layer2(void)
 	return 0;
 }
 
+int tbblue_is_layer2_256height(void)
+{
+	// returns true for 320x256 or 640x256 Layer 2 modes, false for 256x192 and "11" setting (reserved)
+	return (0x20 & (tbblue_registers[112] + 0x10));
+}
+
 int tbblue_get_offset_start_layer2_reg(z80_byte register_value)
 {
 	//since core3.0 the NextRegs 0x12 and 0x13 are 7bit.
@@ -4780,7 +4786,7 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	//Por defecto
 	//sprites over the Layer 2, over the ULA graphics
 
-	if (estamos_borde_supinf) {
+	if (estamos_borde_supinf && !tbblue_is_layer2_256height()) {
 		tbblue_set_layer_priorities_border_only();
 	} else {
 		tbblue_set_layer_priorities();
@@ -4790,9 +4796,9 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	if (6 <= tbblue_get_layers_priorities()) {
 		if (!estamos_borde_supinf) {
 			tbblue_render_blended_rainbow(puntero_final_rainbow, final_borde_izquierdo, inicio_borde_derecho, ancho_rainbow, fallbackcolour);
-		}
-		if (!estamos_borde_supinf || !capasprites) {	// inside paper area, or no sprites -> enough was done
-			return;
+			if (!capasprites) {		// inside paper area, or no sprites -> enough was done
+				return;
+			}
 		}
 	}
 
@@ -4809,7 +4815,7 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		tbblue_fast_render_ula_layer(puntero_final_rainbow,estamos_borde_supinf,final_borde_izquierdo,inicio_borde_derecho,ancho_rainbow);
 
 	} else {
-		if (!estamos_borde_supinf) {
+		if (!estamos_borde_supinf || tbblue_is_layer2_256height()) {
 
 			for (i=0;i<ancho_rainbow;i++) {
 
@@ -4871,52 +4877,19 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 }
 
 
-void tbblue_do_layer2_overlay(void)
+void tbblue_do_layer2_overlay(const int l2Y)
 {
+	// NextReg 0x12 is always on display, "shadow" 0x13 is only for write/read over ROM
+	int tbblue_layer2_offset=tbblue_get_offset_start_layer2_reg(tbblue_registers[18]);
 
+	//Mantener el offset y en 0..191
+	int offset_scroll = tbblue_registers[23] + l2Y;
+	offset_scroll %= 192;
 
-        //printf ("scan line de pantalla fisica (no border): %d\n",t_scanline_draw);
+	tbblue_layer2_offset += offset_scroll * 256;
+	tbblue_layer2_offset &= 0x1FFF00;	// limit reading to 2MiB address space
 
-        //linea que se debe leer
-        int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
-
-        //la copiamos a buffer rainbow
-        z80_int *puntero_buf_rainbow;
-        //esto podria ser un contador y no hace falta que lo recalculemos cada vez. TODO
-        int y;
-
-        y=t_scanline_draw-screen_invisible_borde_superior;
-        if (border_enabled.v==0) y=y-screen_borde_superior;
-
-        puntero_buf_rainbow=&rainbow_buffer[ y*get_total_ancho_rainbow() ];
-
-        puntero_buf_rainbow +=screen_total_borde_izquierdo*border_enabled.v;
-
-
-        //int x,bit;
-
-        z80_byte byte_leido;
-
-
-
-
-        //direccion=screen_addr_table[(scanline_copia<<5)];
-
-		// NextReg 0x12 is always on display, "shadow" 0x13 is only for write/read over ROM
-		int tbblue_layer2_offset=tbblue_get_offset_start_layer2_reg(tbblue_registers[18]);
-
-
-		//Mantener el offset y en 0..191
-		z80_byte tbblue_reg_23=tbblue_registers[23]; 
-
-		int offset_scroll=tbblue_reg_23+scanline_copia;
-		offset_scroll %=192;
-
-
-		tbblue_layer2_offset +=offset_scroll*256;
-		tbblue_layer2_offset &= 0x1FFF00;		// limit reading to 2MiB address space
-
-		z80_byte tbblue_reg_22=tbblue_registers[22];
+	z80_byte tbblue_reg_22=tbblue_registers[22];
 
 /*
 (R/W) 22 => Layer2 Offset X
@@ -4926,46 +4899,95 @@ void tbblue_do_layer2_overlay(void)
   bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
 */
 
+	int posicion_array_layer = screen_total_borde_izquierdo * border_enabled.v * 2; //doble de ancho
 
-
-		int posicion_array_layer=0;
-
-		posicion_array_layer +=screen_total_borde_izquierdo*border_enabled.v*2; //doble de ancho
-
-		int posx;
-
-       	for (posx=0;posx<256;posx++) {
-				
-
+	int posx;
+	for (posx=0;posx<256;posx++) {
 	
-				//Capa layer2
-				if (tbblue_is_active_layer2() && !tbblue_force_disable_layer_layer_two.v) {
-					if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][1] ) {
+		if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][1] ) {
 
-						z80_byte color_layer2=memoria_spectrum[tbblue_layer2_offset+tbblue_reg_22];
-						z80_int final_color_layer2=tbblue_get_palette_active_layer2(color_layer2);
+			z80_byte color_layer2=memoria_spectrum[tbblue_layer2_offset+tbblue_reg_22];
+			z80_int final_color_layer2=tbblue_get_palette_active_layer2(color_layer2);
 
-						//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
-						if (tbblue_si_transparent(final_color_layer2)) final_color_layer2=TBBLUE_SPRITE_TRANS_FICT;
+			//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
+			if (tbblue_si_transparent(final_color_layer2)) final_color_layer2=TBBLUE_SPRITE_TRANS_FICT;
 
+			tbblue_layer_layer2[posicion_array_layer]=final_color_layer2;
+			tbblue_layer_layer2[posicion_array_layer+1]=final_color_layer2; //doble de ancho
+		}
 
-						tbblue_layer_layer2[posicion_array_layer]=final_color_layer2;
-						tbblue_layer_layer2[posicion_array_layer+1]=final_color_layer2; //doble de ancho
-					}
-				}
+		posicion_array_layer+=2; //doble de ancho
 
-				posicion_array_layer+=2; //doble de ancho
+		tbblue_reg_22++;
 
-           	    byte_leido=byte_leido<<1;
-				
-				tbblue_reg_22++;
+	}
 
+}
 
+// variant for 320x256 and 640x256 Layer 2 modes
+void tbblue_do_layer2_256h_overlay(const int l2Y)
+{
+	// The 640 mode has identical memory layout as 320, but every byte is then two 4bpp pixels
+	const int is4bpp = (0x20 == (0x30 & tbblue_registers[112]));
 
-	    }
+	// NextReg 0x12 is always on display, "shadow" 0x13 is only for write/read over ROM
+	int tbblue_layer2_offset = tbblue_get_offset_start_layer2_reg(tbblue_registers[18]);
 
+/*
+(R/W) 0x16 (22) => Layer2 Offset X
+  bits 7-0 = X Offset (0-255)(Reset to 0 after a reset)
 
-	 
+(R/W) 0x17 (23) => Layer2 Offset Y
+  bits 7-0 = Y Offset (0-191)(Reset to 0 after a reset)
+
+(R/W) 0x71 (113) => Layer 2 X Scroll MSB
+	bits 7:1 = Reserved, must be 0
+	bit 0 = MSB of scroll amount
+*/
+
+	// adjust bottom byte of offset with correct Y coordinate ((Y_offset + l2Y) mod 256)
+	tbblue_layer2_offset += (tbblue_registers[23] + l2Y) & 255;
+
+	const int minx = clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][0] * 2;
+	int maxx = (clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][1]+1) * 2;
+	if (320 < maxx) maxx = 320;
+
+	int x = tbblue_registers[22] + ((tbblue_registers[113]&1)<<8);
+
+	int posicion_array_layer = (screen_total_borde_izquierdo - 32) * 2;
+		// no more support for `border_enabled` - TODO remove/disable/exit from TBBLUE completely
+		// currently it will probably just crash on invalid memory access
+
+	// start at clipped X1
+	posicion_array_layer += minx * 2;
+	x = (x + minx) % 320;
+
+	for (int posx = minx; posx < maxx; ++posx) {
+
+		int pixels_address = tbblue_layer2_offset + 256 * x;
+		pixels_address &= 0x1FFFFF;		// limit reading to 2MiB address space
+		z80_byte color_layer2 = memoria_spectrum[pixels_address];
+		z80_int pixel_left, pixel_right;
+		if (is4bpp) {	// 640x256 mode
+			pixel_left = tbblue_get_palette_active_layer2(color_layer2>>4);
+			if (tbblue_si_transparent(pixel_left)) pixel_left = TBBLUE_SPRITE_TRANS_FICT;
+			pixel_right = tbblue_get_palette_active_layer2(color_layer2&0x0F);
+			if (tbblue_si_transparent(pixel_right)) pixel_right = TBBLUE_SPRITE_TRANS_FICT;
+		} else {		// 320x256 mode
+			pixel_left = tbblue_get_palette_active_layer2(color_layer2);
+			if (tbblue_si_transparent(pixel_left)) pixel_left = TBBLUE_SPRITE_TRANS_FICT;
+			pixel_right = pixel_left;
+		}
+
+		tbblue_layer_layer2[posicion_array_layer] = pixel_left;
+		tbblue_layer_layer2[posicion_array_layer+1] = pixel_right;
+
+		posicion_array_layer += 2;
+
+		if (++x == 320) x = 0;
+
+	}
+
 }
 
 void tbblue_reveal_layer_draw(z80_int *layer)
@@ -5356,54 +5378,48 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
 
 	}
 
-	//int bordesupinf=0;
+	const int paperY = t_scanline_draw - screen_indice_inicio_pant;
+	// fullY is 0..255 (for 320x256 like Tiles, Sprites, Layer 2, ...), PAPER area starts at fullY==32
+	const int fullY = paperY + TBBLUE_SPRITE_BORDER;
+
+	// check for scanlines completely outside of any layer range
+	if (fullY < 0 || 32+192+32 <= fullY) {
+		tbblue_render_layers_rainbow(0,0);
+		return;
+	}
 
 	int capalayer2=0;
 	int capasprites=0;
-	//int capatiles=0;
 
-  	//En zona visible pantalla (no borde superior ni inferior)
-  	if (t_scanline_draw>=screen_indice_inicio_pant && t_scanline_draw<screen_indice_fin_pant) {
-
-			int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
-
-
-			int tbblue_lores=tbblue_registers[0x15] & 128;
-			if (tbblue_lores) tbblue_do_ula_lores_overlay();
-		  	else if (tbblue_if_ula_is_enabled()) tbblue_do_ula_standard_overlay();
-
-		//Overlay de layer2
-							//Capa layer2
-				if (tbblue_is_active_layer2() && !tbblue_force_disable_layer_layer_two.v) {
-					if (scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][3]) {
-						capalayer2=1;
-					
-						tbblue_do_layer2_overlay();
-						if (tbblue_reveal_layer_layer2.v) {
-								tbblue_reveal_layer_draw(tbblue_layer_layer2);
-						}
-					}
-				}
-
+  	// LoRes and ULA modes are visible only in PAPER area
+  	if (0 <= paperY && paperY < 192) {
+		int tbblue_lores=tbblue_registers[0x15] & 128;
+		if (tbblue_lores) tbblue_do_ula_lores_overlay();
+		else if (tbblue_if_ula_is_enabled()) tbblue_do_ula_standard_overlay();
 	}
 
-	else {
-		//bordesupinf=1;
+
+	//Overlay de layer2
+	if (tbblue_is_active_layer2() && !tbblue_force_disable_layer_layer_two.v) {
+		const int isLayer2height256 = tbblue_is_layer2_256height();
+		const int l2Y = isLayer2height256 ? fullY : paperY;
+		if (l2Y>=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][2] && l2Y<=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][3]) {
+			capalayer2=1;
+			if (isLayer2height256) {
+				tbblue_do_layer2_256h_overlay(l2Y);
+			} else {
+				tbblue_do_layer2_overlay(l2Y);
+			}
+			if (tbblue_reveal_layer_layer2.v) {
+					tbblue_reveal_layer_draw(tbblue_layer_layer2);
+			}
+		}
 	}
 
-	//Aqui puede ser borde superior o inferior
 
-    
-		
-		//Capa de tiles. Mezclarla directamente a la capa de ula tbblue_layer_ula
-
-
+	//Overlay de Tilemap
 	if ( tbblue_if_tilemap_enabled() && tbblue_force_disable_layer_tilemap.v==0) {
-		int y_tile=t_scanline_draw; //0..63 es border (8 no visibles)
-		int border_no_visible=screen_indice_inicio_pant-TBBLUE_TILES_BORDER;
-		y_tile-=border_no_visible;
-
-				/*
+		/*
 				The tilemap display surface extends 32 pixels around the central 256×192 display.
 The origin of the clip window is the top left corner of this area 32 pixels to the left and 32 pixels above 
 the central 256×192 display. The X coordinates are internally doubled to cover the full 320 pixel width of the surface.
@@ -5411,17 +5427,16 @@ the central 256×192 display. The X coordinates are internally doubled to cover 
  it will extend from X1*2 to X2*2+1 horizontally and from Y1 to Y2 vertically.
 			*/
 
-			//Tener en cuenta clip window
-		if (y_tile>=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][2] && y_tile<=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][3]) {
-			//capatiles=1;
-			tbblue_do_tile_overlay(y_tile);
+		//Tener en cuenta clip window
+		if (fullY>=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][2] && fullY<=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][3]) {
+			tbblue_do_tile_overlay(fullY);
 		}
 	}
 
 
-						if (tbblue_reveal_layer_ula.v) {
-								tbblue_reveal_layer_draw(tbblue_layer_ula);
-						}
+	if (tbblue_reveal_layer_ula.v) {
+		tbblue_reveal_layer_draw(tbblue_layer_ula);
+	}
 
 
 
