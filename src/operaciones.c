@@ -1940,6 +1940,7 @@ set_visualmembuffer(dir);
 			if (dir < paging_dir_max) {
 				offset += tbblue_get_offset_start_layer2();
 				offset += dir;
+				if (2*1024*1024 <= offset) return;	// write outside of SRAM is ignored
 				memoria_spectrum[offset]=valor;
 				// exit here, do not write into ROM/RAM under the layer 2 mapping
 				return;
@@ -2010,6 +2011,7 @@ z80_byte peek_byte_no_time_tbblue(z80_int dir)
 			if (dir < paging_dir_max) {
 				offset += tbblue_get_offset_start_layer2();
 				offset += dir;
+				offset &= (2*1024*1024)-1;	// wrap around for read
 				return memoria_spectrum[offset];
 			}
 			// outside of Layer 2 -> continue with regular read from memory

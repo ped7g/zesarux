@@ -5694,8 +5694,13 @@ void load_nex_snapshot(char *archivo)
 	//Cargar Layer2 loading screen
 	if (load_screen_blocks & 1) {
 		debug_printf(VERBOSE_DEBUG,"Loading Layer2 loading screen");
-		int tbblue_layer2_offset=tbblue_get_offset_start_layer2();
-		leidos=fread(&memoria_spectrum[tbblue_layer2_offset],1,49152,ptr_nexfile);
+		int tbblue_layer2_offset=tbblue_get_offset_start_layer2_reg(tbblue_registers[18]);
+		if (tbblue_layer2_offset + 49152 <= 2*1024*1024) {
+			leidos=fread(&memoria_spectrum[tbblue_layer2_offset],1,49152,ptr_nexfile);
+		} else {
+			debug_printf(VERBOSE_ERR,"Layer 2 bank start is invalid %d",tbblue_registers[18]);
+			return;
+		}
 		//Asumimos que esta activo modo layer2 entonces
 		//tbblue_out_port_layer2_value(1);
 		//tbblue_registers[0x15]=4; //Layer priority L S U

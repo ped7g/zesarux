@@ -860,6 +860,13 @@ z80_int tbblue_get_palette_active_sprite(z80_byte index)
 z80_int tbblue_get_palette_active_layer2(z80_byte index)
 {
 /*
+(R/W) 0x70 (112) => Layer 2 Control
+  bits 7:6 = Reserved, must be 0
+  bits 5:4 = Layer 2 resolution (soft reset = 0): 00 = 256x192x8, 01 = 320x256x8, 10 = 640x256x4
+  bits 3:0 = Palette offset (soft reset = 0)
+*/
+	index += tbblue_registers[112]<<4;
+/*
 (R/W) 0x43 (67) => Palette Control
 
   bit 3 = Select Sprites palette (0 = first palette, 1 = secondary palette)
@@ -1062,8 +1069,8 @@ int tbblue_get_offset_start_layer2_reg(z80_byte register_value)
 {
 	//since core3.0 the NextRegs 0x12 and 0x13 are 7bit.
 	int offset=register_value&127;
-	//due to 7bit the value can leak outside of 2MiB = no info what HW does, so just clamp it to 109
-	if (109<offset) offset=109;
+	//due to 7bit the value can leak outside of 2MiB
+	// in HW the reads outside of SRAM module are "unspecified result", writes are ignored (!)
 
 	offset*=16384;
 
@@ -4907,6 +4914,7 @@ void tbblue_do_layer2_overlay(void)
 
 
 		tbblue_layer2_offset +=offset_scroll*256;
+		tbblue_layer2_offset &= 0x1FFF00;		// limit reading to 2MiB address space
 
 		z80_byte tbblue_reg_22=tbblue_registers[22];
 
