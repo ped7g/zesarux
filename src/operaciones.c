@@ -1931,10 +1931,10 @@ set_visualmembuffer(dir);
 			int region = (tbblue_port_123b&(64+128))>>6;	// 0..3 value
 			if (3 == region) {		// 48kiB paging mode when value is 3
 				paging_dir_max = 3*16384;
-				offset = 0;
+				offset = tbblue_port_123b_b4 * 16384;
 			} else {
 				paging_dir_max = 16384;
-				offset = region * 16384;	//possible results: 0, 16384, 32768
+				offset = (region + tbblue_port_123b_b4) * 16384;
 			}
 			//check if the value is written into the layer 2 region and write it there
 			if (dir < paging_dir_max) {
@@ -2002,10 +2002,10 @@ z80_byte peek_byte_no_time_tbblue(z80_int dir)
 			int region = (tbblue_port_123b&(64+128))>>6;	// 0..3 value
 			if (3 == region) {		// 48kiB paging mode when value is 3
 				paging_dir_max = 3*16384;
-				offset = 0;
+				offset = tbblue_port_123b_b4 * 16384;
 			} else {
 				paging_dir_max = 16384;
-				offset = region * 16384;	//possible results: 0, 16384, 32768
+				offset = (region + tbblue_port_123b_b4) * 16384;
 			}
 			//check if the value is read from the layer 2 region and read it from there
 			if (dir < paging_dir_max) {

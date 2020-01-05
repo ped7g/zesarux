@@ -1042,6 +1042,7 @@ Then load the demo program and will work
 */
 
 z80_byte tbblue_port_123b;
+z80_byte tbblue_port_123b_b4;	// bank offset register (bits 2-0: +0..+7 relative offset)
 
 
 //valor inicial para tbblue_port_123b en caso de fast boot mode
@@ -1862,7 +1863,11 @@ z80_byte tbblue_get_port_layer2_value(void)
 
 void tbblue_out_port_layer2_value(z80_byte value)
 {
-	tbblue_port_123b=value;
+	if (value & 0x10) {		// set relative bank offset (bit 4 = 1)
+		tbblue_port_123b_b4 = value & 0x07;
+	} else {
+		tbblue_port_123b=value;
+	}
 }
 
 
@@ -2846,6 +2851,7 @@ void tbblue_hard_reset(void)
 	tbblue_reset_palette_write_state();
 
 	tbblue_port_123b=0;
+	tbblue_port_123b_b4=0;
 
 
 	if (tbblue_fast_boot_mode.v) {

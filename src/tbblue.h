@@ -165,6 +165,7 @@ extern z80_int tbblue_get_palette_active_ula(z80_byte index);
 extern z80_int tbblue_get_border_color(z80_int color);
 
 extern z80_byte tbblue_port_123b;
+extern z80_byte tbblue_port_123b_b4;
 extern int tbblue_write_on_layer2(void);
 extern int tbblue_read_on_layer2(void);
 extern int tbblue_get_offset_start_layer2(void);
