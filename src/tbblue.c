@@ -2664,7 +2664,15 @@ void tbblue_set_emulator_setting_reg_8(void)
 
 void tbblue_reset_common(void)
 {
+	tbblue_registers[6] |= 128 + 32;	//soft reset: set Enable "F8" CPU speed key, and F3 50/60Hz key
 
+	//TODO how to set machine back to 3.5MHz without doing too much extras?
+// 	tbblue_registers[7]=0;
+// 	cpu_turbo_speed = 1;	//1x, 2x, 4x, 8x
+// 	cpu_set_turbo_speed();	- this seems to do way too much, not a good fit for "soft reset"
+
+	tbblue_registers[8]&=255-64;	// clear "disable RAM and port contention"
+	tbblue_registers[9]&=255-16;	// clear "sprite ID lockstep"
 
 	tbblue_registers[18]=8;
 	tbblue_registers[19]=11;
@@ -2683,39 +2691,58 @@ void tbblue_reset_common(void)
 	tbblue_registers[35]=0;
 	tbblue_registers[38]=0;
 	tbblue_registers[39]=0;
+	tbblue_registers[44]=0x80;
+	tbblue_registers[45]=0x80;
+	tbblue_registers[46]=0x80;
+	tbblue_registers[47]=0;
+	tbblue_registers[48]=0;
+	tbblue_registers[49]=0;
 	tbblue_registers[50]=0;
 	tbblue_registers[51]=0;
+	tbblue_registers[64]=0;
 	tbblue_registers[66]=7;
 	tbblue_registers[67]=0;
-	tbblue_registers[74]=0;
-	tbblue_registers[75]=0xE3;
+	tbblue_registers[74]=TBBLUE_DEFAULT_TRANSPARENT;
+	tbblue_registers[75]=TBBLUE_DEFAULT_TRANSPARENT;
 
 /*
 (R/W) 0x4C (76) => Transparency index for the tilemap
   bits 7-4 = Reserved, must be 0
   bits 3-0 = Set the index value (0xF after reset)
 	*/
-
 	tbblue_registers[76]=0xF;
 
 
 	tbblue_registers[97]=0;
 	tbblue_registers[98]=0;
 
-	//Aunque no esté especificado como tal, ponemos este a 0
-	/*
-Bit	Function
-7	1 to enable the tilemap
-6	0 for 40x32, 1 for 80x32
-5	1 to eliminate the attribute entry in the tilemap
-4	palette select (0 = first Tilemap palette, 1 = second)
-3	(core 3.0) enable "text mode"
-2	Reserved, must be 0
-1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
-0 to use bit 0 of tile attribute as "ULA over tilemap" per-tile-selector
-	*/
-
+	tbblue_registers[104]=0;
+	tbblue_registers[105]=0;
+	tbblue_registers[106]=0;
 	tbblue_registers[107]=0;
+	tbblue_registers[108]=0;
+	tbblue_registers[110]=0;
+	tbblue_registers[111]=0;
+	tbblue_registers[112]=0;
+	tbblue_registers[113]=0;
+	tbblue_registers[127]=255;
+
+	tbblue_registers[128]=(tbblue_registers[128]&0x0F) | (tbblue_registers[128]<<4);
+	tbblue_registers[130]=255;
+	tbblue_registers[131]=255;
+	tbblue_registers[132]=255;
+	tbblue_registers[133]=255;
+	tbblue_registers[144]=0;
+	tbblue_registers[145]=0;
+	tbblue_registers[146]=0;
+	tbblue_registers[147]=0;
+	tbblue_registers[152]=0xFF;
+	tbblue_registers[153]=0x01;
+	tbblue_registers[154]=0x00;
+	tbblue_registers[155]=0x00;
+	tbblue_registers[160]=0;
+	tbblue_registers[162]=0;
+	tbblue_registers[163]=11;
 
 	clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][0]=0;
 	clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][1]=255;
@@ -2791,6 +2818,14 @@ void tbblue_hard_reset(void)
 	tbblue_registers[7]=0;
 	tbblue_registers[8]=16;
 	tbblue_registers[9]=0;
+	tbblue_registers[128]=0;
+	tbblue_registers[129]=0;
+	tbblue_registers[134]=255;
+	tbblue_registers[135]=255;
+	tbblue_registers[136]=255;
+	tbblue_registers[137]=255;
+	tbblue_registers[138]=1;
+	tbblue_registers[140]=0;
 
 	tbblue_reset_common();
 
