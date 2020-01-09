@@ -171,6 +171,7 @@ extern int cpu_transaction_log_rotate_size;
 extern int cpu_transaction_log_rotate_lines;
 
 extern z80_bit cpu_trans_log_ignore_repeated_halt;
+extern z80_bit cpu_trans_log_ignore_repeated_ldxr;
 
 extern int transaction_log_set_rotate_number(int numero);
 extern int transaction_log_set_rotate_size(int numero);

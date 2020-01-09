@@ -4,7 +4,6 @@
 --Al llamar a speech en Windows se pierde el foco de ventana. Ver si ocurre cuando hay consola de Windows abierta o no
 
 
-
 -Extended stack inicializado con ceros
 
 -Siguiente versión beta hay que decir en servidor versión.txt que es 8.1-B2
@@ -42,7 +41,8 @@ Abort trap: 6
 -vertificar roms ifrom, lista que sea valida de distribucion
 
 ---Cosas Next
--tbblue: the "disable ULA" bit in $68 doesn't work, so ULA is visible over the tilemap ( https://specnext.dev/wiki/ULA_Control_Register )
+-otros cambios registros: ejemplo 0x68 , bits 5-1
+-autoload ahora esta en menu aparte de la rom, en more...
 
 -aumentar tbblue mmc a 64 mb?
 -tbblue mmc no puede incluir archivos de cpm que hay que descargarse

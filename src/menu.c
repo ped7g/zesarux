@@ -27215,6 +27215,7 @@ void menu_generic_message_splash(char *titulo, const char * texto)
 
         //menu_generic_message_tooltip(titulo, 1, 0, 0, NULL, "%s", texto);
 		zxvision_generic_message_tooltip(titulo , 0 , 1, 0, 0, NULL, 0, "%s", texto);
+		menu_espera_no_tecla();
 }
 
 void menu_generic_message_warn(char *titulo, const char * texto)

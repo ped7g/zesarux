@@ -531,15 +531,31 @@ debugger_disassemble( char *buffer, size_t buflen, size_t *length,
 
 	//Caso para copper
 	if (menu_debug_memory_zone==MEMORY_ZONE_NUM_TBBLUE_COPPER) {
-		//Casos WAIT y MOVE
+		//Casos WAIT, MOVE, NOOP, HALT
+
+
+    *length=2;
 
 		z80_byte op=disassemble_peek_byte(address);
 		z80_byte arg=disassemble_peek_byte(address+1);
+
+    //Special case of "value 0 to port 0" works as "no operation" (duration 1 CLOCK)
+    if (op==0 && arg==0) {
+      strcpy(buffer,"NOOP");
+      return;
+    }
+
+    //Special case of "WAIT 63,511" works as "halt" instruction
+    if (op==255 && arg==255) {
+      strcpy(buffer,"HALT");
+      return;
+    }
 
 		if (op&128) {
 			//wait
 			int raster=arg|((op&1)<<8);
 			int horiz=((op>>1)&63);
+
 			sprintf (buffer,"WAIT %d,%d",raster,horiz);
 		}
 		else {
@@ -549,7 +565,7 @@ debugger_disassemble( char *buffer, size_t buflen, size_t *length,
 			sprintf (buffer,"MOVE %d,%d",registro,value);
 		}
 
-		*length=2;
+		
 		return;
 	}
 

@@ -1,4 +1,4 @@
-Version 8.1 - The Great Escape edition. 16 December 2019 
+Version 8.1 - The Great Escape edition. 8 January 2020 
 
 
 Added ZEsarUX Network Gaming protocol (ZENG), which allows you to play to any emulated game, using two ZEsarUX instances, 
@@ -95,15 +95,21 @@ Fixed placing menu windows when using zx desktop and machines TSConf, TBBlue, CP
 Fixed bug loading .sna files when rom 1 paged in
 Fixed bug on return flags from tape load trap. It only affected Rocman game and enabling "any flag loading" setting
 Fixed setting a configured memory breakpoint like this "--set-mem-breakpoint 0000H 2" which was fired on startup
-Fixed opening the menu on stdout driver on the first start of ZEsarUX
+
+Fixed menu issues:
+-fixed generic message splash: wait until key is released (if any pressed)
+-fixed opening the menu on stdout driver on the first start of ZEsarUX
 
 Fixed tbblue emulation:
 -fixed clipping in 80x32 mode
 -fix error when paging rom in ram, on case pages 0,1,2,3
+-fixed "bit 7 = Disable ULA output (soft reset = 0)" on register 0x68
 
 Fixed Accessibility bugs: 
 -now menu settings (anything between square brackets []) are played at the end of the menu line
 -now menu settings ([ ] and [X]) are played as "enabled"/"disabled"
+
+
 
 Some other minor bugfixes and improvements
 

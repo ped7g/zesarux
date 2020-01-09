@@ -628,16 +628,18 @@ struct s_items_ayuda items_ayuda[]={
 
 
 	{"cpu-history",NULL,"action [parameter] [parameter]","Runs cpu history actions. Action and parameters are the following:\n"
-	"clear                 Clear the cpu history\n"
-	"enabled yes|no        Enable or disable the cpu history\n"
-	"get index             Get registers at position, being 0 the most recent item\n"
-	"get-max-size          Return maximum allowed elements in history\n"	
-	"get-pc start items    Return PC register from position start, being 0 the most recent item, total items. Goes backwards\n"
-	"get-size              Return total elements in history\n"
-	"is-enabled            Tells if the cpu history is enabled or not\n"
-	"is-started            Tells if the cpu history is started or not\n"
-	"started yes|no        Start recording cpu history. Requires it to be enabled first\n"
-	"set-max-size number   Sets maximum allowed elements in history\n"
+	"clear                      Clear the cpu history\n"
+	"enabled       yes|no:      Enable or disable the cpu history\n"
+	"get           index:       Get registers at position, being 0 the most recent item\n"
+	"get-max-size               Return maximum allowed elements in history\n"	
+	"get-pc        start items: Return PC register from position start, being 0 the most recent item, total items. Goes backwards\n"
+	"get-size                   Return total elements in history\n"
+	"ignrephalt    yes|no:      Ignore repeated opcode HALT. Disabled by default. Parameter shared with cpu-transaction-log\n"
+	"ignrepldxr    yes|no:      Ignore repeated opcode LDIR or LDDR. Disabled by default\n"
+	"is-enabled                 Tells if the cpu history is enabled or not\n"
+	"is-started                 Tells if the cpu history is started or not\n"
+	"started       yes|no:      Start recording cpu history. Requires it to be enabled first\n"
+	"set-max-size  number:      Sets maximum allowed elements in history\n"
 	},
 
 
@@ -656,7 +658,7 @@ struct s_items_ayuda items_ayuda[]={
 	"truncate        yes|no: Truncate the log file. Requires value set to yes\n"
 	"truncaterotated yes|no: Truncate the rotated log files. Requires value set to yes\n"
 
-	"ignrephalt      yes|no: Ignore repeated opcode HALT. Disabled by default\n"
+	"ignrephalt      yes|no: Ignore repeated opcode HALT. Disabled by default. Parameter shared with cpu-history\n"
 	
 	"datetime        yes|no: Enable datetime logging\n"
 	"tstates         yes|no: Enable tstates logging\n"
@@ -1523,6 +1525,8 @@ void remote_cpu_history(int misocket,char *parameter,char *value,char *value2)
 			}
 		}	
 
+
+
 		if (!strcasecmp(parameter,"clear")) {
 			if (cpu_history_enabled.v==0) escribir_socket(misocket,"Error. It's not enabled\n");
 			else {
@@ -1606,6 +1610,14 @@ void remote_cpu_history(int misocket,char *parameter,char *value,char *value2)
 			}
 		}
 	}	
+
+	else if (!strcasecmp(parameter,"ignrephalt")) {
+		cpu_trans_log_ignore_repeated_halt.v=remote_eval_yes_no(value);
+	}			
+
+	else if (!strcasecmp(parameter,"ignrepldxr")) {
+		cpu_trans_log_ignore_repeated_ldxr.v=remote_eval_yes_no(value);
+	}			
 
 	else if (!strcasecmp(parameter,"is-enabled")) {
 		escribir_socket_format(misocket,"%d",cpu_history_enabled.v);
