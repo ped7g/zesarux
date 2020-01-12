@@ -296,7 +296,10 @@ Modo 384 x 304 ?
 
 --- TBBlue ---
 
--Activar el kempston mouse entra en conflicto con el editor de basic. Al mover raton hace cosas raras. Quizá era por los bits wheel. Ya corregido?
+-Activar el kempston mouse entra en conflicto con el editor de basic. 
+Al mover raton hace cosas raras. Quizá era por los bits wheel. Ya corregido?
+
+-tools/tile editor: no se ve bien?
 
 Refresco de Tbblue para curses , stdout y simpletext en caso de:
 -rainbow y modos tiles etc habilitados. O simplemente modo rainbow  
@@ -340,6 +343,7 @@ https://www.specnext.com/forum/viewtopic.php?f=6&t=1142
 y eso lo altera continuamente. Se nota al bajar el cursor abajo del todo en tbblue browser y luego pulsar continuamente. sin real beeper no pasa
 ->el por que lo sigue haciendo en next aunque hayas soltado la tecla de cursor abajo es un miesterio
 
+-volver de multiface nmi desde la rom, no retorna bien ni modo de video y ademas se cuelga
 
 -tbblue extended opcodes
 https://docs.google.com/spreadsheets/d/1CFjp6sRIPRTShESC_1I5-pR6v7kTymk0hhUC1TN9sgc/edit#gid=0
@@ -365,7 +369,7 @@ De momento estoy haciendo 64 patterns-> por tanto, 256 bytes por pattern
 
 	
 
--reloj deberia salir en nextos, ya que implementa el chip de reloj. Porque no aparece?
+-reloj deberia salir en nextos, ya que implementa el chip de reloj. Aparece pero con valor 000
 -probar que pasa cuando llega a mas de 12 sprites en linea tbblue
 -Sincronizar bits de joystick de puerto config2
 -no dejar aumentar memoria divmmc mas de 128kb, pues tbblue no tiene mas que eso. sino, se accederia a memoria mas alla del divmmc

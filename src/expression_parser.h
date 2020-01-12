@@ -163,6 +163,9 @@ enum token_parser_indice {
     TPI_R_P2,
     TPI_R_P3,
 
+	//De Tbblue
+	TPI_R_COPPERPC,
+
 	//de tipo operador logico
 	TPI_OL_AND,
 	TPI_OL_OR,

@@ -5494,7 +5494,7 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
                int index=parse_string_to_number(parametros);
                if (index<0 || index>255) escribir_socket(misocket,"ERROR. Out of range");
                else {
-                 z80_byte value=tbblue_registers[index];
+                 z80_byte value=tbblue_get_value_port_register(index);
                  escribir_socket_format(misocket,"%02XH",value);
                }
             }

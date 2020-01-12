@@ -537,6 +537,9 @@ void core_spectrum_handle_interrupts(void)
                                         reg_pc++;
                         }
 
+						//ver si estaba en halt el copper
+						//if (MACHINE_IS_TBBLUE) tbblue_if_copper_halt();
+
 			if (1==1) {
 
 					if (interrupcion_non_maskable_generada.v) {

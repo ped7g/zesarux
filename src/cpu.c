@@ -3461,6 +3461,7 @@ You don't need timings for H/V sync =)
                 poke_byte_no_time=poke_byte_no_time_tbblue;
                 lee_puerto=lee_puerto_spectrum;
                 ay_chip_present.v=1;
+				enable_rainbow();
 
 				multiface_type=MULTIFACE_TYPE_THREE;
 

@@ -51,6 +51,10 @@ Improved TBBlue emulation:
 -added tbblue register 63H: copper 16 bit write 
 -added tbblue register 69H: display control 1 register
 -added tbblue registers 0x35-0x39, 0x75-0x79
+-added copper opcodes NOOP, HALT
+-increased tbblue.mmc MMC image size to 64 MB
+-updated to the last tbblue SD distribution. Now it holds the entire distribution
+-enable real video by default
 
 Improved Hex editor: can now copy to a different memory zone
 Improved menu: 
@@ -102,8 +106,11 @@ Fixed menu issues:
 
 Fixed tbblue emulation:
 -fixed clipping in 80x32 mode
--fix error when paging rom in ram, on case pages 0,1,2,3
+-fixed error when paging rom in ram, on case pages 0,1,2,3
 -fixed "bit 7 = Disable ULA output (soft reset = 0)" on register 0x68
+-fixed turbosound and dac activation when tbblue fast boot mode
+-added turbo mode x8 (28 MHz
+-fixed reading register 7
 
 Fixed Accessibility bugs: 
 -now menu settings (anything between square brackets []) are played at the end of the menu line

@@ -99,6 +99,7 @@ extern z80_byte tbblue_copper_memory[];
 
 extern void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value);
 
+extern z80_int tbblue_copper_get_pc(void);
 
 extern z80_byte tbblue_registers[];
 

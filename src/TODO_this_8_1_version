@@ -3,6 +3,7 @@
 -Accesibilidad:
 --Al llamar a speech en Windows se pierde el foco de ventana. Ver si ocurre cuando hay consola de Windows abierta o no
 
+-probar tbblue CP/M
 
 -Extended stack inicializado con ceros
 
@@ -44,7 +45,6 @@ Abort trap: 6
 -otros cambios registros: ejemplo 0x68 , bits 5-1
 -autoload ahora esta en menu aparte de la rom, en more...
 
--aumentar tbblue mmc a 64 mb?
 -tbblue mmc no puede incluir archivos de cpm que hay que descargarse
 -tbblue. registro 6b bit 1: 1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
 -tbblue:NEW in core 3.0:
@@ -57,11 +57,12 @@ but the top 7 bits are extended palette offset. The transparency is then checked
  -menu info video tbblue cuando son inks y papers no cabe entero. probar con angry floaters por ejemplo
 
 Tilemap Control Register - SpecNext official Wiki
--tbblue modo turbo 28 MHz
 -Mantener archivo de especificaciones de next (la lista completa de los registros internos) tal cual como los emulo. Así es más fácil saber cuando agregan o modifican algo nuevo 
 -Ensamblador opcodes extendidos next
 -Puerto dffd next
 https://specnext.dev/wiki/Next_Memory_Bank_Select
+
+
 
 -Turbo spool setting en tbblue -> va relacionado con la funcion de peek_byte turbo que se ve alterada al cambiar 
 la velocidad de la cpu en nextos

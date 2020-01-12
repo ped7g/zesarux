@@ -40,6 +40,7 @@
 #include "scmp.h"
 #include "m68k.h"
 #include "prism.h"
+#include "tbblue.h"
 
 /*
 
@@ -254,6 +255,9 @@ token_parser_textos_indices tpti_registros[]={
     {TPI_R_P1,"P1"},
     {TPI_R_P2,"P2"},
     {TPI_R_P3,"P3"},  
+
+    //De Tbblue
+    {TPI_R_COPPERPC,"COPPERPC"},
 
              
 
@@ -1370,7 +1374,7 @@ int exp_par_calculate_numvarreg(token_parser *token)
         case TPI_R_FC: return ( Z80_FLAGS & FLAG_C ? 1 : 0); break;
 
 
- 
+        case TPI_R_COPPERPC: return tbblue_copper_get_pc(); break;
 
 
                     default:

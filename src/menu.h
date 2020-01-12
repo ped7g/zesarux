@@ -949,6 +949,7 @@ extern void zxvision_simple_progress_window(char *titulo, int (*funcioncond) (zx
 "D0,D1,D2,D3,D4,D5,D6,D7,A0,A1,A2,A3,A4,A5,A6,A7,AC,ER,SR,P1,P2,P3\n" \
 "FS,FZ,FP,FV,FH,FN,FC: Flags\n" \
 "IFF1, IFF2: Interrupt bits,\n" \
+"COPPERPC: returns the Copper PC register from TBBlue,\n" \
 "OPCODE1: returns the byte at address PC, so the byte of the opcode being read,\n" \
 "OPCODE2: returns the word at address PC, MSB order,\n" \
 "OPCODE3: returns the three byte at adress PC, MSB order,\n" \

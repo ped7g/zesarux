@@ -172,6 +172,12 @@ z80_byte tbblue_copper_get_byte(z80_int posicion)
 	return tbblue_copper_memory[posicion];
 }
 
+//Devuelve el valor de copper
+z80_int tbblue_copper_get_pc(void)
+{
+	return tbblue_copper_pc & (TBBLUE_COPPER_MEMORY-1);
+}
+
 //Devuelve el byte donde apunta pc
 z80_byte tbblue_copper_get_byte_pc(void)
 {
@@ -241,20 +247,49 @@ void tbblue_copper_next_opcode(void)
 
 }
 
+
+//z80_bit tbblue_copper_ejecutando_halt={0};
+
 //Ejecuta opcodes del copper // hasta que se encuentra un wait
 void tbblue_copper_run_opcodes(void)
 {
-	z80_byte byte_leido=0;
 
-		byte_leido=tbblue_copper_get_byte_pc();
+	z80_byte byte_leido=tbblue_copper_get_byte_pc();
+	z80_byte byte_leido2=tbblue_copper_get_byte(tbblue_copper_pc+1);
+
+	//Asumimos que no
+	//tbblue_copper_ejecutando_halt.v=0;
+
+	//if (tbblue_copper_get_pc()==0x24) printf ("%02XH %02XH\n",byte_leido,byte_leido2);
+
+    //Special case of "value 0 to port 0" works as "no operation" (duration 1 CLOCK)
+	/*
+	Dado que el registro 0 es de solo lectura, no pasa nada si escribe en el: al leerlo se obtiene un valor calculado y no el del array
+    if (byte_leido==0 && byte_leido2==0) {
+      //printf("NOOP at %04XH\n",tbblue_copper_pc);
+	  tbblue_copper_next_opcode();
+      return;
+    }
+	*/
+
+    //Special case of "WAIT 63,511" works as "halt" instruction
+	/*
+    if (byte_leido==255 && byte_leido2==255) {
+	  //printf("HALT at %04XH\n",tbblue_copper_pc);
+	  tbblue_copper_ejecutando_halt.v=1;
+
+      return;
+    }
+	*/
+
 		if ( (byte_leido&128)==0) {
 			//Es un move
 			z80_byte indice_registro=byte_leido&127;
 			//tbblue_copper_pc++;
-			z80_byte valor_registro=tbblue_copper_get_byte(tbblue_copper_pc+1);
+			
 			//tbblue_copper_pc++;
 			//printf ("Executing MOVE register %02XH value %02XH\n",indice_registro,valor_registro);
-			tbblue_set_value_port_position(indice_registro,valor_registro);
+			tbblue_set_value_port_position(indice_registro,byte_leido2);
 
 			tbblue_copper_next_opcode();
 
@@ -325,7 +360,9 @@ int tbblue_copper_wait_cond_fired(void)
 	}
 #endif
 
-	//printf ("Waiting until raster %d horiz %d. current %d\n",linea,horiz,current_raster);
+	//511, 63
+	//if (tbblue_copper_get_pc()==0x24) 
+	// printf ("Waiting until raster %d horiz %d. current %d on copper_pc=%04X\n",linea,horiz,current_raster,tbblue_copper_get_pc() );
 
 	//comparar vertical
 	if (current_raster==linea) {
@@ -354,6 +391,23 @@ void tbblue_copper_handle_next_opcode(void)
 	}
 }                                           
 
+
+/*
+void tbblue_if_copper_halt(void)
+{
+	//Si esta activo copper
+    z80_byte copper_control_bits=tbblue_copper_get_control_bits();
+    if (copper_control_bits != TBBLUE_RCCH_COPPER_STOP) {
+        //printf ("running copper %d\n",tbblue_copper_pc);
+		if (tbblue_copper_ejecutando_halt.v) {
+			//liberar el halt
+			//printf ("copper was on halt (copper_pc=%04XH). Go to next opcode\n",tbblue_copper_get_pc() );
+			tbblue_copper_next_opcode();
+			//printf ("copper was on halt (copper_pc after=%04XH)\n",tbblue_copper_get_pc() );
+		}
+	}	
+}
+*/					
  
 
 void tbblue_copper_handle_vsync(void)
@@ -2856,6 +2910,15 @@ void tbblue_hard_reset(void)
 
 	if (tbblue_fast_boot_mode.v) {
 		tbblue_registers[3]=3;
+
+		tbblue_registers[8]=2+8; //turbosound 3 chips, specdrum
+
+		set_total_ay_chips(3);
+
+		audiodac_enabled.v=1;
+		audiodac_selected_type=0;
+
+
 		tbblue_registers[80]=0xff;
 		tbblue_registers[81]=0xff;
 		tbblue_set_memory_pages();
@@ -3114,6 +3177,11 @@ void tbblue_splash_palette_format(void)
 void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value)
 {
 
+	//Nota: algunos registros como el 0 y el 1, que son read only, deja escribirlos en el array,
+	//pero luego cuando se van a leer, mediante la funcion tbblue_get_value_port_register, se obtienen de otro sitio, no del array
+	//por lo que todo ok
+
+
 
 	//printf ("register port %02XH value %02XH\n",tbblue_last_register,value);
 
@@ -3312,7 +3380,6 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 		case 7:
 		/*
 		(R/W)	07 => Turbo mode
-					bit 0 = Turbo (0 = 3.5MHz, 1 = 7MHz)
 					*/
 					if ( last_register_7 != value ) tbblue_set_emulator_setting_turbo();
 		break;
@@ -3588,7 +3655,8 @@ z80_byte tbblue_get_value_port_register(z80_byte registro)
 
 	int linea_raster;
 
-	//Casos especiales
+	//Casos especiales. Registros que no se obtienen leyendo del array de registros. En principio todos estos están marcados
+	//como read-only en la documentacion de tbblue
 	/*
 	(R) 0x00 (00) => Machine ID
 
