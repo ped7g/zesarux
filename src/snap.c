@@ -5469,11 +5469,16 @@ void load_nex_snapshot(char *archivo)
         }
         
 
-        //Ver si signatura correcta
-        if (nex_header[0]!='N' || nex_header[1]!='e' || nex_header[2]!='x' || nex_header[3]!='t') {
-                        debug_printf(VERBOSE_ERR,"Unknown NEX signature: 0x%x 0x%x 0x%x 0x%x",nex_header[0],nex_header[1],nex_header[2],nex_header[3]);
-                        return;
-        }
+	//Ver si signatura correcta
+	const char* NexHeaderMagicString = "Next";
+	if (strncmp(NexHeaderMagicString, (char*)nex_header, strlen(NexHeaderMagicString))) {
+		debug_printf(VERBOSE_ERR,"Unknown NEX signature: 0x%x 0x%x 0x%x 0x%x",nex_header[0],nex_header[1],nex_header[2],nex_header[3]);
+		return;
+	}
+	if ('V' != nex_header[4] || '.' != nex_header[6]) {		// this is really strange version, abort load
+		debug_printf(VERBOSE_ERR,"Unknown NEX version: 0x%x 0x%x 0x%x 0x%x",nex_header[4],nex_header[5],nex_header[6],nex_header[7]);
+		return;
+	}
 
 
 	//cambio a maquina tbblue, siempre 
@@ -5511,28 +5516,11 @@ void load_nex_snapshot(char *archivo)
 	iff1.v=iff2.v=0;
 
 
-	//check version. Permitir 1.0, 1.1 y 1.2 y avisar si mayor de 1.2
-
-	char snap_version[5];
-	//4	4	string with NEX file version, currently "V1.0", "V1.1" or "V1.2"
-	snap_version[0]=nex_header[4];
-	snap_version[1]=nex_header[5];
-	snap_version[2]=nex_header[6];
-	snap_version[3]=nex_header[7];
-	snap_version[4]=0;
-
-	//no imprimirlo por si no es una string normal 
-	//printf ("Snapshot version: %s\n",snap_version);
-
-	if (
-		! 
-		(
-		!strcmp(snap_version,"V1.0") ||
-		!strcmp(snap_version,"V1.1") ||
-		!strcmp(snap_version,"V1.2") 
-		)
-	) {
-
+	//check version: 4 4 string with NEX file version, currently "V1.0", "V1.1", "V1.2", "V1.3"
+	//The "V" and "." was already checked together with "Next" magic string.
+	//Convert version string into number.
+	const int nex_version = ((nex_header[5]-'0') << 8) + (nex_header[7]-'0');
+	if (nex_version < 0x0100 || 0x0103 < nex_version) {
 		debug_printf (VERBOSE_ERR,"Unsupported snapshot version. Loading it anyway");
 	}
 
@@ -5580,7 +5568,7 @@ void load_nex_snapshot(char *archivo)
 		tbblue_set_value_port_position(0x34, 0);		// Sprite port mirror
 
 		tbblue_set_value_port_position(0x42, 0x0F);		// Enhanced ULA ink format 15
-		tbblue_set_value_port_position(0x43, 0);		// Enahnced ULA control
+		tbblue_set_value_port_position(0x43, 0);		// Enhanced ULA control
 
 		tbblue_set_value_port_position(0x4A, 0);		// Transparency fallback colour
 		tbblue_set_value_port_position(0x4B, 0xE3);		// Sprites transparency index
@@ -5684,39 +5672,48 @@ void load_nex_snapshot(char *archivo)
 	z80_int nex_file_handler=value_8_to_16(nex_header[141],nex_header[140]);
 	debug_printf(VERBOSE_DEBUG,"File handler: %d",nex_file_handler);
 
-	
 
-	int cargar_paleta=0;
+	const z80_byte types_having_screen = (0x0103 <= nex_version) ? (64|4|1) : (4|1);
 	z80_byte load_screen_blocks=nex_header[10];
+	z80_byte load_screen2=(0x0103 <= nex_version) ? nex_header[152] : 0;
 
-
-	// Only Layer2 and Lo-Res screens expect the palette block (unless +128 flag set
-	if ( (load_screen_blocks & 1) || (load_screen_blocks & 4) ) {
-		cargar_paleta=1;
-	}
+	// Only Layer2, Lo-Res and Tilemap screens expect the palette block (unless +128 flag set)
+	int cargar_paleta = !!(load_screen_blocks & types_having_screen);
 
 	if (load_screen_blocks & 128) cargar_paleta=0;
 
-	//Cargar paleta optional palette (for Layer2 or LoRes screen)
+	//Cargar loading-screen paleta
 	if (cargar_paleta) {
+#define TBBLUE_LAYER2_PRIORITY 0x8000
 		debug_printf(VERBOSE_DEBUG,"Loading palette");
-		leidos=fread(tbblue_palette_layer2_second,1,512,ptr_nexfile);
+		z80_byte palette_buffer[512];
+		leidos=fread(palette_buffer,1,512,ptr_nexfile);
+
+		// select correct target palette
+		z80_int* target_palette = tbblue_palette_layer2_first;		// most of the screens are Layer 2 type
+		if (load_screen_blocks & 4) target_palette = tbblue_palette_ula_first;	// LoRes screen
+		// tilemap screen is possible with NEX version V1.3
+		if ((load_screen_blocks & 64) && (3 == load_screen2)) target_palette = tbblue_palette_tilemap_first;
+
+		// convert palette data to ZEsarUX format z80_int p000'000R'RRGG'GBBB
+		// (from Next z80_byte[2] RRRG'GGBB + p000'000B)
+		for (int color_index = 0; color_index < 256; ++color_index) {
+			z80_byte high8 = palette_buffer[color_index*2];
+			z80_byte low1 = palette_buffer[color_index*2+1];
+			z80_int color9b=(z80_int)high8+high8+(low1&1);
+			// preserve the priority bit only for Layer2 palette
+			if (target_palette == tbblue_palette_layer2_first && low1&128) color9b |= TBBLUE_LAYER2_PRIORITY;
+			target_palette[color_index] = color9b;
+		}
 	}
 
 	//Cargar Layer2 loading screen
 	if (load_screen_blocks & 1) {
 		debug_printf(VERBOSE_DEBUG,"Loading Layer2 loading screen");
-		int tbblue_layer2_offset=tbblue_get_offset_start_layer2_reg(tbblue_registers[18]);
-		if (tbblue_layer2_offset + 49152 <= 2*1024*1024) {
-			leidos=fread(&memoria_spectrum[tbblue_layer2_offset],1,49152,ptr_nexfile);
-		} else {
-			debug_printf(VERBOSE_ERR,"Layer 2 bank start is invalid %d",tbblue_registers[18]);
-			return;
-		}
-		//Asumimos que esta activo modo layer2 entonces
-		//tbblue_out_port_layer2_value(1);
-		//tbblue_registers[0x15]=4; //Layer priority L S U
-	}	
+		int tbblue_layer2_offset=tbblue_get_offset_start_layer2_reg(9);	// loader will always use Banks 9..11
+		leidos=fread(&memoria_spectrum[tbblue_layer2_offset],1,3*16*1024,ptr_nexfile);
+		tbblue_out_port_layer2_value(2);	// make Layer 2 visible
+	}
 
 	//classic ULA loading screen
 	if (load_screen_blocks & 2) {
@@ -5732,9 +5729,7 @@ void load_nex_snapshot(char *archivo)
 		z80_byte *pant;
 		pant=get_lores_pointer(0);
 		leidos=fread(pant,1,12288,ptr_nexfile);
-
-		//Asumimos modo lores
-		//tbblue_registers[0x15]=128;
+		tbblue_registers[0x15]=128;
 	}		
 
 
@@ -5771,6 +5766,48 @@ void load_nex_snapshot(char *archivo)
 	//TODO: que modo activo de video esta? aparte del timex, no se puede saber si esta lores, o layer2, o ula normal
 	//pruebo a activar el modo de la pantalla que carga pero no parece que ningun snapshot tenga una pantalla valida
 
+	// Layer2 320x256x8 and 640x256x4 loading screen
+	if (1 == load_screen2 || 2 == load_screen2) {
+		debug_printf(VERBOSE_DEBUG,"Loading hi-res Layer2 loading screen (V1.3 file)");
+		int tbblue_layer2_offset=tbblue_get_offset_start_layer2_reg(9);	// loader will always use Banks 9..13
+		leidos=fread(&memoria_spectrum[tbblue_layer2_offset],1,5*16*1024,ptr_nexfile);
+		tbblue_out_port_layer2_value(2);	// make Layer 2 visible
+		// set up correct mode: 320x256x8 or 640x256x4
+		z80_byte layer2_control_byte = nex_header[138] & 0x0F;	// take palette offset from HiResColor byte
+		layer2_control_byte |= (load_screen2<<4);
+		tbblue_set_value_port_position(0x70, layer2_control_byte);
+		// reset Layer 2 clip window to hi-res coordinates
+		tbblue_set_value_port_position(0x1C, 1);
+		tbblue_set_value_port_position(0x18, 0);
+		tbblue_set_value_port_position(0x18, 159);	// 0..159 covers full 320 or 640 pixels (depends on mode)
+		tbblue_set_value_port_position(0x18, 0);
+		tbblue_set_value_port_position(0x18, 255);
+	}
+
+	// Tilemap screen (has no data block, except palette, but header contains setup bytes)
+	if (3 == load_screen2) {
+		debug_printf(VERBOSE_DEBUG,"Setting up Tilemap loading screen (V1.3 file)");
+		tbblue_set_value_port_position(0x6B, nex_header[154+0]);
+		tbblue_set_value_port_position(0x6C, nex_header[154+1]);
+		tbblue_set_value_port_position(0x6E, nex_header[154+2]);
+		tbblue_set_value_port_position(0x6F, nex_header[154+3]);
+	}
+
+	// Copper code loader for V1.3 files
+	if (0x0103 <= nex_version && nex_header[153]) {
+		debug_printf(VERBOSE_DEBUG,"Loading Copper code (V1.3 file)");
+		const int COPPER_SIZE = 2048;
+		z80_byte copper_buffer[COPPER_SIZE];
+		leidos=fread(copper_buffer,1,COPPER_SIZE,ptr_nexfile);
+		// upload the code into copper memory
+		tbblue_set_value_port_position(0x62, 0);	// STOP + write index = 0
+		tbblue_set_value_port_position(0x61, 0);
+		for (int cbi = 0; cbi < COPPER_SIZE; ++cbi) {
+			tbblue_set_value_port_position(0x60, copper_buffer[cbi]);
+		}
+		// start the copper
+		tbblue_set_value_port_position(0x62, 0x40);	// Reset CPC to 0 and start the copper
+	}
 
 	//16kiB raw memory bank data in predefined order: 5,2,0,1,3,4,6,7,8,9,10,...,111 (particular bank may be omitted completely)
 	//Vamos a cargar los posibles 112 bloques en ram
@@ -5890,6 +5927,11 @@ y parámetro de color del tipo de fondo sólido
 	else {
 		fclose(ptr_nexfile);
 	}
+
+	//DEBUG: overwrite code with "jr $" after loading the NEX file (to see loading screen well)
+// 	if (reg_pc) {
+// 		poke_byte_no_time(reg_pc, 0x18); poke_byte_no_time(reg_pc+1, 0xFE);
+// 	}
 
 }
 
