@@ -1324,6 +1324,7 @@ done < /tmp/archivo_lista.txt
 
 			tbblue_palette_ula_first[j*16+i]=colorpaleta;
 			tbblue_palette_ula_second[j*16+i]=colorpaleta;
+			tbblue_palette_tilemap_first[j*16+i]=colorpaleta;	// set also first tilemap as ULA
 
 		}
 	}
