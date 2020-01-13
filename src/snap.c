@@ -5497,9 +5497,6 @@ void load_nex_snapshot(char *archivo)
 	debug_printf(VERBOSE_DEBUG,"Setting turbo x 8 because it's the usual speed when loading .nex files from NextOS");
 
 	z80_byte reg7=tbblue_registers[7];
-	
-	reg7 &=(255-3); //Quitar los dos bits bajos
-
 	reg7 |=3;
 	//(R/W)	07 => Turbo mode
 	//bit 1-0 = Turbo (00 = 3.5MHz, 01 = 7MHz, 10 = 14MHz, 11 = 28MHz)
@@ -5561,24 +5558,30 @@ void load_nex_snapshot(char *archivo)
 
 		// single-write registers (values copied from NEXLOAD2 project)
 		tbblue_set_value_port_position(0x1C, 0x0F);		// reset all clip-window indices to zero
-		tbblue_set_value_port_position(0x2D, 0);
-		tbblue_set_value_port_position(0x68, 0);		// ULA control
+
 		tbblue_set_value_port_position(0x12, 9);		// Layer 2 visible bank
 		tbblue_set_value_port_position(0x13, 12);		// "shadow" bank (Layer 2 port)
 		tbblue_set_value_port_position(0x14, 0xE3);		// global transparency
 		tbblue_set_value_port_position(0x15, 1);		// layer priorities SLU, sprites visible
 		tbblue_set_value_port_position(0x16, 0);		// Layer 2 offset
 		tbblue_set_value_port_position(0x17, 0);
+
 		tbblue_set_value_port_position(0x22, 0);		// raster interrupt control
 		tbblue_set_value_port_position(0x23, 0);
+
+		tbblue_set_value_port_position(0x26, 0);		// ULA scroll offset registers
+		tbblue_set_value_port_position(0x27, 0);
+
 		tbblue_set_value_port_position(0x2F, 0);		// Tilemap offset (three regs)
 		tbblue_set_value_port_position(0x30, 0);
 		tbblue_set_value_port_position(0x31, 0);
 		tbblue_set_value_port_position(0x32, 0);		// LoRes offset
 		tbblue_set_value_port_position(0x33, 0);
 		tbblue_set_value_port_position(0x34, 0);		// Sprite port mirror
+
 		tbblue_set_value_port_position(0x42, 0x0F);		// Enhanced ULA ink format 15
 		tbblue_set_value_port_position(0x43, 0);		// Enahnced ULA control
+
 		tbblue_set_value_port_position(0x4A, 0);		// Transparency fallback colour
 		tbblue_set_value_port_position(0x4B, 0xE3);		// Sprites transparency index
 		tbblue_set_value_port_position(0x4C, 0x0F);		// Tilemap transparency index
@@ -5592,10 +5595,15 @@ void load_nex_snapshot(char *archivo)
 		tbblue_set_value_port_position(0x56, 0);
 		tbblue_set_value_port_position(0x57, 1);
 
+		tbblue_set_value_port_position(0x68, 0);		// ULA control
+		tbblue_set_value_port_position(0x69, 0);		// Layer 2 invisible, Bank 5 ULA, Timex=0
+		tbblue_set_value_port_position(0x6A, 0);		// LoRes control
 		tbblue_set_value_port_position(0x6B, 0);		// Tilemap control
 		tbblue_set_value_port_position(0x6C, 0);		// Default tilemap attribute
+
 		tbblue_set_value_port_position(0x6E, 0);		// Base address of tilemap
 		tbblue_set_value_port_position(0x6F, 0);		// Base address of tile graphics
+		tbblue_set_value_port_position(0x70, 0);		// Layer 2 control (256x192, +0 pal offset)
 
 		// multi-write registers (values copied from NEXLOAD2 project)
 		tbblue_set_value_port_position(0x18, 0);		// Layer 2 clip window
@@ -5639,7 +5647,8 @@ void load_nex_snapshot(char *archivo)
 	}
 	else {
 		debug_printf(VERBOSE_DEBUG,"Uses 768k kb");
-		tbblue_extra_512kb_blocks=1;
+// 		tbblue_extra_512kb_blocks=1;
+		tbblue_extra_512kb_blocks=3;	// keep 2MiB available, some SW may use extra memory, but not require it
 	}
 	
 	//Ofset 8: Number of 16k Banks to Load: 0-112 (see also the byte array at offset 18, which must yield this count)
@@ -5661,9 +5670,12 @@ void load_nex_snapshot(char *archivo)
 	}
 
 	//modo timex
-	set_timex_port_ff(nex_header[138]);
-	debug_printf(VERBOSE_DEBUG,"Timex mode: %02XH",timex_port_ff);
-
+	if (nex_header[10] & 8) {	// when Screen is Timex HiRes 512x192, set color from header
+		z80_byte newTimexPortValue = timex_port_ff & (~0x38);	// clear color bits
+		newTimexPortValue |= (nex_header[138] & 0x38);			// add new color bits
+		set_timex_port_ff(newTimexPortValue);
+		debug_printf(VERBOSE_DEBUG,"Timex mode: %02XH",timex_port_ff);
+	}
 
 	debug_printf(VERBOSE_DEBUG,"Mapping ram %d at C000H",nex_header[139]);
 	tbblue_out_port_32765(nex_header[139]);
