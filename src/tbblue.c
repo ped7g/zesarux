@@ -4015,6 +4015,10 @@ void tbblue_set_layer_priorities_border_only(void)
 
 z80_int tbblue_get_border_color(z80_int color)
 {
+	if (!tbblue_if_ula_is_enabled()) {
+		// when ULA layer is disabled, return "transparency fallback" colour instead of border
+		return RGB9_INDEX_FIRST_COLOR + tbblue_get_9bit_colour(tbblue_registers[0x4A]);
+	}
     int flash_disabled = tbblue_registers[0x43]&1;  //flash_disabled se llamaba antes. ahora indica "enable ulanext"
     int is_timex_hires = timex_video_emulation.v && ((timex_port_ff&7) == 6);
     // 1) calculate correct color index into palette
