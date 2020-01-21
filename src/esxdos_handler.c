@@ -1925,6 +1925,12 @@ void esxdos_handler_begin_handling_commands(void)
 			esxdos_handler_new_return_call();
 		break;	
 
+		case ESXDOS_RST8_M_GETHANDLE:
+			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: ESXDOS_RST8_M_GETHANDLE.");
+			reg_a = 0xFF;		//there is no valid handle for the "current DOT command file" in this stub
+			esxdos_handler_new_return_call();
+		break;
+
 		case ESXDOS_RST8_F_MOUNT:
 			//Pues de momento retornar ok tal cual
 			debug_printf (VERBOSE_DEBUG,"ESXDOS handler: ESXDOS_RST8_F_MOUNT. A register: %02XH",reg_a);
