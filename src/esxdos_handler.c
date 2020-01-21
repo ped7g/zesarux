@@ -780,7 +780,8 @@ void esxdos_handler_call_f_read(void)
 		}
 
 		reg_bc=total_leidos;
-		//(*registro_parametros_hl_ix) +=total_leidos; //???
+		reg_de=total_leidos;
+		reg_hl=(*registro_parametros_hl_ix)+total_leidos;	// HL = address after last byte written
 		esxdos_handler_no_error_uncarry();
 
 		debug_printf (VERBOSE_DEBUG,"ESXDOS handler: Successfully esxdos_handler_call_f_read total bytes read: %d",total_leidos);
