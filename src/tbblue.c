@@ -2910,7 +2910,7 @@ void tbblue_hard_reset(void)
 
 
 	if (tbblue_fast_boot_mode.v) {
-		tbblue_registers[3]=3;
+		tbblue_registers[3]=3 + (3<<4);
 
 		tbblue_registers[8]=2+8; //turbosound 3 chips, specdrum
 
@@ -3172,7 +3172,74 @@ void tbblue_splash_palette_format(void)
 
 }
 
-	
+void tbblue_set_value_register_3(z80_byte value)
+{
+	/*
+		0x03 (03) => Machine Type
+		(R)
+		bit 7 = nextreg 0x44 second byte indicator
+		bits 6:4 = Display timing
+		bit 3 = User lock on display timing applied
+		bits 2-0 = Machine type
+		(W)
+		A write to this register disables the bootrom in config mode
+		bit 7 = 1 to allow changes to bits 6:4
+		bits 6:4 = Selects display timing (VGA/RGB only)
+			000 = Internal Use
+			001 = ZX 48K display timing
+			010 = ZX 128K/+2 display timing
+			011 = ZX +2A/+2B/+3 display timing
+			100 = Pentagon display timing 50 Hz only
+		bit 3 = 1 to apply user lock on display timing (hard reset = 0)
+		bits 2:0 = Selects machine type (config mode only)
+			may affect port decoding and enabling of some hardware
+			000 = Configuration mode
+			001 = ZX 48K
+			010 = ZX 128K/+2
+			011 = ZX +2A/+2B/+3
+			100 = Pentagon
+	*/
+	//Pentagon not supported yet. TODO
+
+	debug_printf(VERBOSE_DEBUG,"TBBlue: write to machine type (reg 3): %02XH (current %02XH)", value, tbblue_registers[3]);
+
+	const z80_byte machine_type = tbblue_registers[3] & 0x07;
+	const z80_byte display_type = tbblue_registers[3] & 0x70;
+	const int can_change_type = (0 == machine_type) || tbblue_bootrom.v;
+	const int can_change_display = can_change_type || (0 == (tbblue_registers[3] & 0x08));
+	const int requests_display_change = (value&0x80);
+
+	if (!can_change_display) {
+		// machine type can't be changed, and display timing is user-locked -> nothing can change
+		// just ignore the whole write into register 3
+		return;
+	}
+
+	if (can_change_type) {
+		// machine type can change, so set up everything
+		debug_printf(VERBOSE_INFO,"TBBlue: changing machine type to %d (%02XH)", value&7, value);
+		tbblue_bootrom.v=0;
+		tbblue_registers[3]=value;
+		tbblue_set_memory_pages();
+		tbblue_set_emulator_setting_timing();
+		return;
+	}
+
+	// Can not change machine type while in non config mode or non IPL mode (ignore the bits 2:0)
+	value &= ~0x07;
+	value |= machine_type;
+
+	// If display timing change was not requested -> ignore bits 6:4
+	if (!requests_display_change) {
+		value &= ~0x70;
+		value |= display_type;
+	}
+
+	tbblue_registers[3]=value;
+
+	tbblue_set_emulator_setting_timing();
+}
+
 //tbblue_last_register
 //void tbblue_set_value_port(z80_byte value)
 void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value)
@@ -3199,15 +3266,8 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 		case 3:
 		{
 			//Controlar caso especial
-			//(W) 0x03 (03) => Set machine type, only in IPL or config mode
-			//   		bits 2-0 = Machine type:
-			//      		000 = Config mode
-			z80_byte machine_type=tbblue_registers[3]&7;
-
-			if (!(machine_type==0 || tbblue_bootrom.v)) {
-				debug_printf(VERBOSE_DEBUG,"Can not change machine type (to %02XH) while in non config mode or non IPL mode",value);
-				return;
-			}
+			tbblue_set_value_register_3(value);
+			return;
 		}
 		break;
 
@@ -3291,57 +3351,6 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 					break;
 
 
-		break;
-
-		case 3:
-		/*
-		(W) 0x03 (03) => Set machine type, only in IPL or config mode:
-   		A write in this register disables the IPL
-   		(0x0000-0x3FFF are mapped to the RAM instead of the internal ROM)
-   		bit 7 = lock timing
-   		bits 6-4 = Timing:
-      		000 or 001 = ZX 48K
-      		010 = ZX 128K
-      		011 = ZX +2/+3e
-      		100 = Pentagon 128K
-   		bit 3 = Reserved, must be 0
-   		bits 2-0 = Machine type:
-      		000 = Config mode
-      		001 = ZX 48K
-      		010 = ZX 128K
-      		011 = ZX +2/+3e
-      		100 = Pentagon 128K
-      		*/
-
-		/*  OLD:
-				(W)		03 => Set machine type, only in bootrom or config mode:
-							A write in this register disables the bootrom mode (0000 to 3FFF are mapped to the RAM instead of the internal ROM)
-							bits 7-5 = Reserved, must be 0
-							bits 4-3 = Timing:
-								00,
-								01 = ZX 48K
-								10 = ZX 128K
-								11 = ZX +2/+3e
-							bit 2 = Reserved, must be 0
-							bits 1-0 = Machine type:
-								00 = Config mode (bootrom)
-								01 = ZX 48K
-								10 = ZX 128K
-								11 = ZX +2/+3e
-								*/
-			//Pentagon not supported yet. TODO
-			//last_value=tbblue_config1;
-			tbblue_bootrom.v=0;
-			//printf ("----setting bootrom to 0\n");
-
-			//printf ("Writing register 3 value %02XH\n",value);
-
-			tbblue_set_memory_pages();
-
-
-			//Solo cuando hay cambio
-			//if ( last_register_3 != value )
-			tbblue_set_emulator_setting_timing();
 		break;
 
 
@@ -3526,7 +3535,7 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 			// values are set in the palette after full 16b were sent to this register, not partially
 			if (tbblue_write_palette_state == 0) {
 				tbblue_registers[40] = value;	// NextReg 0x28 (40) should read as "first-byte" of 0x44
-				tbblue_write_palette_state++;
+				tbblue_write_palette_state = 1;
 			} else {
 				tbblue_write_palette_value(tbblue_registers[40], value);
 			}
@@ -3705,6 +3714,14 @@ hardware numbers
 		case 1:
 			return (TBBLUE_CORE_VERSION_MAJOR<<4 | TBBLUE_CORE_VERSION_MINOR);
 		break;
+
+		case 3:
+			// 0x03 (03) => Machine Type (R)
+			//   bit 7 = nextreg 0x44 second byte indicator
+			//   bits 6:4 = Display timing
+			//   bit 3 = User lock on display timing applied
+			//   bits 2-0 = Machine type
+			return (tbblue_registers[3] & 0x7F) | (tbblue_write_palette_state<<7);
 
 		case 7:
 		{

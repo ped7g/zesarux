@@ -1150,26 +1150,23 @@ void inicializa_tabla_contend(void)
         }
 
 	if (MACHINE_IS_TBBLUE) {
-		//Timings de 48k o 128k
-		//z80_byte t=(tbblue_config1 >> 6)&3;
-    z80_byte t=(tbblue_registers[3])&3;
-		if (t>=2) {
-			//128k
+		if (TBBLUE_MACHINE_P2A || /*TODO*/ TBBLUE_MACHINE_PENTAGON) {
+			// ZX +2A / +2B / +3 / Next (native)
+			timings=contend_patron_76543210;
+			offset_time=-1;
+			offset_patron=4;
+		} else if (TBBLUE_MACHINE_128_P2) {
+			// ZX 128K / +2
 			timings=contend_patron_65432100;
-
-                	offset_time=3; //6,5,4,3,2,1,0,0 pattern starts at 14361 segun http://www.worldofspectrum.org/faq/reference/128kreference.htm
-	                offset_patron=-1;
-        	        //Empieza en 14365 con 65432100
-		}
-		else {
-			//48k
+			offset_time=3; //6,5,4,3,2,1,0,0 pattern starts at 14361 segun http://www.worldofspectrum.org/faq/reference/128kreference.htm
+			offset_patron=-1;
+		} else {
+			// ZX 48K / Configuration mode
 			timings=contend_patron_65432100;
-	                offset_time=1;
-        	        offset_patron=-1;
-                	//Empieza en 14335 con 65432100
+			offset_time=1;
+			offset_patron=-1;
 		}
-
-        }
+	}
 
 
 
