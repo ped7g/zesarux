@@ -56,6 +56,12 @@ z80_byte *tbblue_ram_memory_pages[TBBLUE_MAX_SRAM_8KB_BLOCKS];
 
 z80_byte tbblue_extra_512kb_blocks=3;
 
+int tbblue_use_rtc_traps=1;
+
+
+//Autoactivar real video solo la primera vez que se entra en set_machine con maquina tbblue
+int tbblue_already_autoenabled_rainbow=0;
+
 z80_byte tbblue_return_max_extra_blocks(void)
 {
 	return 32+tbblue_extra_512kb_blocks*64;
@@ -2141,7 +2147,7 @@ void tbblue_mem_page_ram_rom(void)
 
 	switch (page_type) {
 		case 0:
-			debug_printf (VERBOSE_DEBUG,"Pages 0,1,2,3");
+			//debug_printf (VERBOSE_DEBUG,"Pages 0,1,2,3");
 			tbblue_registers[80]=0*2;
 			tbblue_registers[81]=0*2+1;
 			tbblue_registers[82]=1*2;
@@ -2171,7 +2177,7 @@ void tbblue_mem_page_ram_rom(void)
 			break;
 
 		case 1:
-			debug_printf (VERBOSE_DEBUG,"Pages 4,5,6,7");
+			//debug_printf (VERBOSE_DEBUG,"Pages 4,5,6,7");
 
 			tbblue_registers[80]=4*2;
 			tbblue_registers[81]=4*2+1;
@@ -2204,7 +2210,7 @@ void tbblue_mem_page_ram_rom(void)
 			break;
 
 		case 2:
-			debug_printf (VERBOSE_DEBUG,"Pages 4,5,6,3");
+			//debug_printf (VERBOSE_DEBUG,"Pages 4,5,6,3");
 
 			tbblue_registers[80]=4*2;
 			tbblue_registers[81]=4*2+1;
@@ -2235,7 +2241,7 @@ void tbblue_mem_page_ram_rom(void)
 			break;
 
 		case 3:
-			debug_printf (VERBOSE_DEBUG,"Pages 4,7,6,3");
+			//debug_printf (VERBOSE_DEBUG,"Pages 4,7,6,3");
 
 			tbblue_registers[80]=4*2;
 			tbblue_registers[81]=4*2+1;
@@ -4298,13 +4304,16 @@ Bit	Function
 
 Bits 7 & 6 enable the tilemap and select resolution.
 
-Bit 5 changes the structure of the tilemap so that it contains only 8-bit tilemap-id entries instead of 16-bit tilemap-id and tile-attribute entries.
+Bit 5 changes the structure of the tilemap so that it contains only 8-bit tilemap-id 
+entries instead of 16-bit tilemap-id and tile-attribute entries.
 
-If 8-bit tilemap is selected, the tilemap contains only tile numbers and the attributes are taken from Default Tilemap Attribute Register ($6C).
+If 8-bit tilemap is selected, the tilemap contains only tile numbers and the attributes are taken 
+from Default Tilemap Attribute Register ($6C).
 
 Bit 4 selects one of two tilemap palettes used for final colour lookup.
 
-Bit 1 enables the 512-tile-mode when the tile attribute (either global in $6C or per tile in map data) contains ninth bit of tile-id value. 
+Bit 1 enables the 512-tile-mode when the tile attribute (either global in $6C or per tile in map data) 
+contains ninth bit of tile-id value. 
 In this mode the tiles are drawn under ULA pixels, unless bit 0 is used to force whole tilemap over ULA.
 
 Bit 0 can enforce tilemap over ULA either in 512-tile-mode, or even override the per-tile bit selector from tile attributes. 
@@ -4663,8 +4672,6 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 
 				*/
 
-
-
 			
 		if (rotate) {
 			z80_byte sy_old=sy;
@@ -4673,6 +4680,7 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 
 			incy=-incx;
 			incx=0;
+			//printf ("Tiles con rotacion size %d\n",tbblue_bytes_per_tile);
 		}
 
 

@@ -292,6 +292,7 @@ extern z80_bit extended_stack_enabled;
 extern void set_extended_stack(void);
 extern void reset_extended_stack(void);
 extern char *extended_stack_get_string_type(z80_byte tipo);
+extern void extended_stack_clear(void);
 
 
 extern int debug_change_register(char *texto);

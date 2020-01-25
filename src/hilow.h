@@ -19,20 +19,34 @@
 
 */
 
-#ifndef DS1307_H
-#define DS1307_H
+#ifndef HILOW_H
+#define HILOW_H
 
 #include "cpu.h"
 
-#define DS1307_PORT_CLOCK 0x103b
-#define DS1307_PORT_DATA  0x113b
+#define HILOW_ROM_FILE_NAME "hilow.rom"
 
-extern z80_byte ds1307_get_port_clock(void);
-extern z80_byte ds1307_get_port_data(void);
-extern void ds1307_write_port_data(z80_byte value);
-extern void ds1307_write_port_clock(z80_byte value);
-extern void ds1307_reset(void);
 
-extern void tbblue_trap_return_rtc(void);
+#define HILOW_ROM_SIZE 8192
+
+#define HILOW_RAM_SIZE 2048
+
+//8 KB rom, 2 kb ram
+#define HILOW_MEM_SIZE (HILOW_ROM_SIZE+HILOW_RAM_SIZE)
+
+ 
+//extern void hilow_press_button(void);
+extern void hilow_enable(void);
+extern void hilow_disable(void);
+extern void hilow_reset(void);
+
+extern z80_bit hilow_enabled;
+
+extern z80_bit hilow_mapped_rom;
+extern z80_bit hilow_mapped_ram;
+
+extern z80_byte hilow_read_port_ff(z80_int puerto);
+extern void hilow_write_port_ff(z80_byte value);
+
 
 #endif

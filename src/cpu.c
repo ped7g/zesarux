@@ -111,6 +111,8 @@
 #include "network.h"
 #include "stats.h"
 #include "zeng.h"
+#include "hilow.h"
+#include "ds1307.h"
 
 #ifdef COMPILE_STDOUT
 #include "scrstdout.h"
@@ -628,8 +630,10 @@ char parameter_disablebetawarning[100]="";
 int total_minutes_use=0;
 
 
+//Aqui solo se llama posteriormente a haber inicializado la maquina, nunca antes
 void cpu_set_turbo_speed(void)
 {
+
 
 	debug_printf (VERBOSE_INFO,"Changing turbo mode from %dX to %dX",cpu_turbo_speed_antes,cpu_turbo_speed);
 
@@ -690,7 +694,7 @@ void cpu_set_turbo_speed(void)
 
 	screen_testados_linea *=cpu_turbo_speed;
         screen_set_video_params_indices();
-        inicializa_tabla_contend();
+        inicializa_tabla_contend_cached_change_cpu_speed();
 
         //Recalcular algunos valores cacheados
         recalcular_get_total_ancho_rainbow();
@@ -741,6 +745,40 @@ void cpu_set_turbo_speed(void)
 	
 
 	cpu_turbo_speed_antes=cpu_turbo_speed;
+
+
+
+	/*
+	Calculos de tiempo en ejecutar esta funcion de cambio de velocidad de cpu, desde metodo antiguo hasta optimizado actual:
+--Metodo clasico de obtener tablas contend:
+
+	Con O0:
+cpu: X01 tiempo: 1611 us	
+cpu: X08 tiempo: 4117 us
+
+	Con O2:
+cpu: X01 tiempo: 880 us	
+cpu: X08 tiempo: 1031 us	
+
+
+
+	--Con rutina contend con memset:
+	Con O0:
+cpu: X08 tiempo: 863 us	
+
+	Con O2:
+cpu: X08 tiempo: 539 us	
+
+	-- Con tabla cacheada al cambiar speed:
+	Con O0:
+cpu: X01 tiempo: 964 us
+cpu: X08 tiempo: 883 us
+
+	Con O2:
+cpu: X01 tiempo: 547 us
+cpu: X08 tiempo: 438 us
+	*/
+
 
 }
 
@@ -1085,6 +1123,7 @@ util_stats_init();
 		//porque antes estaba el tbblue_reset aqui despues de set_memory_pages???
 
 		//tbblue_read_port_24d5_index=0;
+		ds1307_reset();
 	}
 
 	if (MACHINE_IS_TIMEX_TS2068) timex_set_memory_pages();
@@ -1136,6 +1175,10 @@ util_stats_init();
 
 	if (esxdos_handler_enabled.v) {
 		esxdos_handler_reset();
+	}
+
+	if (hilow_enabled.v) {
+		hilow_reset();
 	}
 
 
@@ -2824,6 +2867,7 @@ void set_machine_params(void)
 		kartusho_enabled.v=0;
 		ifrom_enabled.v=0;
 		betadisk_enabled.v=0;
+		hilow_enabled.v=0;
 
 		plus3dos_traps.v=0;
 		pd765_enabled.v=0;
@@ -3461,7 +3505,12 @@ You don't need timings for H/V sync =)
                 poke_byte_no_time=poke_byte_no_time_tbblue;
                 lee_puerto=lee_puerto_spectrum;
                 ay_chip_present.v=1;
-				enable_rainbow();
+
+				//Solo forzar real video una vez al entrar aquí. Para poder dejar real video desactivado si el usuario lo quiere,
+				//pues aqui se entra siempre al cambiar velocidad cpu (y eso pasa en la rom cada vez que te mueves por el menu del 128k por ejemplo)
+				//TODO: siempre que el usuario entre al emulador se activara la primera vez
+				if (!tbblue_already_autoenabled_rainbow) enable_rainbow();
+				tbblue_already_autoenabled_rainbow=1;
 
 				multiface_type=MULTIFACE_TYPE_THREE;
 
@@ -7494,6 +7543,7 @@ tooltip_enabled.v=1;
 	init_breakpoints_table();
 	init_watches_table();
 
+	extended_stack_clear();
 
 	last_filesused_clear();
 	menu_first_aid_init();
@@ -7649,6 +7699,8 @@ init_randomize_noise_value();
 #endif
 
 	menu_debug_daad_init_flagobject();
+
+	inicializa_tabla_contend_speed_higher();
 
 
 

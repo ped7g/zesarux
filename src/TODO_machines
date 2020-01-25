@@ -339,11 +339,52 @@ TBBLUE:
 -soporte mas botones joystick/mas joystick de tbblue
 https://www.specnext.com/forum/viewtopic.php?f=6&t=1142
 
--buffer de real beeper + cambios de cpu speed en next se oye beeper repetido, porque esta usando un buffer que depende del total de testados en linea,
-y eso lo altera continuamente. Se nota al bajar el cursor abajo del todo en tbblue browser y luego pulsar continuamente. sin real beeper no pasa
-->el por que lo sigue haciendo en next aunque hayas soltado la tecla de cursor abajo es un miesterio
+-sonido repetitivo en el browser de next al llevar el cursos mas abajo de lo normal: parece que es culpa de el driver de audio,
+la cpu se satura y (puede) que el buffer de audio se envie varias veces. Sucede cuando hay saturación en la cpu
+Sucede tambien si por ejemplo iniciamos la scrollnuter compilando sin O2
+* pruebo a meter un vaciado de buffer de audio cuando fps esta bajo: no da buen resultado, también se producen clicks
+-> es casi peor porque produce clicks en momentos que no hay audio. incluso inicializando array mediante memset, tambien se produce
+
+El parchecillo va en core_spectrum.c , aqui:
+
+        int linea_estados=t_estados/screen_testados_linea;
+
+                while (linea_estados<312) {
+					audio_send_stereo_sample(audio_valor_enviar_sonido_izquierdo,audio_valor_enviar_sonido_derecho);
+					//audio_send_mono_sample(audio_valor_enviar_sonido_izquierdo);
+                                        linea_estados++;
+                }
+
++				//Si fps bajo
++				printf ("Ultimo fps: %d\n",ultimo_fps);
++				if (ultimo_fps<15) {
++					printf ("Cleaning audio buffer\n");
++					memset(audio_buffer,0,AUDIO_BUFFER_SIZE*2);
++					//int i;
++					//for (i=0;i<AUDIO_BUFFER_SIZE*2;i++) audio_buffer[i]=0;
++				}
+
+-parece que no aparece correctamente el salvapantallas de NextOS
 
 -volver de multiface nmi desde la rom, no retorna bien ni modo de video y ademas se cuelga
+
+-terminfo de CP/M muestra algunos caracteres raros en algunas paginas
+
+-registro paleta tiles. no hacemos las combinaciones de Tilemap
+0x43 (67) => Palette Control
+(R/W)
+  bit 7 = Disable palette write auto-increment (soft reset = 0)
+  bits 6-4 = Select palette for reading or writing (soft reset = 000)
+    000 = ULA first palette
+    100 = ULA second palette
+    001 = Layer 2 first palette
+    101 = Layer 2 second palette
+    010 = Sprites first palette 
+    110 = Sprites second palette
+    011 = Tilemap first palette
+    111 = Tilemap second palette
+
+
 
 -tbblue extended opcodes
 https://docs.google.com/spreadsheets/d/1CFjp6sRIPRTShESC_1I5-pR6v7kTymk0hhUC1TN9sgc/edit#gid=0
@@ -351,6 +392,23 @@ https://docs.google.com/spreadsheets/d/1CFjp6sRIPRTShESC_1I5-pR6v7kTymk0hhUC1TN9
 -tbblue: Permitir tener border desactivado:
 --esta en cpu.c forzado, en set_machine_params
 --en menu.c, no permitido en gui settings
+
+
+
+-27 noviembre 2019:
+The tilemap and sprites can extend into the border area.  In the future, layer 2 will as well.
+
+Because there can be so many sprites on screen (128 without any multiplexing), people have used sprites 
+to generate background in the border.  You need 96 to cover the 32 pixels on the left and right sides of 
+the screen.  If you multiplex, you can get away with less.
+
+The tilemap now has two modes.  One is 4-bits per pixel for 16 colours but this is further indexed by a 
+palette offset in the top four bits so you still have 8-bit colour but in a more restricted manner.  
+The other mode ia 1-bit per pixel (like UDGs) but with a 7-bit palette offset.
+
+The 320 pixel size in the x direction is reaching into the overscan area of displays.  
+hdmi cannot display all of it.  vga 60 it fill the entire space and vga 50 there may be a thin border.  Some displays may crop it further. 
+
 
 
 -mostrar electron en tbblue, con modo turbo, refresca linea un poco por debajo de posicion electron

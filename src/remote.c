@@ -683,6 +683,7 @@ struct s_items_ayuda items_ayuda[]={
   {"exit-emulator",NULL,NULL,"Ends emulator"},
 
 	{"extended-stack",NULL,"action [parameter]","Sets extended stack parameters, which allows you to see what kind of values are in the stack. Action and parameters are the following:\n"
+	"clear              Clears the extended stack setting values to 0 and type to default\n"
 	"enabled yes|no     Enable or disable the extended stack\n"
 	"get     n [index]  Get n values. The index default value is the SP register\n"
 	},
@@ -1461,7 +1462,9 @@ void remote_extended_stack(int misocket,char *parameter,char *value,char *second
 		}
 	}	
 
-
+	else if (!strcasecmp(parameter,"clear")) {
+		extended_stack_clear();
+	}
 
 
 	else {
@@ -4175,8 +4178,8 @@ void interpreta_comando(char *comando,int misocket)
 
     remote_parse_commands_argvc(parametros);
 
-    if (remote_command_argc<2) {
-      escribir_socket(misocket,"ERROR. Needs at least two parameters");
+    if (remote_command_argc<1) {
+      escribir_socket(misocket,"ERROR. Needs at least one parameter");
       return;
     }
 

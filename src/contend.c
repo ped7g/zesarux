@@ -20,6 +20,7 @@
 */
 
 #include <stdio.h>
+#include <string.h>
 
 
 #include "contend.h"
@@ -69,8 +70,23 @@ z80_byte contend_pages_chrome[]={  0,0,1,0,0,1,0,0,0,0 };
 //Indica si las paginas actuales mapeadas tienen contend o no (a 0 o a 1)
 z80_byte contend_pages_actual[4];
 
-z80_byte contend_table[MAX_CONTEND_TABLE];
-z80_byte contend_table_no_mreq[MAX_CONTEND_TABLE];
+
+
+//z80_byte contend_table[MAX_CONTEND_TABLE];
+//z80_byte contend_table_no_mreq[MAX_CONTEND_TABLE];
+
+//Tablas cuando cpu speed es X1
+z80_byte contend_table_speed_one[CONTEND_TABLE_SIZE_ONE_SPEED];
+z80_byte contend_table_no_mreq_speed_one[CONTEND_TABLE_SIZE_ONE_SPEED];
+
+//Tablas para cuando cpu speed es > X1 y estan a 0 siempre
+z80_byte contend_table_speed_higher[MAX_CONTEND_TABLE];
+z80_byte contend_table_no_mreq_speed_higher[MAX_CONTEND_TABLE];
+
+
+z80_byte *contend_table;
+z80_byte *contend_table_no_mreq;
+
 
 //Funciones de contended memory y timing para las diferentes maquinas
 //Punteros a funciones de cada maquina
@@ -1058,6 +1074,18 @@ z80_byte retorna_contend_time( int time, int *timings , int offset_time, int off
 }
 
 
+//Inicializa a ceros las tablas para velocidad > X1, que siempre son ceros
+void inicializa_tabla_contend_speed_higher(void)
+{
+
+        debug_printf (VERBOSE_DEBUG,"Initializing contend-zero tables for cpu speed > 1X");
+
+        memset(contend_table_speed_higher,0,MAX_CONTEND_TABLE);
+        memset(contend_table_no_mreq_speed_higher,0,MAX_CONTEND_TABLE);
+
+}
+
+
 void inicializa_tabla_contend(void)
 {
 
@@ -1068,16 +1096,37 @@ void inicializa_tabla_contend(void)
 
 	debug_printf (VERBOSE_INFO,"Initializing Contended Memory Table");
 
-	//ZX80, 81 no tienen contended memory
+/*
+//Tablas cuando cpu speed es X1
+z80_byte contend_table_speed_one[CONTEND_TABLE_SIZE_ONE_SPEED];
+z80_byte contend_table_no_mreq_speed_one[CONTEND_TABLE_SIZE_ONE_SPEED];
+
+//Tablas para cuando cpu speed es > X1 y estan a 0 siempre
+z80_byte contend_table_speed_higher[MAX_CONTEND_TABLE];
+z80_byte contend_table_no_mreq_speed_higher[MAX_CONTEND_TABLE];
+
+
+z80_byte *contend_table;
+z80_byte *contend_table_no_mreq;
+*/        
+
+	
 
 	//no hacer tabla contend si hay velocidad turbo
 	if (cpu_turbo_speed!=1) {
-		for (i=0;i<MAX_CONTEND_TABLE;i++) {
-                        contend_table_no_mreq[i]=0;
-                        contend_table[i]=0;
-		}
+                //Punteros a tablas con ceros
+                contend_table=contend_table_speed_higher;
+                contend_table_no_mreq=contend_table_no_mreq_speed_higher;
+                debug_printf (VERBOSE_DEBUG,"Setting contend-zero tables for cpu speed > 1X and not recalculating them");
 		return;
 	}
+
+        debug_printf (VERBOSE_DEBUG,"Setting contend tables for 1X and recalculating them");
+
+        //Punteros a tablas con cpu speed X1
+        contend_table=contend_table_speed_one;
+        contend_table_no_mreq=contend_table_no_mreq_speed_one;
+
 
 	if (MACHINE_IS_SPECTRUM_16_48 && !(MACHINE_IS_INVES)) {
 		//48k
@@ -1266,8 +1315,8 @@ void inicializa_tabla_contend(void)
 
 	int final_tabla=screen_testados_total+100;
 
-	if (final_tabla>=MAX_CONTEND_TABLE) {
-		cpu_panic("Initializing Contend Table exceeds maximum allowed of MAX_CONTEND_TABLE constant. Fix source code contend.h");
+	if (final_tabla>=CONTEND_TABLE_SIZE_ONE_SPEED) {
+		cpu_panic("Initializing Contend Table exceeds maximum allowed of CONTEND_TABLE_SIZE_ONE_SPEED constant. Fix source code contend.h");
 	}
 
 
@@ -1306,8 +1355,34 @@ void inicializa_tabla_contend(void)
 		}
 
 		if (i>14300 && i<14400) debug_printf (VERBOSE_PARANOID,"Contended table. T-state: %d:  %d . no_mreq: %d",i,contend_table[i],contend_table_no_mreq[i]);
+                //printf ("Contended table. T-state: %d:  %d . no_mreq: %d\n",i,contend_table[i],contend_table_no_mreq[i]);
         }
+        //printf ("Final tabla: %d\n",final_tabla);
 
 
 
 }
+
+
+//Punto de entrada de cambio de cpu speed, se retornan tablas cacheadas
+void inicializa_tabla_contend_cached_change_cpu_speed(void)
+{
+
+	//no hacer tabla contend si hay velocidad turbo
+	if (cpu_turbo_speed!=1) {
+                //Punteros a tablas con ceros
+                contend_table=contend_table_speed_higher;
+                contend_table_no_mreq=contend_table_no_mreq_speed_higher;
+                debug_printf (VERBOSE_DEBUG,"Setting contend-zero tables for cpu speed > 1X and not recalculating them");
+		return;
+	}
+
+        //Punteros a tablas con cpu speed X1
+        contend_table=contend_table_speed_one;
+        contend_table_no_mreq=contend_table_no_mreq_speed_one;
+        debug_printf (VERBOSE_DEBUG,"Setting contend tables for 1X and not recalculating them");
+
+}
+
+  
+        

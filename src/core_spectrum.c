@@ -59,6 +59,7 @@
 
 #include "snap_zsf.h"
 #include "zeng.h"
+#include "ds1307.h"
 
 z80_byte byte_leido_core_spectrum;
 
@@ -811,6 +812,24 @@ void core_spectrum_ciclo_fetch(void)
 		}
 		//Si esta activo copper
 		tbblue_copper_handle_next_opcode();
+
+					if (tbblue_use_rtc_traps) {
+						//Reloj RTC
+						if (reg_pc==0x27a9 || reg_pc==0x27aa) {
+						/*
+							27A9 C9     RET
+							27AA 37     SCF
+							27AB C9     RET
+						*/						
+							if (
+								peek_byte_no_time(reg_pc)==0xC9 &&
+								peek_byte_no_time(reg_pc+1)==0x37 &&
+								peek_byte_no_time(reg_pc+2)==0xC9 
+							)
+							tbblue_trap_return_rtc();
+						}
+
+					}
 	}
 
 }

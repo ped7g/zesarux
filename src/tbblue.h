@@ -39,6 +39,10 @@ extern z80_byte *tbblue_memory_paged[];
 //extern z80_byte tbblue_config2;
 //extern z80_byte tbblue_port_24df;
 
+extern int tbblue_use_rtc_traps;
+
+extern int tbblue_already_autoenabled_rainbow;
+
 extern void tbblue_out_port(z80_int port,z80_byte value);
 
 extern void tbblue_set_memory_pages(void);

@@ -17,6 +17,7 @@ Added sending anonymous statistics use
 Added setting --disablemenuandexit: it closes the emulator when the menu is going to be opened. 
  It's the same behaviour as previous --disablemenu. Now --disablemenu only disables the menu but does not close the emulator
 Added setting to disable looking for alternate character sets from sysvar 23606/7 on ocr functions
+Added DataDrive HiLow emulation (beta)
  
 Added Borland Gui Style
 
@@ -80,6 +81,7 @@ Improved snapshot loading: now setting "--sna-no-change-machine" becomes "--snap
 Improved curses driver: now can use utf "blocky" characters and have 64x48 resolution
 Improved accurate Z80 timing: IM mode 0 is 1 t-state shorter than IM mode 1
 Improved real tape loading: acceleration is disabled by default, added setting to save configuration
+Improved cpu speed change: now it's a lot faster
 
 Fixed error when trying to open user files on MacOS Catalina
 Fixed Pentagon border: now ukflag demo is perfect
@@ -109,8 +111,9 @@ Fixed tbblue emulation:
 -fixed error when paging rom in ram, on case pages 0,1,2,3
 -fixed "bit 7 = Disable ULA output (soft reset = 0)" on register 0x68
 -fixed turbosound and dac activation when tbblue fast boot mode
--added turbo mode x8 (28 MHz
+-added turbo mode x8 (28 MHz)
 -fixed reading register 7
+-fixed RTC emulation
 
 Fixed Accessibility bugs: 
 -now menu settings (anything between square brackets []) are played at the end of the menu line

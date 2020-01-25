@@ -1,14 +1,8 @@
 --------Para ESTA versión 8.1:
 
--Accesibilidad:
---Al llamar a speech en Windows se pierde el foco de ventana. Ver si ocurre cuando hay consola de Windows abierta o no
-
 -probar tbblue CP/M
 
--Extended stack inicializado con ceros
-
--Siguiente versión beta hay que decir en servidor versión.txt que es 8.1-B2
-Pero eso debe coincidir con version.h de código 
+-acabar de probar ZENG en windows
 
 -seguir probando speech menu con stdout y con drivers no-stdout
 
@@ -21,6 +15,7 @@ Pero eso debe coincidir con version.h de código
 
 -Impresión caracteres en consola texto nunca debe mostrar el 127. Es Delete
 Quizá mostrar C en caso de 127
+->Hecho de momento en chardetect y speech
 
 -Opción para formato de grabación de autosave snap
 
@@ -98,15 +93,9 @@ D3 = 1 - disable rom and connect ram page 0 in adress space 0-3FFF
 o bien, que quien llame ahi, que mire si se ha llegado al final de lo esperado
 o bien que al principio se diga la longitud de lo que se envia-> util para get-snapshot
 
--Quizá en Windows para saber si un socket tiene datos para leer, usar llamada a read con 0 bytes y devolverá error si no hay bytes para leer?
+
 Prueba en windows:
 -http browser y juegos funciona
--zeng recibe conexiones pero peta al cabo de unos segundos
--zeng haciendo como master inicia la conexion pero no parece recibir el prompt
-
-
-Ejemplos generales socket
-https://www.binarytides.com/socket-programming-c-linux-tutorial/
 
 
 --Fin RED
@@ -127,7 +116,6 @@ Quizá sigpipe se puede gestionar diferente para cada thread?
 Ampliar buffer de recepción y el de copia. Y asignarlos por malloc 
 
 *parar thread zeng y cerrar socket zeng al salir emulador
-*network: en windows siempre retorna datos disponibles. corregirlo. comentado en este TODO tambien
 *asegurarse que cuando conecte zeng contra remoto al principio, retorna el prompt esperado. Ya lee version pero quiza 
 habria que hacer que leyera el primer prompt correcto
 

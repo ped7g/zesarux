@@ -2200,7 +2200,8 @@ void reset_cpu_core_code_coverage(void)
 
 
 //Array con todo el extended stack
-struct s_extended_stack_item extended_stack_array_items[65536];
+#define EXTENDED_STACK_SIZE 65536
+struct s_extended_stack_item extended_stack_array_items[EXTENDED_STACK_SIZE];
 
 //Retornar el tipo de valor de extended stack 
 char *extended_stack_get_string_type(z80_byte tipo)
@@ -2213,6 +2214,18 @@ char *extended_stack_get_string_type(z80_byte tipo)
 	}
 
 	else return push_value_types_strings[tipo];
+
+}
+
+void extended_stack_clear(void)
+{
+
+	int i;
+
+	for (i=0;i<EXTENDED_STACK_SIZE;i++) {
+		extended_stack_array_items[i].valor=0;
+		extended_stack_array_items[i].tipo=0;
+	}
 
 }
 

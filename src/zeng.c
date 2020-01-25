@@ -543,6 +543,13 @@ Poder enviar mensajes a otros jugadores
 
 			//Aqui cerramos el thread desde mismo dentro del thread
 			zeng_disable_forced();	
+
+#ifdef MINGW
+			//Parece que en Windows esto no es suficiente para salir del thread. Hacemos un return
+			debug_printf(VERBOSE_ERR,"ZENG: Returning from thread after disabling it");
+			return;
+#endif			
+
 		}
 	}
 }
@@ -561,7 +568,7 @@ void zeng_send_snapshot_if_needed(void)
 		if ( (contador_envio_snapshot % (50*zeng_segundos_cada_snapshot) )==0) { //cada 5 segundos
 				//Si esta el anterior snapshot aun pendiente de enviar
 				if (zeng_send_snapshot_pending) {
-					printf ("Anterior snapshot aun no se ha enviado\n");
+					debug_printf (VERBOSE_DEBUG,"ZENG: Last snapshot has not been sent yet");
 				}
 				else {
 					//zona de memoria donde se guarda el snapshot pero sin pasar a hexa

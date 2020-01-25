@@ -100,6 +100,7 @@
 #include "datagear.h"
 #include "stats.h"
 #include "network.h"
+#include "hilow.h"
 
 
 
@@ -799,6 +800,7 @@ int ula_settings_opcion_seleccionada=0;
 int dandanator_opcion_seleccionada=0;
 int kartusho_opcion_seleccionada=0;
 int ifrom_opcion_seleccionada=0;
+int hilow_opcion_seleccionada=0;
 int superupgrade_opcion_seleccionada=0;
 int multiface_opcion_seleccionada=0;
 int betadisk_opcion_seleccionada=0;
@@ -14618,7 +14620,7 @@ void menu_ifrom(MENU_ITEM_PARAMETERS)
 
 
                         			menu_add_item_menu_format(array_menu_ifrom,MENU_OPCION_NORMAL,menu_storage_ifrom_emulation,menu_storage_ifrom_emulation_cond,"[%c] ~~iFrom Enabled", (ifrom_enabled.v ? 'X' : ' '));
-                        menu_add_item_menu_shortcut(array_menu_ifrom,'k');
+                        menu_add_item_menu_shortcut(array_menu_ifrom,'i');
                         menu_add_item_menu_tooltip(array_menu_ifrom,"Enable ifrom");
                         menu_add_item_menu_ayuda(array_menu_ifrom,"Enable ifrom");
 
@@ -14651,6 +14653,73 @@ void menu_ifrom(MENU_ITEM_PARAMETERS)
 
 
 }
+
+
+/*
+void menu_storage_hilow_press_button(MENU_ITEM_PARAMETERS)
+{
+	hilow_press_button();
+	//Y salimos de todos los menus
+	salir_todos_menus=1;
+
+}*/
+
+int menu_storage_hilow_press_button_cond(void)
+{
+	return hilow_enabled.v;
+}
+
+
+void menu_storage_hilow_emulation(MENU_ITEM_PARAMETERS)
+{
+	if (hilow_enabled.v) hilow_disable();
+	else hilow_enable();
+}
+
+void menu_hilow(MENU_ITEM_PARAMETERS)
+{
+        menu_item *array_menu_hilow;
+        menu_item item_seleccionado;
+        int retorno_menu;
+        do {
+
+
+                        			menu_add_item_menu_inicial_format(&array_menu_hilow,MENU_OPCION_NORMAL,menu_storage_hilow_emulation,NULL,"[%c] ~~Hilow Enabled", (hilow_enabled.v ? 'X' : ' '));
+                        menu_add_item_menu_shortcut(array_menu_hilow,'h');
+                        menu_add_item_menu_tooltip(array_menu_hilow,"Enable hilow");
+                        menu_add_item_menu_ayuda(array_menu_hilow,"Enable hilow");
+
+/*
+			menu_add_item_menu_format(array_menu_hilow,MENU_OPCION_NORMAL,menu_storage_hilow_press_button,menu_storage_hilow_press_button_cond,"~~Press button");
+			menu_add_item_menu_shortcut(array_menu_hilow,'p');
+                        menu_add_item_menu_tooltip(array_menu_hilow,"Press button");
+                        menu_add_item_menu_ayuda(array_menu_hilow,"Press button");
+*/
+
+
+                                menu_add_item_menu(array_menu_hilow,"",MENU_OPCION_SEPARADOR,NULL,NULL);
+
+                menu_add_ESC_item(array_menu_hilow);
+
+                retorno_menu=menu_dibuja_menu(&hilow_opcion_seleccionada,&item_seleccionado,array_menu_hilow,"Hilow" );
+
+
+                if ((item_seleccionado.tipo_opcion&MENU_OPCION_ESC)==0 && retorno_menu>=0) {
+                        //llamamos por valor de funcion
+                        if (item_seleccionado.menu_funcion!=NULL) {
+                                //printf ("actuamos por funcion\n");
+                                item_seleccionado.menu_funcion(item_seleccionado.valor_opcion);
+
+                        }
+                }
+
+        } while ( (item_seleccionado.tipo_opcion&MENU_OPCION_ESC)==0 && retorno_menu!=MENU_RETORNO_ESC && !salir_todos_menus);
+
+
+
+
+}
+
 
 void menu_storage_betadisk_emulation(MENU_ITEM_PARAMETERS)
 {
@@ -16130,7 +16199,12 @@ void menu_storage_settings(MENU_ITEM_PARAMETERS)
                         menu_add_item_menu_ayuda(array_menu_storage_settings,"iFrom settings");
 		}
 
-              
+		if (MACHINE_IS_SPECTRUM) {
+                       menu_add_item_menu_format(array_menu_storage_settings,MENU_OPCION_NORMAL,menu_hilow,NULL,"~~HiLow");
+                        menu_add_item_menu_shortcut(array_menu_storage_settings,'h');
+                        menu_add_item_menu_tooltip(array_menu_storage_settings,"HiLow settings");
+                        menu_add_item_menu_ayuda(array_menu_storage_settings,"HiLow settings");
+		}              
 
 
 
@@ -17145,6 +17219,11 @@ void menu_tbblue_fast_boot_mode(MENU_ITEM_PARAMETERS)
 	tbblue_fast_boot_mode.v ^=1;
 }
 
+void menu_tbblue_rtc_traps(MENU_ITEM_PARAMETERS)
+{
+	tbblue_use_rtc_traps ^=1;
+}
+
 //menu hardware settings
 void menu_hardware_settings(MENU_ITEM_PARAMETERS)
 {
@@ -17227,6 +17306,11 @@ void menu_hardware_settings(MENU_ITEM_PARAMETERS)
 			menu_add_item_menu_ayuda(array_menu_hardware_settings,"Boots tbblue directly to a 48 rom but with all the Next features enabled (except divmmc)");
 
 			menu_add_item_menu_format(array_menu_hardware_settings,MENU_OPCION_NORMAL,menu_tbblue_machine_id,NULL,"[%d] TBBlue machine id",tbblue_machine_id); 
+
+
+			menu_add_item_menu_format(array_menu_hardware_settings,MENU_OPCION_NORMAL,menu_tbblue_rtc_traps,NULL,"[%c] TBBlue RTC traps",(tbblue_use_rtc_traps ? 'X' : ' ') );
+			menu_add_item_menu_tooltip(array_menu_hardware_settings,"Allows RTC trap for NextOS ROM");
+			menu_add_item_menu_ayuda(array_menu_hardware_settings,"Allows RTC trap for NextOS ROM and any program that uses RTC.SYS");
 
 		}
 
@@ -27460,7 +27544,7 @@ void menu_about_statistics(MENU_ITEM_PARAMETERS)
 
 	menu_generic_message_format("Statistics",
 		"Source code lines: %d\n"
-		"Total time invested on programming ZEsarUX: ^^%d^^ hours (and growing)\n\n"
+		"Total time used on coding ZEsarUX: ^^%d^^ hours (and growing)\n\n"
 		"Edited with VSCode, Working Copy and vim\n"
 		"Developed on macOS Catalina, Debian 9, Raspbian, and MinGW environment on Windows\n"
 		,LINES_SOURCE,tiempo_trabajado_en_zesarux);

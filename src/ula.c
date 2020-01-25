@@ -33,6 +33,7 @@
 #include "betadisk.h"
 #include "settings.h"
 #include "divmmc.h"
+#include "hilow.h"
 
 
 //#define ZESARUX_ZXI_PORT_REGISTER 0xCF3B
@@ -314,6 +315,11 @@ void nmi_handle_pending_prepost_fetch(void)
 
     if (betadisk_enabled.v) {
         betadisk_active.v=1;
+    }
+
+    if (hilow_enabled.v) {
+        hilow_mapped_rom.v=1;
+        hilow_mapped_ram.v=1;
     }
 
     

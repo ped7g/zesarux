@@ -22,6 +22,10 @@ Como se pide? Al guardar un snapshot o desde menú snapshot? Quizá desde menú 
 
 -separar los extras en otro repo? Reinicializar repositorio de ZEsarUX?
 
+-Mostrar info en menu network de descargas, commits etc
+
+-Modo de colores solarized
+
 
 -utils.c: In function ‘util_extract_hdf’:
 utils.c:11099:18: warning: this decimal constant is unsigned only in ISO C90
