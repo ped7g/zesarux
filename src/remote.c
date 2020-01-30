@@ -4791,7 +4791,9 @@ void interpreta_comando(char *comando,int misocket)
 			mensaje[i]=0;
 
 			put_footer_first_message(mensaje);
-			
+
+			//Y enviarlo a speech
+			textspeech_print_speech(parametros);
 
 
 		}

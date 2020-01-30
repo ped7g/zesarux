@@ -291,6 +291,9 @@ https://cs.wikipedia.org/wiki/Pentagon_1024SL
 
 Modo 384 x 304 ?
 
+-emular este bit de eff7 en pentagon:
+port EFF7: (adressation 1110xxxx xxxx0xxx )
+D3 = 1 - disable rom and connect ram page 0 in adress space 0-3FFF
 
 -------------
 
@@ -370,6 +373,9 @@ El parchecillo va en core_spectrum.c , aqui:
 
 -terminfo de CP/M muestra algunos caracteres raros en algunas paginas
 
+-Agregar turbo spool setting en tbblue -> va relacionado con la funcion de peek_byte turbo que se ve alterada al cambiar 
+la velocidad de la cpu en nextos
+
 -registro paleta tiles. no hacemos las combinaciones de Tilemap
 0x43 (67) => Palette Control
 (R/W)
@@ -385,6 +391,21 @@ El parchecillo va en core_spectrum.c , aqui:
     111 = Tilemap second palette
 
 
+-tbblue. registro 6b bit 1: 1	1 to activate 512 tile mode (bit 0 of tile attribute is ninth bit of tile-id)
+https://www.specnext.com/tilemap-mode/
+
+-revisar si esto está correcto:
+-tbblue:NEW in core 3.0:
+Bit 3 enables "text mode" where the tile-graphic is defined as 1-bit B&W bitmap 
+(same as UDG = User Defined Graphic characters on original ZX Spectrum) => 
+one tile needs only 8 bytes to define graphics. The tile-map data are also interpreted differently, 
+the associated flag byte is 7:1 split, the bottom bit 0 being still "ULA over tm" or "ninth bit of tile number", 
+but the top 7 bits are extended palette offset. The transparency is then checked against the global transparency colour
+ (after the colour lookup in the palette), not against the four bit tilemap transparency colour-index.
+ -menu info video tbblue cuando son inks y papers no cabe entero. probar con angry floaters por ejemplo
+
+ -otros cambios registros: ejemplo 0x68 , bits 5-1
+
 
 -tbblue extended opcodes
 https://docs.google.com/spreadsheets/d/1CFjp6sRIPRTShESC_1I5-pR6v7kTymk0hhUC1TN9sgc/edit#gid=0
@@ -394,6 +415,11 @@ https://docs.google.com/spreadsheets/d/1CFjp6sRIPRTShESC_1I5-pR6v7kTymk0hhUC1TN9
 --en menu.c, no permitido en gui settings
 
 
+-Mantener archivo de especificaciones de next (la lista completa de los registros internos) tal cual como los emulo. 
+Así es más fácil saber cuando agregan o modifican algo nuevo 
+-Ensamblador opcodes extendidos next
+-Puerto dffd next
+https://specnext.dev/wiki/Next_Memory_Bank_Select
 
 -27 noviembre 2019:
 The tilemap and sprites can extend into the border area.  In the future, layer 2 will as well.

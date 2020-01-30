@@ -114,6 +114,7 @@ Fixed tbblue emulation:
 -added turbo mode x8 (28 MHz)
 -fixed reading register 7
 -fixed RTC emulation
+-fixed autoload tape
 
 Fixed Accessibility bugs: 
 -now menu settings (anything between square brackets []) are played at the end of the menu line

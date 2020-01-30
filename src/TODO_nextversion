@@ -62,3 +62,10 @@ la vista 1 sera ventana grande pero con alto total reducido. Parecido a lo que s
 -al cargar smartload, por ejemplo ultimo cargado es thelosttapesofalbion. situa el cursor ahi bien, 
 pero al subir para arriba desplaza desde scroll sin mover
 cursor hasta que esta arriba. O sea, deberia mover siempre cursor y no empezar a hacer scroll hasta que no esta arriba
+
+-ZENG: Desde Mac (Master) a Windows (slave). Si abro ventana de enviar mensaje desde windows, al cabo de un rato parece 
+desincronizarse y hasta acaba petando la instancia de Windows
+
+-Impresión caracteres en consola texto nunca debe mostrar el 127. Es Delete
+Quizá mostrar C en caso de 127
+->Hecho de momento en chardetect y speech

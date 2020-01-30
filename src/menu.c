@@ -401,7 +401,7 @@ z80_byte menu_da_todas_teclas(void);
 
 
 
-void menu_textspeech_send_text(char *texto);
+
 
 
 int menu_simple_two_choices(char *texto_ventana,char *texto_interior,char *opcion1,char *opcion2);

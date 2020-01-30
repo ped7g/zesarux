@@ -544,11 +544,14 @@ Poder enviar mensajes a otros jugadores
 			//Aqui cerramos el thread desde mismo dentro del thread
 			zeng_disable_forced();	
 
-#ifdef MINGW
-			//Parece que en Windows esto no es suficiente para salir del thread. Hacemos un return
-			debug_printf(VERBOSE_ERR,"ZENG: Returning from thread after disabling it");
-			return;
-#endif			
+			//Parece que en Windows esto no es suficiente para salir del thread desde el mismo pthread. Hacemos un return
+			//Por si acaso dejamos el return siempre, si es Windows u otro sistema que no haga caso del pthread_cancel, 
+			//pues volvera. Y si no, no llegara aqui
+			//Y le damos un tiempo para que se cierre con cancel. Al menos asi en Mac no llegara aqui pues se cierra antes el pthread
+			sleep(1);
+
+			debug_printf(VERBOSE_ERR,"Error sending to socket. Disabling ZENG. Returning from thread after disabling it");
+			return NULL;
 
 		}
 	}
