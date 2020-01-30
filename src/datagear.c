@@ -112,6 +112,7 @@ static void adjust_port_address(struct s_zxndma_port* const port) {
 
 static void set_is_transfering(struct s_zxndma* const dma, const int enable) {
 	if (enable) {
+		dma->counter = 0;
 		dma->wr3 |= 0x40;
 		dma->write_28Mhz_ticks = dma->prescalar_28Mhz_ticks;	// make next read happen instantly
 	} else {
@@ -131,11 +132,11 @@ static void counter_reached_length(struct s_zxndma* const dma) {
 	if (dma->wr5 & 0b00100000) {	// auto-restart feature (very limited LOAD command)
 		dma->portA.address = dma->portA.wr_address;
 		dma->portB.address = dma->portB.wr_address;
-		dma->counter = 0;
 
 		// this is not in Zilog docs (= probably inaccurate), but I need it to prevent destination
 		// increment ahead of first byte transferred in Zilog-compatibility mode
 		dma->status &= ~1;
+		set_is_transfering(dma, 1);
 	} else {						// no auto-restart
 		set_is_transfering(dma, 0);
 	}
@@ -154,10 +155,10 @@ static void do_command(struct s_zxndma* const dma, const z80_byte command) {
 			reset_port_timing(&dma->portA);
 			reset_port_timing(&dma->portB);
 			if (dma->emulate_Zilog.v) {
-				dma->portA.address--;	// Zilog DMA RESET seems to do single "--" to RR3-4 address
-				// this will affect sequence RESET, CONTINUE, ENABLE, which seems to be overall
-				// quite unstable, and this emulation doesn't really want to be 100% accurate even
-				// for cases when the code is requesting unstable/wrong combinations
+				// The Zilog DMA chip will adjust the source address once during RESET command
+				struct s_zxndma_port* const src =
+					zxndma_is_direction_a_to_b(dma) ? &dma->portA : &dma->portB;
+				adjust_port_address(src);
 			}
 			break;
 		case COMMAND_RESET_PORT_A_TIMING:
@@ -172,20 +173,20 @@ static void do_command(struct s_zxndma* const dma, const z80_byte command) {
 			// but the UA858D clone and zxnDMA are not that strict, and will load it any way
 			dma->portA.address = dma->portA.wr_address;
 			dma->portB.address = dma->portB.wr_address;
-			dma->counter = 0;
 			dma->status &= ~0b00000001;		// clear status "any byte transferred"
 			dma->status |=  0b00100000;		// set "not end-of-block"
 			if (dma->emulate_Zilog.v && dma->emulate_UA858D.v) {
 				// real UA858D and ZilogDMA will clear the read sequence when LOAD
 				dma->read_mask = 0;
 			}
+			//TODO real Zilog does set by LOAD also which port is first in transfer
+			// - i.e. doing LOAD with wrong direction will damage the result of transfer!
 			break;
 		case COMMAND_REINIT_STATUS_BYTE:
 			// set "not end-of-block" and "match-not-found" (matching is not implemented in zxnDMA)
 			dma->status |= 0b00110000;
 			break;
 		case COMMAND_CONTINUE:
-			dma->counter = 0;
 			dma->status |=  0b00100000;		// set "not end-of-block"
 			break;
 		case COMMAND_READ_STATUS_BYTE:
@@ -371,6 +372,10 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 		// WR0, WR1, WR2
 		if (value & 0x03) {				// WR0 (0b0xxxxxAA, AA != 00)
 			dma->wr0 = value;
+			//TODO if (dma->emulate_Zilog.v) dma->counter = 0;
+			// Zilog DMA chip sometimes clears counter when WR0 is written to, but not always
+			// - seems like it does it only when no counter bytes is written, but need more tests to confirm
+			// (it has no meaningful use as ENABLE also clears it, just reading RR1+RR2 (counter) is affected)
 			expect_extra_bytes(dma, WRITE_MODE_WR0, (value >> 3) & 0b1111);
 		} else if (value & 0x04) {		// WR1 (0b0xxxx100)
 			set_port_config(&dma->portA, value);
@@ -398,6 +403,9 @@ z80_byte zxndma_read_value(struct s_zxndma* const dma) {
 		dma->read_mask >>= 1;
 	} while (0 == current_mask_bit0);
 
+	// Next cores 3.x - 3.0.7 (latest I know of) return the counter with swapped bytes
+	// This emulation returns correct order, so the result is currently different from TBBlue board
+	// (I'm expecting the FPGA DMA to be fixed in later cores)
 	switch (dma->read_index) {
 		case 1:	return dma->status;
 		case 2:	return dma->counter & 0xFF;
@@ -508,8 +516,6 @@ void zxndma_emulate(struct s_zxndma* const dma) {
 	//zxnDMA length compare (length == transferred bytes)
 	if (dma->counter == dma->length) {
 		counter_reached_length(dma);
-		// zxnDMA does report in core3.0.5 the "counter" value after transfer as 0
-		dma->counter = 0;	//TODO verify with newer versions of core, this will hopefully change
 	}
 }
 

@@ -28,7 +28,10 @@
 #define DATAGEAR_DMA_SECOND_PORT 0x6b
 
 ///////////////////////////////////////////////////////////////////
-// zxnDMA emulation rewritten by Peter Helcmanovsky (Ped7g)
+// ZilogDMA + zxnDMA emulation rewritten by Peter Helcmanovsky (Ped7g)
+// - the ZilogDMA part should be quite close to HW (based on the DMA
+//   tests from https://github.com/MrKWatkins/ZXSpectrumNextTests)
+// - but still only sub-parts of Zilog DMA are emulated (no byte transfer/search/etc)
 // - original datagear-like emulation written by Cesar is below
 ///////////////////////////////////////////////////////////////////
 
@@ -40,9 +43,9 @@
 struct s_zxndma_port {
 	// wr_address is set by WR0/WR4, address is the working register (RR3..RR6)
 	z80_int		wr_address, address;
-	// config: 0vAAT00s AA=increment type, T = type, v = variable timing, s = standard timing (internal only)
+	// config: bits 0vAAT00s AA=increment type, T = type, v = variable timing, s = standard timing (internal only)
 	z80_byte	config;
-	// timing: **s0**cc (can be written when v=1 in config is written through WR1/WR2)
+	// timing: bits **s0**cc (can be written when v=1 in config is written through WR1/WR2)
 	// s = prescalar (port B only), cc = fixed timing, * = Zilog DMA specific
 	z80_byte	timing;
 };
@@ -81,7 +84,7 @@ struct s_zxndma {
 	z80_bit					menu_enabled;	// enable/disable in options menu
 	z80_bit					emulate_Zilog;	// 1 = Zilog DMA (+1 length of transfers), 0 = zxnDMA
 	z80_bit					bus_master;		// 1 = DMA holds bus, no CPU operation allowed
-	z80_bit					emulate_UA858D;	// 1 = UA858D (only when emulate_Zilog is already set)
+	z80_bit					emulate_UA858D;	// 1 = UA858D (only when emulate_Zilog is already set), 0 = Zilog
 	// emulation related internal values
 	z80_byte				write_mode;		// which group of registers is being written to (by write_mask)
 	z80_byte				write_index;	// index of next write (corresponding to bit0 of write_mask)
@@ -92,7 +95,7 @@ struct s_zxndma {
 	int						write_28Mhz_ticks;	// how old is last finished write (for prescalar slow transfers)
 	int						old_28Mhz_ticks;	// previous emulation call was done at
 		// whole continuous transfer may be broken into multiple chunks by emulator (to refresh screen)
-		// so the "transfer_start_t" will be advancing every call to zxndma_emulate during active transfer
+		// so the write_28Mhz_ticks/old_28Mhz_ticks may change by call to zxndma_emulate during transfer
 };
 
 //public API for `s_zxndma` structure
