@@ -29,5 +29,16 @@
 
 //Proceso inicial
 int main (int main_argc,char *main_argv[]) {
+
+	// check for extra quotes around whole argument and remove them here
+	for (int i = 0; i < main_argc; ++i) {
+		const long unsigned argv_len = strlen(main_argv[i]);
+		if (2 < argv_len && '"' == main_argv[i][0] && '"' == main_argv[i][argv_len-1]) {
+			// seems like whole argument is enclosed in extra quotes, remove them here
+			main_argv[i][argv_len-1] = 0;
+			strcpy(main_argv[i]+0, main_argv[i]+1);
+		}
+	}
+
 	return zesarux_main (main_argc,main_argv);
 }
