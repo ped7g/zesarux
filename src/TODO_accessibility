@@ -25,3 +25,22 @@ O quizá setting configurable
 
 -Speech al moverse por líneas de menú se escucha antes de que se mueva el cursor. Por que?
 -speech: sin multitask, a veces se descuadra la linea de menu que lee. ejemplo: ir a accessibility settings, y cuando este leyendo "active item..." pulsar tecla. Creo que esto pasa desde siempre
+
+
+
+-pulsar ESC en item que se esta escuchando en el menu, cierra el menu? 
+En parte es correcto, queremos volver a menu anterior.
+Si no se quiere esto, hay alternativas:
+
+Al final de menu_escribe_opciones_zxvision:
+
+	//Si hay tecla pulsada con speech de menu activo, probablemente ha sido ESC. Esperar liberar tecla
+	if (textspeech_filter_program!=NULL && textspeech_also_send_menu.v) {
+		printf ("Esperar liberar tecla\n");
+		menu_espera_no_tecla();
+	}
+
+Esto espera cualquier tecla pulsada al acabar de leer el menu, pero esto ralentiza el movimiento del cursor.
+También se podria hacer que solo espere a liberar tecla si la tecla pulsada es ESC, pero estariamos en lo mismo,
+pulsando ESC no volveria a menu anterior si esta leyendo el menu, aunque el movimiento del cursor seria rapido
+Entonces no es un fallo de por si, sino un comportamiento (como diria Jobs, no es un bug sino un feature ;)  )

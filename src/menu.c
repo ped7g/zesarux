@@ -5397,6 +5397,10 @@ void zxvision_generic_message_tooltip(char *titulo, int return_after_print_text,
 	}
 
 	zxvision_window *ventana;
+	
+	//Se puede usar en el bloque else siguiente
+	//Definirla aqui a nivel de funcion y no en el bloque else o seria un error
+	zxvision_window mi_ventana;
 
 	if (return_after_print_text) {
 		//Dado que vamos a volver con la ventana activa que se crea aquí, hay que asignar la estructura en memoria global
@@ -5406,7 +5410,6 @@ void zxvision_generic_message_tooltip(char *titulo, int return_after_print_text,
 	}
 
 	else {
-		zxvision_window mi_ventana;
 		ventana=&mi_ventana;
 	}
 	//printf ("antes de zxvision_new_window\n");		
@@ -8426,17 +8429,17 @@ int menu_dibuja_menu_stdout(int *opcion_inicial,menu_item *item_seleccionado,men
 	do {
 
 		salir_opcion=1;
-		printf("Option number? (prepend the option with h for help, t for tooltip). Write ESC to go back. ");
+		printf("Option number? (prepend the option with h for help, t for tooltip). Write esc to go back. ");
 		//printf ("menu_speech_tecla_pulsada: %d\n",menu_speech_tecla_pulsada);
 		if (!menu_speech_tecla_pulsada) {
-			scrstdout_menu_print_speech_macro("Option number? (prepend the option with h for help, t for tooltip). Write ESC to go back. ");
+			scrstdout_menu_print_speech_macro("Option number? (prepend the option with h for help, t for tooltip). Write esc to go back. ");
 		}
 
 		//paso de curses a stdout deja stdout que no hace flush nunca. forzar
 		fflush(stdout);
 		scanf("%s",texto_opcion);
 
-		if (!strcasecmp(texto_opcion,"ESC")) {
+		if (!strcasecmp(texto_opcion,"esc")) {
 			tecla=MENU_RETORNO_ESC;
 		}
 
@@ -9699,6 +9702,10 @@ int menu_dibuja_menu(int *opcion_inicial,menu_item *item_seleccionado,menu_item 
 	strcpy(item_seleccionado->texto_misc,menu_sel->texto_misc);
 
 	//printf ("misc selected: %s %s\n",item_seleccionado->texto_misc,menu_sel->texto_misc);
+	
+	//guardamos antes si el tipo es tabulado antes de
+	//liberar el item de menu
+	int es_tabulado=m->es_menu_tabulado;
 
 
 	//Liberar memoria del menu
@@ -9718,7 +9725,7 @@ int menu_dibuja_menu(int *opcion_inicial,menu_item *item_seleccionado,menu_item 
 
 
 	//En caso de menus tabulados, es responsabilidad de este de borrar con cls y liberar ventana 
-	if (m->es_menu_tabulado==0) {
+	if (es_tabulado==0) {
 		cls_menu_overlay();
 		zxvision_destroy_window(ventana);
 	}
@@ -27546,7 +27553,7 @@ void menu_about_statistics(MENU_ITEM_PARAMETERS)
 		"Source code lines: %d\n"
 		"Total time used on coding ZEsarUX: ^^%d^^ hours (and growing)\n\n"
 		"Edited with VSCode, Working Copy and vim\n"
-		"Developed on macOS Catalina, Debian 9, Raspbian, and MinGW environment on Windows\n"
+		"Developed on macOS Catalina, Debian 10, Raspbian, and MinGW environment on Windows\n"
 		,LINES_SOURCE,tiempo_trabajado_en_zesarux);
 
 }

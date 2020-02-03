@@ -1,6 +1,8 @@
 
 --- Mac OS X ---
 
+-Que hacemos con cocoa no opengl?
+
 -Poder asignar extensiones para abrir con zesarux en Mac OS X. Y de paso eliminar warnings de línea de comandos
 -cocoa: En Mac, si se pone en .zesaruxrc: --vo curses Inicializa la ventana en blanco de Cocoa y luego abre ventana de curses donde transcurre todo...
 Es poder saber antes las opciones de configuracion dado que la comprobacion del driver video (--vo) se hace en el main del scrcocoa.m
