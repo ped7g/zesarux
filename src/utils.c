@@ -4847,6 +4847,8 @@ int quickload(char *nombre) {
 	z80_bit antes_superupgrade_enabled;
 	antes_superupgrade_enabled.v=superupgrade_enabled.v;
 
+	z80_bit antes_debug_breakpoints_enabled;
+	antes_debug_breakpoints_enabled.v = debug_breakpoints_enabled.v;
 
 	int retorno=quickload_continue(nombre);
 
@@ -4873,6 +4875,11 @@ int quickload(char *nombre) {
 	if (antes_superupgrade_enabled.v && superupgrade_enabled.v==0) {
 		debug_printf (VERBOSE_DEBUG,"Reenabling superupgrade as it was enabled before quickload");
 		superupgrade_enable(0);
+	}
+
+	if (antes_debug_breakpoints_enabled.v) {
+		debug_printf(VERBOSE_INFO,"Re-enabling breakpoints because they were enabled before quickload");
+		breakpoints_enable();
 	}
 
 	return retorno;

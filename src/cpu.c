@@ -7981,8 +7981,7 @@ struct sched_param sparam;
 
 	if (command_line_set_breakpoints.v) {
 		if (debug_breakpoints_enabled.v==0) {
-		        debug_breakpoints_enabled.v=1;
-		        breakpoints_enable();
+			breakpoints_enable();
 		}
 
 	}
