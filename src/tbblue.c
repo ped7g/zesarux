@@ -5436,15 +5436,14 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 
 }
 
-//FIXME const?!
-char *tbblue_layer2_video_modes_names[]={
+const char *tbblue_layer2_video_modes_names[]={
 	"256x192 8bpp",
 	"320x256 8bpp",
 	"640x256 4bpp",
 	"Unknown"
 };
 
-char *tbblue_get_layer2_mode_name(void)
+const char *tbblue_get_layer2_mode_name(void)
 {
 		//Resolucion si 256x192x8, organizacion en scanlines, o las otras resoluciones que organizan en columnas
 		//00=256x192x8. 01=320x256x8, 10=640x256x4

@@ -89,7 +89,7 @@ extern void tbblue_set_emulator_setting_divmmc(void);
 
 extern void tbblue_set_ram_blocks(int memoria_kb);
 
-extern char *tbblue_get_layer2_mode_name(void);
+extern const char *tbblue_get_layer2_mode_name(void);
 
 #define TBBLUE_REGISTER_PORT 0x243b
 #define TBBLUE_VALUE_PORT 0x253b
