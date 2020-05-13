@@ -892,19 +892,18 @@ Clip window registers
   4rd write = Y2 position
   The values are 0,159,0,255 after a Reset, Reads do not advance the clip position, The X coords are internally doubled (in 40x32 mode, quadrupled in 80x32)
 
-(W) 0x1C (28) => Clip Window control
-  bits 7-4 = Reserved, must be 0
-  bit 3 - reset the Tilemap clip index.
-  bit 2 - reset the ULA/LoRes clip index.
-  bit 1 - reset the sprite clip index.
-  bit 0 - reset the Layer 2 clip index.
-
-(R) 0x1C (28) => Clip Window control
-  (may change)
-  bits 7-6 = Tilemap clip index
-  bits 5-4 = Layer 2 clip index
-  bits 3-2 = Sprite clip index
-  bits 1-0 = ULA clip index
+0x1C (28) => Clip Window control
+(R) (may change)
+  bits 7:6 = Tilemap clip index
+  bits 5:4 = ULA/Lores clip index
+  bits 3:2 = Sprite clip index
+  bits 1:0 = Layer 2 clip index
+(W) (may change)
+  bits 7:4 = Reserved, must be 0
+  bit 3 = Reset the tilemap clip index
+  bit 2 = Reset the ULA/LoRes clip index
+  bit 1 = Reset the sprite clip index
+  bit 0 = Reset the Layer 2 clip index
 */
 
 z80_byte clip_windows[4][4];                    // memory array to store actual clip windows
@@ -917,11 +916,11 @@ void tbblue_inc_clip_window_index(const z80_byte index_mask) {
 }
 
 // shifts and masks how the clip-window index is stored in tbblue_registers[28]
-#define TBBLUE_CLIP_WINDOW_LAYER2_INDEX_SHIFT   4
+#define TBBLUE_CLIP_WINDOW_LAYER2_INDEX_SHIFT   0
 #define TBBLUE_CLIP_WINDOW_LAYER2_INDEX_MASK    (3<<TBBLUE_CLIP_WINDOW_LAYER2_INDEX_SHIFT)
 #define TBBLUE_CLIP_WINDOW_SPRITES_INDEX_SHIFT  2
 #define TBBLUE_CLIP_WINDOW_SPRITES_INDEX_MASK   (3<<TBBLUE_CLIP_WINDOW_SPRITES_INDEX_SHIFT)
-#define TBBLUE_CLIP_WINDOW_ULA_INDEX_SHIFT      0
+#define TBBLUE_CLIP_WINDOW_ULA_INDEX_SHIFT      4
 #define TBBLUE_CLIP_WINDOW_ULA_INDEX_MASK       (3<<TBBLUE_CLIP_WINDOW_ULA_INDEX_SHIFT)
 #define TBBLUE_CLIP_WINDOW_TILEMAP_INDEX_SHIFT  6
 #define TBBLUE_CLIP_WINDOW_TILEMAP_INDEX_MASK   (3<<TBBLUE_CLIP_WINDOW_TILEMAP_INDEX_SHIFT)
@@ -3660,11 +3659,11 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 		case 28:
 			/*
 			(W) 0x1C (28) => Clip Window control
-				bits 7-4 = Reserved, must be 0
-				bit 3 - reset the Tilemap clip index.
-				bit 2 - reset the ULA/LoRes clip index.
-				bit 1 - reset the sprite clip index.
-				bit 0 - reset the Layer 2 clip index.
+				bits 7:4 = Reserved, must be 0
+				bit 3 = Reset the tilemap clip index
+				bit 2 = Reset the ULA/LoRes clip index
+				bit 1 = Reset the sprite clip index
+				bit 0 = Reset the Layer 2 clip index
 			*/
 			if (value&1) tbblue_reset_clip_window_layer2_index();
 			if (value&2) tbblue_reset_clip_window_sprites_index();
