@@ -3007,36 +3007,33 @@ void tbblue_reset_common(void)
 	tbblue_registers[97]=0;
 	tbblue_registers[98]=0;
 
+	tbblue_registers[100]=0;
 	tbblue_registers[104]=0;
 	tbblue_registers[105]=0;
 	tbblue_registers[106]=0;
 	tbblue_registers[107]=0;
 	tbblue_registers[108]=0;
-	tbblue_registers[110]=0;
-	tbblue_registers[111]=0;
+	tbblue_registers[110]=0x6C;
+	tbblue_registers[111]=0x4C;
 	tbblue_registers[112]=0;
 	tbblue_registers[113]=0;
 	tbblue_registers[127]=255;
 
 	tbblue_registers[128]=(tbblue_registers[128]&0x0F) | (tbblue_registers[128]<<4);
-	tbblue_registers[130]=255;
-	tbblue_registers[131]=255;
-	tbblue_registers[132]=255;
-	tbblue_registers[133]=255;
 	tbblue_registers[144]=0;
 	tbblue_registers[145]=0;
 	tbblue_registers[146]=0;
 	tbblue_registers[147]=0;
-	tbblue_registers[152]=0xFF;
-	tbblue_registers[153]=0x01;
+	tbblue_registers[152]=0x00;	// 0xFF;	// seems the value 0x1FF is actually "written" to GPIO, but reads back as 0
+	tbblue_registers[153]=0x00;	// 0x01;
 	tbblue_registers[154]=0x00;
 	tbblue_registers[155]=0x00;
 	tbblue_registers[160]=0;
-	tbblue_registers[162]=0;
-	tbblue_registers[163]=11;
+	tbblue_registers[162]=2;
+	tbblue_registers[168]=0;
+	tbblue_registers[176]=0;
+	tbblue_registers[177]=0;
 
-
-	tbblue_registers[112]=0;
 
 	clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][0]=0;
 	clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][1]=255;
@@ -3059,13 +3056,15 @@ void tbblue_reset_common(void)
 	clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][3]=255;
 
 
+	tbblue_port_123b=0;
+	tbblue_port_123b_b4=0;
+	tbblue_reset_palette_write_state();
 
 	tbblue_copper_pc=0;
 	
 	tbblue_set_mmu_128k_default();
 
 	tbblue_was_in_p2a_ram_in_rom.v=0;
-
 
 }
 
@@ -3083,7 +3082,18 @@ void tbblue_reset(void)
 	*/
 	tbblue_registers[2]=1;
 
-
+	if (0x80 == (tbblue_registers[133] & 0x80)) {
+		tbblue_registers[130]=0xFF;
+		tbblue_registers[131]=0xFF;
+		tbblue_registers[132]=0xFF;
+		tbblue_registers[133]=0xFF;
+	}
+	if (0x00 == (tbblue_registers[137] & 0x80)) {
+		tbblue_registers[134]=0xFF;
+		tbblue_registers[135]=0xFF;
+		tbblue_registers[136]=0xFF;
+		tbblue_registers[137]=0xFF;
+	}
 
 
  /*
@@ -3129,15 +3139,15 @@ void tbblue_hard_reset(void)
 {
 
 	/*
-	(R/W) 02 => Reset:
-	  bits 7-3 = Reserved, must be 0
-	  bit 2 = (R) Power-on reset (PoR)
-	  bit 1 = (R/W) Reading 1 indicates a Hard-reset. If written 1 causes a Hard Reset.
-	  bit 0 = (R/W) Reading 1 indicates a Soft-reset. If written 1 causes a Soft Reset.
+	(R) 02 => Reset:
+		bit 7 = Indicates the reset signal to the expansion bus and esp is asserted
+		bits 6:2 = Reserved
+		bit 1 = Indicates the last reset was a hard reset
+		bit 0 = Indicates the last reset was a soft reset
+		* Only one of bits 1:0 will be set
 	*/
 
-	//Aqui no estoy distinguiendo entre hard reset y power-on reset, dado que al iniciar maquina siempre llama a hard reset
-	tbblue_registers[2]=4+2;
+	tbblue_registers[2]=2;
 
 
 	tbblue_registers[3]=0;
@@ -3147,25 +3157,30 @@ void tbblue_hard_reset(void)
 	tbblue_registers[7]=0;
 	tbblue_registers[8]=16;
 	tbblue_registers[9]=0;
+	tbblue_registers[10]=1;
 	tbblue_registers[128]=0;
 	tbblue_registers[129]=0;
-	tbblue_registers[134]=255;
-	tbblue_registers[135]=255;
-	tbblue_registers[136]=255;
-	tbblue_registers[137]=255;
-	tbblue_registers[138]=1;
+	if (0x00 == (tbblue_registers[133] & 0x80)) {
+		tbblue_registers[130]=0xFF;
+		tbblue_registers[131]=0xFF;
+		tbblue_registers[132]=0xFF;
+		tbblue_registers[133]=0xFF;
+	}
+	if (0x80 == (tbblue_registers[137] & 0x80)) {
+		tbblue_registers[134]=0xFF;
+		tbblue_registers[135]=0xFF;
+		tbblue_registers[136]=0xFF;
+		tbblue_registers[137]=0xFF;
+	}
+
+	tbblue_registers[138]=0;
 	tbblue_registers[140]=0;
-
-
-	tbblue_registers[0x8c]=0;
+	tbblue_registers[143]=0;
 
 	tbblue_reset_common();
 
 
-	tbblue_reset_palette_write_state();
 
-	tbblue_port_123b=0;
-	tbblue_port_123b_b4=0;
 
 
 	if (tbblue_fast_boot_mode.v) {
@@ -3183,7 +3198,7 @@ void tbblue_hard_reset(void)
 		tbblue_registers[81]=0xff;
 		tbblue_set_memory_pages();
 
-		if (tbblue_initial_123b_port>=0) tbblue_port_123b=tbblue_initial_123b_port;
+// 		if (tbblue_initial_123b_port>=0) tbblue_port_123b=tbblue_initial_123b_port;
 	}
 
 	else {

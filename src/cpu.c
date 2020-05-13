@@ -3183,6 +3183,9 @@ void set_machine_params(void)
                 }
 
                 if (MACHINE_IS_TBBLUE) {
+					// make sure the external bus registers will get hard-reset as they should
+					tbblue_registers[133] = 0x00;
+					tbblue_registers[137] = 0x80;
 			tbblue_set_timing_48k();
 
 		        //divmmc arranca desactivado, lo desactivamos asi para que no cambie las funciones peek/poke
