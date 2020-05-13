@@ -92,7 +92,15 @@ void divmmc_diviface_enable(void)
 	divide_diviface_disable();
 
 	if (divmmc_rom_name[0]!=0) diviface_enable(divmmc_rom_name); //TODO: aunque esto acaba llamando a open_sharedfile y en casos de rutas relativas puede dar problemas
-	else diviface_enable(DIVMMC_DEFAULT_ROM_NAME);
+	else {
+		if (MACHINE_IS_CHLOE) {
+			debug_printf(VERBOSE_INFO,"Loading divmmc chloe firmware unodos3.rom");
+			diviface_enable("unodos3.rom");
+		}
+		else {
+			diviface_enable(DIVMMC_DEFAULT_ROM_NAME);
+		}
+	}
 
 	if (diviface_enabled.v) divmmc_diviface_enabled.v=1;
 }

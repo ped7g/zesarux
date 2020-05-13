@@ -205,7 +205,7 @@ void scrsdl_messages_debug(char *s)
 }
 
 //Rutina de putchar para menu
-void scrsdl_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrsdl_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
         z80_bit inverse;
@@ -219,7 +219,7 @@ void scrsdl_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte 
 
 }
 
-void scrsdl_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel) {
+void scrsdl_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel) {
 
 
         int yorigen;

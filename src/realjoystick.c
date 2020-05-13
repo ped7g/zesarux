@@ -669,7 +669,7 @@ void realjoystick_set_reset_action(int index,int value)
 		case REALJOYSTICK_EVENT_QUICKLOAD:
 			if (value) {
 				menu_abierto=1;
-				menu_button_quickload.v=1;
+				menu_button_smartload.v=1;
 			}
 		break;
 

@@ -55,19 +55,11 @@ Otros TODO menos prioritarios, de aqui hasta el final del archivo:
 
 *** Audio ***
 
--Probar diferencia de sonido speech ay en versión actual y anteriores
-Chase hq
-Robocop 1
-Dizzy 3
-Demo covox
-Etc...
 
 -revisar mezclado ay+beeper . posiblemente set_value_beeper acaba sacando algun valor beeper 50*2 y se sale todo de rango?
 o bien el mezclado de chip ay. Con que juegos se observa esto? O quiza con el test de 6/9 canales turbosound?
 
 -Generador archivos .ay según lo enviado a chip de sonido. Soporte turbosound
-
--Interceptar salida midi chip ay y enviarlo a midi real. Probar con programa de addon midi de zxuno
 
 -Selección de instrumento midi en midi export y midi output, para cada canal
 
@@ -76,7 +68,6 @@ o bien el mezclado de chip ay. Con que juegos se observa esto? O quiza con el te
 -detector de silencio en sdl2, en 48k, genera zumbido en Linux
 ver de momento workaround audio_using_sdl2
 
--Exportar sonido generado por el chip AY hacia mid
 
 -Salida 16 bits sonido?
 

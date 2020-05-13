@@ -78,7 +78,7 @@ void scrsimpletext_putpixel_final(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int
 
 
 //Rutina de putchar para menu
-void scrsimpletext_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrsimpletext_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 	
 	//No escribimos nada. Este driver no soporta menu
@@ -90,7 +90,7 @@ void scrsimpletext_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z8
 	
 }
 
-void scrsimpletext_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrsimpletext_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 	
 	//Para evitar warnings al compilar de "unused parameter"
@@ -410,7 +410,15 @@ void scrsimpletext_repinta_pantalla(void)
 	//enviar Ansi inicio pantalla
 	screen_text_send_ansi_go_home();
 	
-	if (MACHINE_IS_ZX8081) {
+		 //si todo de pixel a ascii art
+     if (rainbow_enabled.v && screen_text_all_refresh_pixel.v) {
+     
+scr_refresca_pantalla_tsconf_text(scr_simpletext_common_fun_color,scr_simpletext_common_fun_caracter,scr_simpletext_common_fun_saltolinea,screen_text_all_refresh_pixel_scale);
+     
+     }
+	
+	
+	else if (MACHINE_IS_ZX8081) {
 		screen_text_repinta_pantalla_zx81();
 	}
 	

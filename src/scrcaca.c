@@ -98,9 +98,9 @@ int caca_text_colour_table[16]={
 
 
 //Rutina de putchar para menu
-void scrcaca_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrcaca_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
-	int colorfg=caca_text_colour_table[tinta&15];
+	int colorfg=caca_text_colour_table[tinta&15]; //importante mantenerlo en el limite de 16 colores
 	int colorbg=caca_text_colour_table[papel&15];
 
 	caca_set_color_ansi(cv,colorfg,colorbg);
@@ -113,8 +113,12 @@ void scrcaca_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte
 
 }
 
-void scrcaca_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrcaca_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
+
+        tinta=tinta&15;
+        papel=papel&15;
+
 	//de momento nada de footer
         //para que no se queje el compilador de variables no usadas
         x++;

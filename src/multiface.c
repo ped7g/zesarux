@@ -258,10 +258,14 @@ void multiface_enable(void)
 
         //TBBLUE tiene su propio multiface
         if (MACHINE_IS_TBBLUE) {
+
+                //old: 0x014000 – 0x017FFF (16K) => Multiface ROM
+                //new: -- 0x014000 - 0x017FFF (16K)  => Multiface ROM,RAM       A20:A16 = 00001,01
                 multiface_memory_pointer=&memoria_spectrum[0x014000];
 
-                //0x01c000 – 0x01FFFF (16K) => Multiface RAM
-                multiface_ram_memory_pointer=&memoria_spectrum[0x01c000];
+                //old: 0x01c000 – 0x01FFFF (16K) => Multiface RAM
+                //   -- 0x014000 - 0x017FFF (16K)  => Multiface ROM,RAM       A20:A16 = 00001,01
+                multiface_ram_memory_pointer=&memoria_spectrum[0x016000];
         }
 
         else {

@@ -39,6 +39,11 @@
 #endif
 
 
+#if defined(__APPLE__)
+	//Para _NSGetExecutablePath
+	#include <mach-o/dyld.h>
+#endif
+
 
 #include "cpu.h"
 #include "scrnull.h"
@@ -183,9 +188,6 @@
 #include "audiocoreaudio.h"
 #endif
 
-#ifdef USE_REALTIME
-#include <sched.h>
-#endif
 
 #include "audionull.h"
 
@@ -464,10 +466,17 @@ z80_byte Z80_FLAGS_SHADOW;
 //MEMPTR. Solo se usara si se ha activado en el configure
 z80_int memptr;
 
+//Solo se usa si se habilita EMULATE_SCF_CCF_UNDOC_FLAGS
+z80_byte scf_ccf_undoc_flags_before;
+int scf_ccf_undoc_flags_after_changed;
+
 
 //Emulacion de refresco de memoria.
 int machine_emulate_memory_refresh=0;
 int machine_emulate_memory_refresh_counter=0;
+
+//Optimizacion de velocidad de LDIR,LDDR:
+z80_bit cpu_ldir_lddr_hack_optimized={0};
 
 //A 0 si interrupts disabled
 //A 1 si interrupts enabled
@@ -1464,7 +1473,10 @@ printf (
 
 		"--cpuspeed n               Set CPU speed in percentage\n"
 		"--denyturbozxunoboot       Deny setting turbo mode on ZX-Uno boot\n"
-		"--denyturbotbbluerom       Deny setting turbo mode on TBBlue ROM\n"
+
+		"--denyturbotbbluerom       Limit setting turbo mode on TBBlue ROM\n"
+		"--tbblue-max-turbo-rom n   Max allowed turbo speed mode on TBBlue ROM when enabling --denyturbotbbluerom"
+
 		"--tbblue-fast-boot-mode    Boots tbblue directly to a 48 rom but with all the Next features enabled (except divmmc)\n"
 		//no uso esto de momento "--tbblue-123b-port n        Sets the initial value for port 123b on hard reset, for tbblue-fast-boot-mode\n"
 		"--random-r-register        Generate random value for R register on every cold start, instead of the normal 0 value. Useful to avoid same R register in the start of games, when they use that register as a random value\n"
@@ -1523,8 +1535,10 @@ printf (
 		"--ayplayer-cpc             Set AY Player to CPC mode (default: Spectrum)\n"
 		"--enable-midi              Enable midi output\n"
 		"--midi-client n            Set midi client value to n. Needed only on Linux with Alsa audio driver\n"
-		"--midi-port n              Set midi port valur to n. Needed on Windows and Linux with Alsa audio driver\n"
+		"--midi-port n              Set midi port value to n. Needed on Windows and Linux with Alsa audio driver\n"
+		"--midi-raw-device s        Set midi raw device to s. Needed on Linux with Alsa audio driver\n"
 		"--midi-allow-tone-noise    Allow tone+noise channels on midi\n"
+		"--midi-no-raw-mode         Do not use midi in raw mode. Raw mode is required on Linux to emulate AY midi registers\n"
 
 
 		"\n"
@@ -1591,6 +1605,9 @@ printf (
 		"--realvideo                Enable real video display - for Spectrum (rainbow and other advanced effects) and ZX80/81 (non standard & hi-res modes)\n"
 		"--no-detect-realvideo      Disable real video autodetection\n"
 
+		"--tbblue-legacy-hicolor    Allow legacy hi-color effects on pixel/attribute display zone\n"
+		"--tbblue-legacy-border     Allow legacy border effects on tbblue machine\n"
+
 		//"--tsconf-fast-render       Enables fast render of Tiles and Sprites for TSConf. Uses less host cpu but it's less realistic: doesn't do scanline render but full frame render\n"
 
 		"--snoweffect               Enable snow effect support for Spectrum\n"
@@ -1611,6 +1628,11 @@ printf (
 		"--videofastblack           Emulate black screen on fast mode on ZX80/ZX81\n"
 		"--no-ocr-alternatechars    Disable looking for an alternate character set other than the ROM default on OCR functions\n"
 		"--scr file                 Load Screen File at startup\n"
+	    "--arttextthresold n        Pixel threshold for artistic emulation for curses & stdout & simpletext (1..16. 4=normal)\n"
+	    "--disablearttext           Disable artistic emulation for curses & stdout & simpletext\n"
+		"--allpixeltotext           Enable all pixel to text mode\n"
+		"--allpixeltotext-scale n   All pixel to text mode scale\n"
+		"--allpixeltotext-invert    All pixel to text mode invert mode\n"		
 
 
 
@@ -1632,8 +1654,7 @@ printf (
                 "--aaslow                   Use slow rendering on aalib\n"
 #endif
 
-	    "--arttextthresold n        Pixel threshold for artistic emulation for curses & stdout & simpletext (1..16. 4=normal)\n"
-	    "--disablearttext           Disable artistic emulation for curses & stdout & simpletext\n"
+
 
 #ifdef COMPILE_CURSESW
 		"--curses-ext-utf           Use extended utf characters to have 64x48 display, only on Spectrum and curses drivers\n"
@@ -1705,15 +1726,19 @@ printf (
 		//"--disablebw-no-multitask   Disable changing to black & white colours on the emulator machine when menu open and multitask is off\n"
 		"--nosplash                 Disable all splash texts\n"
 #ifndef MINGW
-		"--cpu-usage                Show host CPU usage on footer\n"
+		"--no-cpu-usage             Do not show host CPU usage on footer\n"
 #endif
 
-	
+		"--no-cpu-temp              Do not show host CPU temperature on footer\n"
+		"--no-fps                   Do not show FPS on footer\n"
+
+
 
 		"--hide-menu-percentage-bar  Hides vertical percentaje bar on the right of text windows and file selector\n"
 		"--hide-menu-minimize-button Hides minimize button on the title window\n"
 		"--hide-menu-close-button    Hides close button on the title window\n"
 		"--invert-menu-mouse-scroll  Inverts mouse scroll movement\n"
+		"--allow-background-windows  Allow puttin windows in background\n"
 		);
 
 	printf (
@@ -1884,9 +1909,12 @@ printf (
 
 		"--enable-8bit-ide          Enable 8-bit simple IDE emulation. Requires --enable-ide\n"
 
+		"--diviface-ram-size n      Sets divide/divmmc ram size in kb. Allowed values: 32, 64, 128, 256 or 512\n"
+
 
 		"--enable-esxdos-handler    Enable ESXDOS traps handler. Requires divmmc or divide paging emulation\n"
 		"--esxdos-root-dir p        Set ESXDOS root directory for traps handler. Uses current directory by default.\n"
+                "--esxdos-local-dir p       Set ESXDOS local directory for traps handler. This is the relative directory used inside esxdos.\n"
 
 
 		"--enable-zxpand            Enable ZXpand emulation\n"
@@ -2064,7 +2092,15 @@ printf (
 		"--no-show-changelog        Do not show changelog when updating version\n"
 		"--disablebetawarning text  Do not pause beta warning message on boot for version named as that parameter text\n"
 		"--windowgeometry s x y w h Set window geometry. Parameters: window name (s), x coord, y coord, width (w), height (h)\n"
+		"--enable-restore-windows   Allow restore windows on start\n"
+        "--restorewindow s          Restore window s on start\n"
+		
+
 		"--clear-all-windowgeometry Clear all windows geometry thay may be loaded from the configuration file\n"
+
+
+
+		"--tbblue-autoconfigure-sd-already-asked     Do not ask to autoconfigure tbblue initial SD image\n"
 		
 		//Esto no hace falta que lo vea un usuario, solo lo uso yo para probar partes del emulador 
 		//"--codetests                Run develoment code tests\n"
@@ -2681,10 +2717,10 @@ void malloc_mem_machine(void) {
 
         else if (MACHINE_IS_TBBLUE) {
 
-		//2048 KB RAM + 8 KB ROM (8 kb repetido dos veces)
-                malloc_machine( (2048+8*2)*1024);
+		//2048 KB RAM + 16 KB FPGA ROM (8 kb repetido dos veces)
+                malloc_machine( TBBLUE_TOTAL_MEMORY_USED*1024);
 
-                random_ram(memoria_spectrum,(2048+8*2)*1024);
+                random_ram(memoria_spectrum,TBBLUE_TOTAL_MEMORY_USED*1024);
 
 
                 tbblue_init_memory_tables();
@@ -3016,6 +3052,11 @@ void set_machine_params(void)
 
 		if (MACHINE_IS_TBBLUE) zxndma.emulate.v = 1;
 // 		if (MACHINE_IS_TBBLUE) datagear_dma_enable();
+
+		//Pentagon no tiene modo Timex
+		if (MACHINE_IS_PENTAGON) {
+			if (timex_video_emulation.v) disable_timex_video();
+		}
 
 		//Quitar mensajes de footer establecidos con autoselectoptions.c
 		//Desactivado. Esto provoca:
@@ -3509,7 +3550,12 @@ You don't need timings for H/V sync =)
 				//Solo forzar real video una vez al entrar aquí. Para poder dejar real video desactivado si el usuario lo quiere,
 				//pues aqui se entra siempre al cambiar velocidad cpu (y eso pasa en la rom cada vez que te mueves por el menu del 128k por ejemplo)
 				//TODO: siempre que el usuario entre al emulador se activara la primera vez
-				if (!tbblue_already_autoenabled_rainbow) enable_rainbow();
+				if (!tbblue_already_autoenabled_rainbow) {
+					enable_rainbow();
+					//lo mismo para timex video
+					enable_timex_video();
+				}
+
 				tbblue_already_autoenabled_rainbow=1;
 
 				multiface_type=MULTIFACE_TYPE_THREE;
@@ -4200,8 +4246,12 @@ void rom_load(char *romfilename)
 		open_sharedfile(romfilename,&ptr_romfile);
                 if (!ptr_romfile)
                 {
-                        debug_printf(VERBOSE_ERR,"Unable to open rom file %s",romfilename);
-			cpu_panic("Unable to open rom file");
+                    debug_printf(VERBOSE_ERR,"Unable to open rom file %s",romfilename);
+
+					//No hacemos mas un panic por esto. Ayuda a debugar posibles problemas con el path de inicio
+					//cpu_panic("Unable to open rom file");
+
+					return;
                 }
 
 		//Caso Inves. ROM esta en el final de la memoria asignada
@@ -4493,7 +4543,7 @@ void segint_signal_handler(int sig)
 #endif
 
 
-	end_emulator();
+	end_emulator_saveornot_config(0);
 
 
 }
@@ -4516,7 +4566,7 @@ void segterm_signal_handler(int sig)
 #endif
 
 
-        end_emulator();
+        end_emulator_saveornot_config(0);
 
 
 }
@@ -4807,6 +4857,9 @@ char *command_line_load_binary_file=NULL;
 int command_line_load_binary_address;
 int command_line_load_binary_length;
 
+char *command_line_esxdos_local_dir_path;
+z80_bit command_line_esxdos_local_dir={0};
+
 int command_line_chardetect_printchar_enabled=-1;
 
 
@@ -5016,7 +5069,7 @@ int parse_cmdline_options(void) {
                         else if (!strcmp(argv[puntero_parametro],"--cpuspeed")) {
                                 siguiente_parametro_argumento();
                                 porcentaje_velocidad_emulador=atoi(argv[puntero_parametro]);
-                                if (porcentaje_velocidad_emulador<10 || porcentaje_velocidad_emulador>1000) {
+                                if (porcentaje_velocidad_emulador<1 || porcentaje_velocidad_emulador>9999) {
                                         printf ("Invalid CPU percentage\n");
                                         exit(1);
                                 }
@@ -5028,7 +5081,19 @@ int parse_cmdline_options(void) {
 
 			else if (!strcmp(argv[puntero_parametro],"--denyturbotbbluerom")) {
 					tbblue_deny_turbo_rom.v=1;
-			}			
+			}		
+
+			else if (!strcmp(argv[puntero_parametro],"--tbblue-max-turbo-rom")) {
+				
+				siguiente_parametro_argumento();
+				int valor=parse_string_to_number(argv[puntero_parametro]);
+
+				if (valor<1 || valor>8) {
+						printf ("Invalid value for tbblue-max-turbo-rom\n");
+						exit(1);
+				}
+				tbblue_deny_turbo_rom_max_allowed=valor;					
+			}					
 
 			else if (!strcmp(argv[puntero_parametro],"--tbblue-fast-boot-mode")) {
 				tbblue_fast_boot_mode.v=1;
@@ -5417,6 +5482,25 @@ int parse_cmdline_options(void) {
 			else if (!strcmp(argv[puntero_parametro],"--no-ocr-alternatechars")) {
 				ocr_settings_not_look_23606.v=1;
 			}
+
+			else if (!strcmp(argv[puntero_parametro],"--allpixeltotext")) {
+				screen_text_all_refresh_pixel.v=1;
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--allpixeltotext-scale")) {
+					siguiente_parametro_argumento();
+					int valor=parse_string_to_number(argv[puntero_parametro]);
+					if (valor<2 || valor>99) {
+									printf ("Invalid --allpixeltotext-scale value\n");
+									exit(1);
+							}
+					screen_text_all_refresh_pixel_scale=valor;
+			}
+
+
+			else if (!strcmp(argv[puntero_parametro],"--allpixeltotext-invert")) {
+				screen_text_all_refresh_pixel_invert.v=1;
+			}			
 
 
 
@@ -5942,6 +6026,52 @@ int parse_cmdline_options(void) {
                                 command_line_8bitide.v=1;
 			}
 
+
+			else if (!strcmp(argv[puntero_parametro],"--diviface-ram-size")) {
+				siguiente_parametro_argumento();
+				int valor=parse_string_to_number(argv[puntero_parametro]);
+
+				/*
+				int diviface_current_ram_memory_bits=4; //Por defecto 128 KB
+
+				-using 2 bits: 32 kb
+				-using 3 bits: 64 kb
+				-using 4 bits: 128 kb (default)
+				-using 5 bits: 256 kb
+				-using 6 bits: 512 kb
+				*/
+
+				switch (valor) {
+					case 32:
+						diviface_current_ram_memory_bits=2;
+					break;
+
+					case 64:
+						diviface_current_ram_memory_bits=3;
+					break;
+
+					case 128:
+						diviface_current_ram_memory_bits=4;
+					break;
+
+					case 256:
+						diviface_current_ram_memory_bits=5;
+					break;
+
+					case 512:
+						diviface_current_ram_memory_bits=6;
+					break;
+
+					default:
+						printf ("Invalid value for diviface ram size\n");
+						exit(1);
+					break;
+				}
+
+			}
+
+
+
 			else if (!strcmp(argv[puntero_parametro],"--enable-zxpand")) {
 				command_line_zxpand.v=1;
 			}
@@ -5978,6 +6108,13 @@ int parse_cmdline_options(void) {
 			  else {
 			    sprintf (esxdos_handler_root_dir,"%s",argv[puntero_parametro]);
 			  }
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--esxdos-local-dir")) {
+                          siguiente_parametro_argumento();
+
+			  command_line_esxdos_local_dir_path=argv[puntero_parametro];
+			  command_line_esxdos_local_dir.v=1;
 			}
 
 /*
@@ -6263,9 +6400,23 @@ int parse_cmdline_options(void) {
                                 screen_show_splash_texts.v=0;
 			}
 
+			//Por defecto esta activo. Se mantiene solo por compatibilidad
 			else if (!strcmp(argv[puntero_parametro],"--cpu-usage")) {
 				screen_show_cpu_usage.v=1;
 			}
+
+			else if (!strcmp(argv[puntero_parametro],"--no-cpu-usage")) {
+				screen_show_cpu_usage.v=0;
+			}			
+
+			else if (!strcmp(argv[puntero_parametro],"--no-cpu-temp")) {
+				screen_show_cpu_temp.v=0;
+			}		
+
+
+			else if (!strcmp(argv[puntero_parametro],"--no-fps")) {
+				screen_show_fps.v=0;
+			}							
 
 			else if (!strcmp(argv[puntero_parametro],"--nowelcomemessage")) {
                                 opcion_no_splash.v=1;
@@ -6333,6 +6484,10 @@ int parse_cmdline_options(void) {
                                 menu_invert_mouse_scroll.v=1;
 			}
 
+			else if (!strcmp(argv[puntero_parametro],"--allow-background-windows")) {
+                                menu_allow_background_windows=1;
+			}
+
 			else if (!strcmp(argv[puntero_parametro],"--realvideo")) {
 				enable_rainbow();
 			}
@@ -6340,6 +6495,15 @@ int parse_cmdline_options(void) {
 			else if (!strcmp(argv[puntero_parametro],"--no-detect-realvideo")) {
 				autodetect_rainbow.v=0;
 			}
+
+			else if (!strcmp(argv[puntero_parametro],"--tbblue-legacy-hicolor")) {
+				tbblue_store_scanlines.v=1;
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--tbblue-legacy-border")) {
+				tbblue_store_scanlines_border.v=1;
+			}
+
 
 			/*else if (!strcmp(argv[puntero_parametro],"--tsconf-fast-render")) {
 				tsconf_si_render_spritetile_rapido.v=1;
@@ -6546,10 +6710,19 @@ int parse_cmdline_options(void) {
 					exit(1);
 				}
 				audio_midi_port=valor;
-			}			
+			}	
+
+			else if (!strcmp(argv[puntero_parametro],"--midi-raw-device")) {
+				siguiente_parametro_argumento();
+				strcpy(audio_raw_midi_device_out,argv[puntero_parametro]);
+			}	
 
 			else if (!strcmp(argv[puntero_parametro],"--midi-allow-tone-noise")) {
 				midi_output_record_noisetone.v=1;
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--midi-no-raw-mode")) {
+				audio_midi_raw_mode=0;
 			}
 
 
@@ -7085,6 +7258,10 @@ int parse_cmdline_options(void) {
 				stats_asked.v=1;
 			}
 
+			else if (!strcmp(argv[puntero_parametro],"--tbblue-autoconfigure-sd-already-asked")) {
+				tbblue_autoconfigure_sd_asked.v=1;
+			}
+
 			else if (!strcmp(argv[puntero_parametro],"--stats-send-enabled")) {
 				stats_enabled.v=1;
 			}		
@@ -7165,6 +7342,18 @@ int parse_cmdline_options(void) {
 
 			else if (!strcmp(argv[puntero_parametro],"--clear-all-windowgeometry")) {
 				util_clear_all_windows_geometry();
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--restorewindow")) {
+				siguiente_parametro_argumento();
+
+				strcpy(restore_window_array[total_restore_window_array_elements++],argv[puntero_parametro]);
+
+			}
+
+
+			else if (!strcmp(argv[puntero_parametro],"--enable-restore-windows")) {
+				menu_reopen_background_windows_on_start.v=1;
 			}
 
 			else if (!strcmp(argv[puntero_parametro],"--tonegenerator")) {
@@ -7278,7 +7467,7 @@ void print_funny_message(void)
 
 
 
-
+char macos_path_to_executable[PATH_MAX];
 
 //Proceso inicial
 int zesarux_main (int main_argc,char *main_argv[]) {
@@ -7310,17 +7499,22 @@ int zesarux_main (int main_argc,char *main_argv[]) {
 	//de MacOS Catalina
 
 	//Cambiar a la carpeta donde estamos ejecutando el binario
-	
-	//Algunas comprobaciones, por si acaso
-	if (main_argv[0]!=NULL) { 
-		if (main_argv[0][0]!=0) {
+
+	//por si acaso, por defecto a cadena vacia
+	macos_path_to_executable[0]=0;
+
+	uint32_t bufsize=PATH_MAX;
+
+	_NSGetExecutablePath(macos_path_to_executable, &bufsize);
+
+	if (macos_path_to_executable[0]!=0) { 
 
 			char dir[PATH_MAX];
-			util_get_dir(main_argv[0],dir);
+			util_get_dir(macos_path_to_executable,dir);
 
 			printf ("Changing to Mac App bundle directory: %s\n",dir);
 			chdir(dir);
-		}
+		
 	}
 	/*
 	Para testeo, para eliminar permisos de acceso en Catalina, ejecutar:
@@ -7714,6 +7908,7 @@ init_randomize_noise_value();
 #endif	
 
 
+	TIMESENSOR_INIT();
 
 
 	debug_printf (VERBOSE_INFO,"Starting emulator");
@@ -7822,21 +8017,6 @@ init_randomize_noise_value();
 
 	scr_refresca_pantalla();
 
-#ifdef USE_REALTIME
-	//Establecemos prioridad realtime
-struct sched_param sparam;
-
-        if ((sparam.sched_priority = sched_get_priority_max(SCHED_RR))==-1) {
-                debug_printf (VERBOSE_WARN,"Error setting realtime priority : %s",strerror(errno));
-        }
-
-        else if (sched_setscheduler(0, SCHED_RR, &sparam)) {
-                debug_printf (VERBOSE_WARN,"Error setting realtime priority : %s",strerror(errno));
-        }
-
-	else debug_printf (VERBOSE_INFO,"Using realtime priority");
-#endif
-
 
 
 	//Capturar segmentation fault
@@ -7864,6 +8044,10 @@ struct sched_param sparam;
 	signal(SIGPIPE, sigpipe_signal_handler);	
 #endif
 
+
+	//Restaurar ventanas, si conviene. Hacerlo aqui y no mas tarde, para evitar por ejemplo que al salir el logo de splash
+	//aparezcan las ventanas en background
+	zxvision_restore_windows_on_startup();
 
 	//Inicio bucle principal
 	reg_pc=0;
@@ -7949,7 +8133,16 @@ struct sched_param sparam;
 
 
 
-	if (command_line_esxdos_handler.v) esxdos_handler_enable();
+	if (command_line_esxdos_handler.v) {
+		esxdos_handler_enable();
+
+		// Solo meter el directorio local si esta habilitado esxdos
+        	if (command_line_esxdos_local_dir.v) {
+	                // Esto lo hacemos aqui porque antes en el esxdos_handler_enable se inicializa tambien esxdos y por tanto se borra esxdos_handler_cwd
+        	        strcpy(esxdos_handler_cwd,command_line_esxdos_local_dir_path);
+        	}
+	}
+
 
 	if (command_line_zxpand.v) zxpand_enable();
 
@@ -8051,6 +8244,9 @@ struct sched_param sparam;
 	stats_check_updates();
 	send_stats_server();
 
+	//Restaurar ventanas, si conviene
+	//zxvision_restore_windows_on_startup();	
+
 	//Inicio bucle de emulacion
 
 
@@ -8149,8 +8345,10 @@ void dump_ram_file_on_exit(void)
 }
 
 
-
-void end_emulator(void)
+//Se pasa parametro que dice si guarda o no la configuración.
+//antes se guardaba siempre, pero ahora en casos de recepcion de señales de terminar, no se guarda,
+//pues generaba segfaults en las rutinas de guardar ventanas (--restorewindow)
+void end_emulator_saveornot_config(int saveconfig)
 {
 	debug_printf (VERBOSE_INFO,"End emulator");
 	
@@ -8175,7 +8373,7 @@ void end_emulator(void)
 
 	menu_abierto=0;
 
-	if (save_configuration_file_on_exit.v) {
+	if (saveconfig && save_configuration_file_on_exit.v) {
 		int uptime_seconds=timer_get_uptime_seconds();
   
   		total_minutes_use +=uptime_seconds/60;
@@ -8239,4 +8437,10 @@ void end_emulator(void)
 
   exit(0);
 
+}
+
+
+void end_emulator(void)
+{
+	end_emulator_saveornot_config(1);
 }

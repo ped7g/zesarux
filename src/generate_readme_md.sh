@@ -9,6 +9,7 @@ Available versions for download here:
 * Source code
 * Binary compiled versions:
 * GNU/Linux 32/64 Bits
+* FreeBSD 64 Bits
 * Mac OS X
 * Windows
 * Raspberry pi (raspbian)

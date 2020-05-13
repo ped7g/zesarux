@@ -67,6 +67,7 @@ extern void menu_debug_view_sprites(MENU_ITEM_PARAMETERS);
 extern void menu_debug_registers(MENU_ITEM_PARAMETERS);
 extern void menu_debug_registers_splash_memory_zone(void);
 extern void menu_breakpoint_fired(char *s);
+extern void menu_watches(MENU_ITEM_PARAMETERS);
 
 extern void menu_ay_partitura(MENU_ITEM_PARAMETERS);
 extern void menu_record_mid(MENU_ITEM_PARAMETERS);
@@ -81,9 +82,25 @@ extern void menu_debug_change_memory_zone_splash(void);
 
 
 extern void menu_zeng_send_message(MENU_ITEM_PARAMETERS);
+
+extern void menu_mmc_divmmc(MENU_ITEM_PARAMETERS);
+extern void menu_storage_diviface_eprom_write_jumper(MENU_ITEM_PARAMETERS);
+extern void menu_storage_mmc_autoconfigure_tbblue(MENU_ITEM_PARAMETERS);
+
+extern void menu_ide_divide(MENU_ITEM_PARAMETERS);
+
 extern int menu_zeng_send_message_cond(void);
 extern int menu_zsock_http(char *host, char *url,int *http_code,char **mem,int *t_leidos, char **mem_after_headers,int skip_headers,char *add_headers,int use_ssl,char *redirect_url);
-extern int menu_download_wos(char *host,char *url,char *archivo_temp,int ssl_use);
+extern int menu_download_wos(char *host,char *url,char *archivo_temp,int ssl_use,int estimated_maximum_size);
+
+extern void menu_display_settings(MENU_ITEM_PARAMETERS);
+
+extern void menu_ay_pianokeyboard(MENU_ITEM_PARAMETERS);
+
+extern void menu_beeper_pianokeyboard(MENU_ITEM_PARAMETERS);
+
+extern void menu_debug_tsconf_tbblue(MENU_ITEM_PARAMETERS);
+
 
 #endif
 

@@ -1,2 +1,0 @@
-@ECHO OFF
-XTENDERS /d:127

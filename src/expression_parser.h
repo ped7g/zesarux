@@ -80,6 +80,10 @@ enum token_parser_indice {
 	TPI_V_SEG1,
 	TPI_V_SEG2,
 	TPI_V_SEG3,
+	TPI_V_SEG4,
+	TPI_V_SEG5,
+	TPI_V_SEG6,
+	TPI_V_SEG7,
 
 	TPI_V_RAM,
 	TPI_V_ROM,

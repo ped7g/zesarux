@@ -10,7 +10,6 @@
 ---Imagen. SCR
 ---Degradado vertical usando alguna tabla de colores concreta ya existente
 ---Botones o iconos pulsables 
----Easter egg al pulsar doble click en logo Z de fondo ZX Desktop
 ---Anaglifo usando segunda pantalla o extensión Desktop 
 --Fbdev debe permitir ZX Desktop?
 --sdl2: si se pone width de ZX desktop que no cabe en pantalla, se queda reabriendo continuamente la ventana
@@ -50,45 +49,20 @@ O esta considerando mal el mostrar barras desplazamiento: quizá deberían salir
 
 -Ventana scanf con texto descriptivo dentro
 
--Background windows
--activarlas con: int menu_allow_background_windows=1;
--Si ventana en background, no dejar volverla a llamar desde menu normal
--Solo funciona una ventana a la vez con pixel (por ejemplo ay piano y wave piano)
-Ademas los pixeles siempre van a la ultima ventana arriba
-
--ultima ventana de arriba deberia salir como activa
--poder conmutar ventana activa
--Ventanas que se pueden enviar a background que tengan un botón  especial ? Quizá el &? 
--menu ventanas finalizan con:
-	if (tecla==3) {
-		//zxvision_ay_registers_overlay
-		ventana->overlay_function=menu_debug_cpu_resumen_stats_overlay;
-		printf ("Put window %p in background. next window=%p\n",ventana,ventana->next_window);
-		menu_generic_message("Background task","OK. Window put in background");
-	}
-
-	else {
-		zxvision_destroy_window(ventana);		
- 	}
-
--ventanas en funcion de overlay hacen al principio
-if (!zxvision_drawing_in_background) normal_overlay_texto_menu();
-
-
-Ideas para background windows:
--se deben llamar a todas las funciones de overlay de las ventanas en background desde la función de overlay de menú
--ventanas en background son solo aquellas que no llevan asociado un menú implícito, casos aparte son el ay player, el view waveform, Visualmem etc (tienen algunas líneas de settings)
--todo lo que sale de settings no tiene sentido enviar a background-> son menús puros
--opción para desactivar completamente el background
--una ventana que se abre:
-**si hay background, entrara y saldrá poniéndose en background, y cerrando todos los menús precedentes. Lo ideal es que luego el foco conmutase aquí, entrando de nuevo a primer plano
--como se ponen en primer plano ventanas que estaban en background? Quizá cuando se ponen en background deben registrarse indicando la función principal que las inicia. Esto se deberá leer desde el handle de zxvision para cuando se pulsa ahí, cambiar y arrancar ahí 
-
-
--Fin Background windows
 
 -pantalla view sprites que adapte el texto leyenda al alto ventana
 
+-Visualmem mmc read/write en Windows no muestra bien posicion (siempre a 0). Probablemente porque es 32 bits y no gestiona bien
+valores long int
+
+-Mostrar info en menu network de descargas, commits etc
+
+-Tema gui configurable todos sus elementos: fuentes, colores etc 
+
+-Idea de animación para logo: ZEsarUX con letras de colores rojo amarillo verde azul. Se comprime el texto y la Z va pillando los colores de las letras 
+
+-Función que usando misma rutina de imprimir Unicode diga la longitud en bytes que ocupa el carácter. 
+Así sabremos la longitud de aquellos caracteres que si que imprimimos. Los que no, será 1 y interrogante 
 
 -Osd keyboard sin multitarea en ZX81 no va fino
 
@@ -115,8 +89,6 @@ Este callback se le pasara el puntero a ventana y quizá eventos de ratón: que 
 -quiza zxvision_print_string_defaults_fillspc deba ser la habitual zxvision_print_string_defaults
 
 
--al mover o redimensionar ventana, redibujar las de debajo en cascada, empezando por la mas antigua y subiendo
-
 -menus zxvision:
 --porque menus tabulados no rellenan con espacios? ah porque antes siempre se borraba texto con espacios al dibujar menu?
 
@@ -128,45 +100,9 @@ Este callback se le pasara el puntero a ventana y quizá eventos de ratón: que 
 Lo hace realmente con visible_width y visible_height
 
 
--tamanyos ventanas menus. Ya corregido!
-si menu genera ventana de 24 lineas o mas, da error de zx vision por ventana fuera de rango
-no deberia hacerlo, ventana deberia ser de 32x24 maximo
-ejemplo en browser juegos zx81
-letra a:
-Info: zxvision_new_window: window out of range: 13,0 19x38
-
-O si se sale de rango, centrar en border??
-
-lio porque depende de scr_get_menu_height
- y scr_get_menu_width
-
-Ver también variables ZXVISION_MAX etc
-Max height y Max y por ejemplo deberían coincidir 
-
-O hago que al crear menú, los máximos sean igual que zxvision_max etc, o hago que zxvision al crear ventana permita más grande que 32x24
-
-O que Max ancho sea igual que Max x+1, y Max alto sea igual que Max y+1
-Ver en todos los sitios donde se usa variable que se vaya a cambiar
-
-Y probar en driver curses etc navegador de juegos zx81 
-
-Se corregiria con:
-#define ZXVISION_MAX_ANCHO_VENTANA (scr_get_menu_width())
-#define ZXVISION_MAX_ALTO_VENTANA (scr_get_menu_height())
-
-
-#define ZXVISION_MAX_X_VENTANA (ZXVISION_MAX_ANCHO_VENTANA-1)
-#define ZXVISION_MAX_Y_VENTANA (ZXVISION_MAX_ALTO_VENTANA-1)
-
-Per si corrijo esto, luego no centra menus en zona zxdesktop
-
--Fin tamanyos ventanas menus. Ya corregido!
-
-
 -Mejora para first aid:
 Un tercer botón que diga “take me there” para cuando sugiere menús, que te lleve al menú en cuestión 
 (por ejemplo cuando detecta joystick y dice que vayas al menú de real joystick para configurarlo)
-
 
 
 --- FIN ZX Vision
@@ -286,6 +222,9 @@ Que uso se le da a tab? En file utils, si se tabula, cambia de sección. En men�
 
 -F1 ayuda extensa en debug cpu, dentro de ventana y Antes en el ítem de menú 
 
+-ventana debug cpu: si se estaba en vista 8, y luego cargamos un juego que no sea de paws/daad/quill,
+la vista 1 sera ventana grande pero con alto total reducido. Parecido a lo que sucedia al cambiar de vista
+
 -menus tabulados:
 TAB conmutar a zona de acciones? Quiza nueva funcion para seleccion acciones, que permita:
 
@@ -320,7 +259,8 @@ opcion tambien para bajar bit 7 final
 -menu_ventana_scanf deberia retornar un codigo de retorno en caso de pulsado ESC
 
 -visualmem podria tener en cuenta toda la ram de una maquina: 128kb en +2, Z88 etc.... aunque dificil para +2 y Z88.... y necesario?
--visualmem que siga memory zone
+-visualmem que siga memory zone 
+
 
 -lectura de nombre de archivo en fileselector para stdout no admite espacios
 

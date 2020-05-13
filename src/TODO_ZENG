@@ -23,3 +23,7 @@ mi imac Local, actuando como slave
 
 -ZENG en CPC: no soporta teclas como [] etc
 -ZENG para el resto de maquinas y cores. Va ligado a poder generar snapshot ZSF
+
+-Probar ZENG con aventura conversacional y speech a ver si se corta el speech o no 
+-Mensajes enviados entre usuarios por ZENG que vayan a speech también 
+

@@ -50,6 +50,7 @@ Available versions for download here:
 * Source code
 * Binary compiled versions:
 * GNU/Linux 32/64 Bits
+* FreeBSD 64 Bits
 * Mac OS X
 * Windows
 * Raspberry pi (raspbian)
@@ -84,7 +85,7 @@ Thanks!
 
 __FEATURES__
 
-* Runs on any Unix system and Windows: tested on GNU/Linux x86, GNU/Linux x86_64, GNU/Linux Raspbian, GNU/Linux RetroPie, Mac OS X, Windows native, Windows + Cygwin
+* Runs on any Unix system and Windows: tested on GNU/Linux x86, GNU/Linux x86_64, GNU/Linux Raspbian, GNU/Linux RetroPie, FreeBSD x86_64, Mac OS X, Windows native, Windows + Cygwin
 
 * Emulates:
 * Science of Cambridge MK14
@@ -194,9 +195,9 @@ __FEATURES__
 
 * Handles RAM, EPROM, Intel Flash and Hybrid (RAM+EPROM) cards on Z88
 
-* Handles compressed formats zip, tar, rar, gz through external utilities
+* Handles compressed formats zip (with internal decompressor), and tar, rar, gz through external utilities
 
-* Supports AY Chip, Turbosound (2 AY Channels), 3 AY Channels, different DAC: Specdrum, Covox, ACB/ABC/BAC Stereo 
+* Supports AY Chip, Turbosound (2 AY Channels), 3 AY Channels, MIDI channels, different DAC: Specdrum, Covox, ACB/ABC/BAC Stereo 
 
 * Real time playback from AY Chip sound to external MIDI device 
 

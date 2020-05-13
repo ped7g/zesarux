@@ -1,0 +1,311 @@
+--------Para esta versión 8.2:
+
+
+-Error unpaws????
+Thread 8 Crashed:
+0   libsystem_kernel.dylib        	0x00007fff736102c6 __pthread_kill + 10
+1   libsystem_pthread.dylib       	0x00007fff736cbbf1 pthread_kill + 284
+2   libsystem_c.dylib             	0x00007fff7357a745 __abort + 144
+3   libsystem_c.dylib             	0x00007fff7357aff3 __stack_chk_fail + 205
+4   zesarux                       	0x0000000106702e13 util_paws_dump_vocabulary + 2019
+5   zesarux                       	0x0000000106703a08 util_unpawsetc_dump_words + 104 (utils.c:14074)
+6   zesarux                       	0x00000001066a1c5e menu_unpaws_ungac + 46 (menu.c:22138)
+
+
+-Probar malloc en 32 bit de 2 gb
+
+
+-utils.c: In function ‘util_extract_hdf’:
+utils.c:11099:18: warning: this decimal constant is unsigned only in ISO C90
+                  2147483648L, //8. 2 GB
+                  ^
+utils.c: In function ‘util_ascii_to_binary’:
+utils.c:11248:9: warning: this decimal constant is unsigned only in ISO C90
+         const unsigned int mascara=(unsigned int)2147483648;
+
+Puede dar problemas?
+
+
+
+-ejemplos para spool, como:
+./txt_to_basic_lines.sh FAQ 3 si si no > pruebaspool2.txt
+
+
+-al cargar smartload, por ejemplo ultimo cargado es thelosttapesofalbion. situa el cursor ahi bien, 
+pero al subir para arriba desplaza desde scroll sin mover
+cursor hasta que esta arriba. O sea, deberia mover siempre cursor y no empezar a hacer scroll hasta que no esta arriba
+
+
+
+-Impresión caracteres en consola texto nunca debe mostrar el 127. Es Delete
+Quizá mostrar C en caso de 127
+->Hecho de momento en chardetect y speech
+
+-stdout algunos menus que no van bien. Como display->view colour palette
+
+-En overscan con curses salen colores con ??? a la derecha fuera de pantalla 
+
+
+-Semáforo en debug print tiene sentido??
+Quiza por el sprintf (pending_error_message
+ para que no se pudiera escribir desde dos sitios?
+
+-semáforos en Windows. Como? De momento no hace bloqueo si es Windows 
+
+
+-Cuando haya fat driver, poder descargar cp/m dentro de la imagen mmc de TBBlue 
+
+
+
+--RED:
+
+-Query zsock http que detecte si query es mayor que 1024 y de error
+
+-rutinas zsock_read_all: deberia reintentar un par o dos de veces si no se ha alcanzado la longitud deseada
+o bien, que quien llame ahi, que mire si se ha llegado al final de lo esperado
+o bien que al principio se diga la longitud de lo que se envia-> util para get-snapshot
+
+-Quizá Windows falla a aveces porque la lectura de datos del socket no viene toda de una vez?
+
+-zsock http request: Buffer response en z80_byte y no char
+
+--zsock_http:
+-no tiene que tener un maximo de bloques la descarga, esto solo cuando el bloque es de 0 bytes, entonces si que aumentar
+En ese caso no hacer mas alla de 500 por ejemplo
+
+
+--Fin RED
+
+
+-para comprobar coordenada y footer, calcular desde abajo de alto ventana. Y usar funcion comun en screen.c
+-quiza funcion footer a scr_putchar_footer_comun_zoom se tiene que hacer con coordenadas 0,1 o 2 simplemente
+
+-file browser no muestra dispositivos. importante para uart
+Por alguna razón, en /dev no llega a leerlos ni entrando antes del filtro. Quiza algun parametro especial del directorio
+o algo que no hago bien al leer directorio. La solución pasa por escribir el nombre directamente en el file selector (pulsando TAB o click de raton
+arriba)
+-no se ven enlaces simbólicos en navegador de archivos. Como mínimo de Mac no se ven. Y en Linux?
+
+
+
+--Enter cpu step en ZRCP con drivers null stdout y simpletext. Se puede abrir menú con drivers null y simpletext? 
+Con printf verbose error?
+
+
+ 
+
+--ZENG:
+
+-ZENG: Desde Mac (Master) a Windows (slave). Si abro ventana de enviar mensaje desde windows, al cabo de un rato parece 
+desincronizarse y hasta acaba petando la instancia de Windows
+
+
+*en remote.c, bufferes de longitud MAX_LENGTH_PROTOCOL_COMMAND deberian ser con malloc
+Ademas habria que hacer que MAX_LENGTH_PROTOCOL_COMMAND sea un poco mayor que ZRCP_GET_PUT_SNAPSHOT_MEM
+
+*Quizá en sigpipe puede averiguar que socket ha fallado?
+Quizá sigpipe se puede gestionar diferente para cada thread?
+*funciones de envio snapshot, teclas y mensajes, deberian ver si reciben remote prompt? al llamar a zsock_read_all_until_command
+
+
+Ampliar buffer de recepción y el de copia. Y asignarlos por malloc 
+
+*parar thread zeng y cerrar socket zeng al salir emulador
+*asegurarse que cuando conecte zeng contra remoto al principio, retorna el prompt esperado. Ya lee version pero quiza 
+habria que hacer que leyera el primer prompt correcto
+
+
+--Fin ZENG
+
+
+-meter real tape en linea comandos siempre acelera la carga, aunque este desactivado
+ ejemplo: ./zesarux --realtape tetris2.pzx
+
+
+
+
+----Mac SSL
+
+
+-como incluir libreria ssl en mac? hace falta /usr/local/opt/openssl/lib/libssl.1.0.0.dylib
+-quiza otro binario y que el usuario pueda copiarlo a mano, incluido la libssl?
+
+-el compilado final de mac hay que hacerlo sin ssl? O ver si enlaza con la ssl del sistema operativo. Si no, igual se puede incluir la de homebrew de manera estática
+Parece que depende del de brew:
+~iMac-de-Cesar:src cesarhernandez$ ./zesarux --noconfigfile --ao null
+dyld: Library not loaded: /usr/local/opt/openssl/lib/libssl.1.0.0.dylib
+  Referenced from: /Users/cesarhernandez/Documents/ZEsarUX/zesarux/src/./zesarux
+  Reason: image not found
+Abort trap: 6
+
+-quiza meter la libreria ssl y el binario compilado en carpeta extras
+
+
+otool -L zesarux|grep ssl
+
+Es mas complicado pues luego va a buscar librerias de /usr/local/Cellar/openssl
+
+
+----Fin Mac SSL
+
+
+
+-cambiar de maquina no tbblue a tbblue provoca que no funcione divmmc
+porque?
+
+
+
+-Texto de “connecting” en ventana de progreso que se pueda cambiar
+En ZENG queda bien pero en descargas no 
+
+
+
+-Windows no es capaz de usar imagen mmc de 2 GB. Quiza porque es un compilado para 32 bits?
+
+
+
+-compilar raspberry tambien con ssl?
+
+
+-chdir en esxdos handler acaba cambiando directorio realmente para emulador??
+
+
+-Con carga top speed salen dos footer ? El nuevo de rojo también...  
+Quizá el Rojo debería ser el Tspeed que ya sale en la carga...
+Pues porque al ser un hotkey, se abre el menu y al cerrar el menu, se pierde el footer
+
+
+
+-comandos reset midi no hace nada?? Solo van en windows. Quiza enviar mejor un noteoff
+
+
+-algun tipo de build que no sea ni linux ni mac ni windows, sino simplemente UNIX_GENERIC o algo similar
+
+
+-compilar windows con O2. Quiza que haya una version "legacy" sin ello. Y siempre con pthreads
+
+
+
+
+-Pentagon:
+
+-Page cashe pentagon:
+
+
+Try use D3(counting from zero) bit for EFF7  - zero page will be displayed to #0000 address. 
+
+There also other schematics that uses ports(Like LPRINT 3):
+ * IN 251 - Enable cache
+ * IN 123 - Disable cache
+
+IN #FB - enable cache/ IN #7B disable.
+
+Zero page is ram0 from 128kb ram
+On pentagon 
+
+
+EFF7 - just memory managment
+This strange thing "CASHE MEMORY" 
+
+
+
+-Quizá versión legacy de Mac ya no tiene sentido. Requiere Mac OS reciente y los cflags O2 estarán soportados en todos los recientes 
+
+-Programa de descompresión zip para esxdos. Luego browser wos/zx info/spec computing para esxdos. 
+
+-Meter en development que cuando hay nueva versión hay que actualizar archivo txt del servidor
+Si es estable, actualizar ambos archivos
+Si es beta, actualizar solo el archivo de snapshot 
+
+-Actualizar archivo development que diga que la salida esperada del configure incluye ssl
+
+
+-ROM zx85 de Daniel incluir   Y zx82?
+
+-Que sentido tiene conservar EPROMs de esxmmc086 de zxuno y tbblue?
+
+
+
+
+-Cinta de juegos y programas zx81 pasar a digital
+
+
+-Smartload de un tap en +3 deja activado top speed (abadía del crimen)
+
+-quiza archivos de updates deban tener algo asi como major version, minor version
+Esto podria corregir el problema de que avise de updates que realmente son versiones anteriores.
+Ejemplo:
+*uso version snapshot 8.1-SN
+*me actualizo a la estable 8.2
+*al arrancar la primera 8.2-SN, verá que hay 8.2-SN ok no pasa nada
+
+*pero:
+*uso version snapshot 8.1-SN
+*paso a usar 8.0. Ultima estable leida: 8.0
+*paso a usar snapshot 8.1-SN, verá que hay 8.2-SN ok no pasa nada
+
+En que casos puede dar problema? Si cambio a mano version snapshot a estable en cpu.h
+Pero esto no deberia suceder: pues al hacer ese cambio se supone que habrá ya un update,
+entonces en el servidor, en el archivo de update de la estable, ya habré actualizado el archivo y dirá la nueva versión
+
+
+
+-Info ZENG en FAQ
+
+
+-Soporte ulaplus en Next
+
+
+-Poder ver ventanas en background con menú cerrado de la misma manera que salen mensajes splash?
+
+
+
+-Mientras hay splash de inicio, si se pulsa F5, aparece por un momento overlays de ventanas, cuando F5 esta asignada a "Nothing"
+
+
+-Guia uso background windows, quiza en menu help tal cual:
+* pulsando en zlogo abre el menu
+* conmutando ventanas cierra la ventana activa si esta no soporta background
+* pulsando boton de background (!), envia ventana a background y vuelve a menu anterior, si es que ventana permite background
+* ventana que está en background tiene el botón de background (!) parpadeando, siempre que mulitask esté activado
+si venimos de conmutar de otra ventana, se abrira menu principal
+* boton derecho en menu tiene mismo efecto que ESC: cerrar ventana activa
+
+* con menu abierto, pulsando con el raton en maquina emulada, pierde el foco del menu. Para volver el foco,
+pulsar en cualquiera de las ventanas o en el logo Z-> esto retorna el foco siempre en la ultima ventana antes de perder el foco
+* se permite tener multitask desactivado pero ventanas con background
+* logo Z solo se ve cuando capa de menu esta abierta (esto aplica aunque no haya background windows)
+
+
+
+
+*ventanas minimizadas no redibuja siempre, dado que solo tienen titulo sin contenido. Solventar redibujado de ventana - titulo con las que estan en background
+
+
+*Meter file browser zxuno en imagen zxuno mmc
+
+https://spectrumcomputing.co.uk/forums/viewtopic.php?t=2553
+
+
+
+- meter en extras de docs Benchmark legacy tbblue
+
+- inicializacion bufferes border, etc hacerlo con memset para consumir menos cpu
+
+- revival survival en next. Parece que falla por algo de divmmc?
+
+- enter-cpu-step no parece funcionar si hay ventanas en background-> no, parece que solo sucede si menu esta abierto
+
+- easter egg acknowledgements no salen caracteres cirilicos
+
+- debug cpu permite background pero cuando está en ese estado, no deberia mostrar texto o avisar que no está refrescando
+
+-revisar speech con ventanas en background
+
+-En tape output, aparte de truncate etc, poder usar rotate-truncate para rotar los .tap viejos
+
+-Incluir carpeta docs con algunas cosillas
+
+-Dandanator nueva versión
+
+

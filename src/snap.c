@@ -1973,12 +1973,23 @@ void load_sna_snapshot_common_registers(z80_byte *header)
 	//valor fuera de rango
 	if (im_mode==3) im_mode=2;
 
-	//19       1      byte   Interrupt (bit 2 contains IFF2, 1=EI/0=DI)
+	//$13  IFF2    [Only bit 2 is defined: 1 for EI, 0 for DI]
+	//printf ("header 19: %d\n",header[19]);
+	if (header[19] & 4) iff1.v=iff2.v=1;
+	else iff1.v=iff2.v=0;
+	
+
+	//Lo siguiente es incorrecto. Segun https://faqwiki.zxnet.co.uk/wiki/SNA_format
+	//At least one source[http://www.zx-modules.de/fileformats/snaformat.html] 
+	//incorrectly states that bit 0 of byte $13 holds the state of IFF1.
+
+	/*
 	if (header[19] & 4) iff2.v=1;
 	else iff2.v=0;
 
 	if (header[19] & 1) iff1.v=1;
 	else iff1.v=0;	
+	*/
 
 
 

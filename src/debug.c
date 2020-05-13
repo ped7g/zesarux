@@ -4801,6 +4801,12 @@ int i;
       }
     }	
 
+    else if (!strcmp(comando_sin_parametros,"reset-tstatp")) {
+      debug_printf (VERBOSE_DEBUG,"Running reset-tstatp command");
+      debug_t_estados_parcial=0;
+    }
+
+
     else {
       debug_printf (VERBOSE_DEBUG,"Unknown command %s",comando_sin_parametros);
     }
@@ -5151,7 +5157,7 @@ typedef struct s_debug_memory_segment debug_memory_segment;
 				int pagina;
 				segmentos_totales=4;
 				for (pagina=0;pagina<4;pagina++) {
-	  				sprintf (segmentos[pagina].shortname,"BANK%02X",blink_mapped_memory_banks[pagina]);
+	  				sprintf (segmentos[pagina].shortname,"B%02X",blink_mapped_memory_banks[pagina]);
 	  				sprintf (segmentos[pagina].longname,"BANK %02X",blink_mapped_memory_banks[pagina]);
 	                                segmentos[pagina].length=16384;
 	                                segmentos[pagina].start=16384*pagina;
@@ -5980,3 +5986,106 @@ int debug_get_timestamp(char *destino)
 			 
         
 }
+
+
+
+//Rutinas de timesensors. Agrega un define TIMESENSORS_ENABLED en compileoptions.h para activarlo y lanza make
+#ifdef TIMESENSORS_ENABLED
+
+#include "timer.h"
+
+struct s_timesensor_entry timesensors_array[MAX_TIMESENSORS];
+
+int timesensors_started=0;
+
+void timesensor_call_pre(enum timesensor_id id)
+{
+	if (!timesensors_started) return;
+
+	timer_stats_current_time(&timesensors_array[id].tiempo_antes);
+}
+
+void timesensor_call_post(enum timesensor_id id)
+{
+
+	if (!timesensors_started) return;
+
+
+	long diferencia=timer_stats_diference_time(&timesensors_array[id].tiempo_antes,&timesensors_array[id].tiempo_despues);
+
+
+	//Y agregar
+
+	int indice=timesensors_array[id].index_metrics;
+
+	if (indice<MAX_TIMESENSORS_METRICS) {
+		timesensors_array[id].metrics[indice]=diferencia;
+
+		timesensors_array[id].index_metrics++;
+
+		printf ("Agregando metrics valor: %ld\n",diferencia);
+	}
+}
+
+long timesensor_call_mediatime(enum timesensor_id id)
+{
+
+	long acumulado=0;
+	int total=timesensors_array[id].index_metrics;
+
+	int i;
+
+	printf ("Calculando la media para id. %d total: %d\n",id,total);
+
+	if (total==0) return 0;
+
+	//Sumar todos
+	for (i=0;i<total;i++) {
+		printf ("Sumando %ld\n",timesensors_array[id].metrics[i]);
+		acumulado +=timesensors_array[id].metrics[i];
+	}
+
+	printf ("suma. %ld\n",acumulado);
+
+	//y dividir
+	acumulado /=total;
+
+	printf ("total. %ld\n",acumulado);
+
+	return acumulado;
+}
+
+
+long timesensor_call_maxtime(enum timesensor_id id)
+{
+
+	long maximo=0;
+	int total=timesensors_array[id].index_metrics;
+
+	int i;
+
+	printf ("Calculando maximo para id. %d total: %d\n",id,total);
+
+	for (i=0;i<total;i++) {
+		long actual=timesensors_array[id].metrics[i];;
+		if (actual>maximo) maximo=actual;
+	}
+
+	printf ("maximo. %ld\n",maximo);
+
+
+
+	return maximo;
+}
+
+void timesensor_call_init(void)
+{
+	int i;
+
+	for (i=0;i<MAX_TIMESENSORS;i++) {
+		timesensors_array[i].index_metrics=0;
+	}
+}
+
+
+#endif

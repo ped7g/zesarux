@@ -60,7 +60,7 @@ I want to thank the help and the collaboration of the following people (date sor
 -Till Harbaum, helping me with QL emulation and mdvtool 
 -Simone Voltolini, for recovering my old QL Microdrives
 -Richard Atkinson, for the real Speccy 16/48/+ colour palette
--Jordi Bayo Montiel (again) for the additional and beautiful ZEsarUX logos
+-Jordi Bayo Montiel (again) for the first Windows compilations and the additional and beautiful ZEsarUX logos
 -Roberto (zenvoid), for reporting me the bug with the IFF2 behaviour when firing an interrupt
 -Hacker VBI (Burenko Vladimir, Ukraine), for granting permission to include some demos and games for TSConf
 -zup, for creating the Spectrum rom files which contain Mantransfer
@@ -78,6 +78,8 @@ I want to thank the help and the collaboration of the following people (date sor
 -Cesar Wagener, for Windows bug reporting
 -Alone Coder, for granting permission to add Pang and Ball Quest 16C color mode games, and for information about ATM computer
 -Шарихин Александр Сергеевич, for granting permission to add his "Touhou Zero. Lost Donation Box Incident" game, for help and suggestions 
+-Stefan Bylund, helping me with tbblue layer2 extended modes
+
 
 -Everyone at several forums about Spectrum, ZX80, ZX81, Z88, Raspberry Pi, etc for all the suggestions to my emulator
 -Everyone who test the beta and stable versions of the emulator and report bugs

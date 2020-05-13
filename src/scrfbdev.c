@@ -319,7 +319,7 @@ void scrfbdev_putchar_zx8081(int x,int y, z80_byte caracter)
 
 
 //Rutina de putchar para menu
-void scrfbdev_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrfbdev_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
 
@@ -338,7 +338,7 @@ void scrfbdev_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byt
 
 }
 
-void scrfbdev_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrfbdev_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
 	int yorigen;

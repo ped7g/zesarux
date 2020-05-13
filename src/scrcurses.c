@@ -116,10 +116,13 @@ curses_last_message_shown_timer=250;
 }
 
 //Rutina de putchar para menu
-void scrcurses_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrcurses_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
 	int brillo;
+
+	tinta=tinta&15;
+	papel=papel&15;
 	
 
 	//brillo para papel o tinta
@@ -155,10 +158,13 @@ void scrcurses_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_by
 #define CURSES_LINE_DEBUG_REGISTERS (24+(CURSES_TOP_BORDER*2)*border_enabled.v+3)
 #define CURSES_LINE_MESSAGES (24+(CURSES_TOP_BORDER*2)*border_enabled.v+4)
 
-void scrcurses_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrcurses_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
         int brillo;
+
+        tinta=tinta&15;
+        papel=papel&15;
 
         
         //brillo para papel o tinta
@@ -1041,9 +1047,53 @@ void scrcurses_refresca_pantalla_cpc_fun_caracter(int x,int y,int brillo, unsign
 void scrcurses_refresca_pantalla_common_fun_caracter(int x,int y,int brillo, unsigned char inv,z80_byte caracter )
 {
                        move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                       
+                       
+                       
+                          //addch('~'|brillo);
 
-                                if (inv) addch(caracter | WA_REVERSE | brillo );
-                                else addch(caracter|brillo);
+								int going_to_use_cursesw=0;
+#ifdef COMPILE_CURSESW
+	//Solo usarlo si esta compilado y el setting esta activo
+								if (use_scrcursesw.v) going_to_use_cursesw=1;
+#endif
+
+
+								if (going_to_use_cursesw) {
+#ifdef COMPILE_CURSESW
+
+//parche horrible para sacar valor_get_pixel desde el caracter ascii
+//lo normal seria que el valor viniera aqui desde la funcion que llama aqui
+
+
+char caracteres_artisticos[]=" ''\".|/r.\\|7_LJ#";
+
+int valor_get_pixel;
+
+for (valor_get_pixel=0;valor_get_pixel<16;valor_get_pixel++) {
+  if (caracter==caracteres_artisticos[valor_get_pixel]) break;
+}
+
+if (valor_get_pixel>15) valor_get_pixel=15;
+									
+									
+									
+									
+									
+									cursesw_ext_print_pixel(valor_get_pixel);
+#endif
+								}
+
+								else {
+                                	if (inv) addch(caracter | WA_REVERSE | brillo );
+                                	else addch(caracter|brillo);
+								}
+
+                        
+                       
+                       
+                       
+                   
 
 }
 
@@ -1095,9 +1145,16 @@ void scrcurses_refresca_pantalla(void)
         }
 
         sem_screen_refresh_reallocate_layers=1;
+        
+     //si todo de pixel a ascii art
+     if (rainbow_enabled.v && screen_text_all_refresh_pixel.v) {
+     
+     scr_refresca_pantalla_tsconf_text(scrcurses_refresca_pantalla_common_fun_color,scrcurses_refresca_pantalla_common_fun_caracter,scrcurses_refresca_pantalla_common_fun_saltolinea,screen_text_all_refresh_pixel_scale);  //23 seria 720x576 -> 31x25
+     
+     }
 
 
-	if (MACHINE_IS_ZX8081) {
+	else if (MACHINE_IS_ZX8081) {
 
                 if (rainbow_enabled.v==0) {
 			//modo clasico. sin rainbow
@@ -1197,7 +1254,7 @@ void scrcurses_refresca_pantalla(void)
 
 			}
 
-
+ 
 
           }
 

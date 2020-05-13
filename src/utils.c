@@ -3184,6 +3184,8 @@ int util_write_configfile(void)
 
   if (tbblue_deny_turbo_rom.v)                ADD_STRING_CONFIG,"--denyturbotbbluerom");
 
+                                              ADD_STRING_CONFIG,"--tbblue-max-turbo-rom %d",tbblue_deny_turbo_rom_max_allowed);
+
 
   if (tbblue_fast_boot_mode.v)                ADD_STRING_CONFIG,"--tbblue-fast-boot-mode");
 
@@ -3241,6 +3243,12 @@ int util_write_configfile(void)
 
   if (ocr_settings_not_look_23606.v)          ADD_STRING_CONFIG,"--no-ocr-alternatechars");
 
+
+  if (screen_text_all_refresh_pixel.v)        ADD_STRING_CONFIG,"--allpixeltotext");
+                                              
+                                              ADD_STRING_CONFIG,"--allpixeltotext-scale %d",screen_text_all_refresh_pixel_scale);
+
+  if (screen_text_all_refresh_pixel_invert.v) ADD_STRING_CONFIG,"--allpixeltotext-invert");
 
   if (zx8081_vsync_sound.v)                   ADD_STRING_CONFIG,"--zx8081vsyncsound");
   if (ram_in_8192.v)                          ADD_STRING_CONFIG,"--zx8081ram8K2000");
@@ -3385,11 +3393,16 @@ int util_write_configfile(void)
 
   if (zxmmc_emulation.v)                      ADD_STRING_CONFIG,"--enable-zxmmc");
   if (eight_bit_simple_ide_enabled.v)         ADD_STRING_CONFIG,"--enable-8bit-ide");
+
+			                      ADD_STRING_CONFIG,"--diviface-ram-size %d",get_diviface_total_ram());
+
   if (zxpand_enabled.v)                       ADD_STRING_CONFIG,"--enable-zxpand");
   if (zxpand_root_dir[0]!=0)                  ADD_STRING_CONFIG,"--zxpand-root-dir \"%s\"",zxpand_root_dir);
 
   if (esxdos_handler_enabled.v)               ADD_STRING_CONFIG,"--enable-esxdos-handler");
   if (esxdos_handler_root_dir[0]!=0)          ADD_STRING_CONFIG,"--esxdos-root-dir \"%s\"",esxdos_handler_root_dir);
+
+  if (esxdos_handler_enabled.v && esxdos_handler_cwd[0]!=0)  ADD_STRING_CONFIG,"--esxdos-local-dir \"%s\"",esxdos_handler_cwd);
 
   if (ql_microdrive_floppy_emulation)         ADD_STRING_CONFIG,"--enable-ql-mdv-flp");
   if (ql_mdv1_root_dir[0]!=0)                 ADD_STRING_CONFIG,"--ql-mdv1-root-dir \"%s\"",ql_mdv1_root_dir);
@@ -3490,7 +3503,9 @@ int util_write_configfile(void)
 
   if (autoselect_snaptape_options.v==0)       ADD_STRING_CONFIG,"--noautoselectfileopt");
   if (screen_show_splash_texts.v==0)          ADD_STRING_CONFIG,"--nosplash");
-  if (screen_show_cpu_usage.v)                ADD_STRING_CONFIG,"--cpu-usage");
+  if (screen_show_cpu_usage.v==0)             ADD_STRING_CONFIG,"--no-cpu-usage");
+  if (screen_show_cpu_temp.v==0)              ADD_STRING_CONFIG,"--no-cpu-temp");
+  if (screen_show_fps.v==0)                   ADD_STRING_CONFIG,"--no-fps");  
   if (opcion_no_splash.v)                     ADD_STRING_CONFIG,"--nowelcomemessage");
 
   if (menu_hide_vertical_percentaje_bar.v) ADD_STRING_CONFIG,"--hide-menu-percentage-bar");
@@ -3502,6 +3517,8 @@ int util_write_configfile(void)
 
   if (menu_invert_mouse_scroll.v)             ADD_STRING_CONFIG,"--invert-menu-mouse-scroll");
 
+  if (menu_allow_background_windows)          ADD_STRING_CONFIG,"--allow-background-windows");
+                     
 
                                               ADD_STRING_CONFIG,"--menu-mix-method \"%s\"",screen_menu_mix_methods_strings[screen_menu_mix_method]);
 
@@ -3518,6 +3535,9 @@ int util_write_configfile(void)
   if (rainbow_enabled.v)                      ADD_STRING_CONFIG,"--realvideo");
 
   if (autodetect_rainbow.v==0)                ADD_STRING_CONFIG,"--no-detect-realvideo");
+
+  if (tbblue_store_scanlines.v)               ADD_STRING_CONFIG,"--tbblue-legacy-hicolor");
+  if (tbblue_store_scanlines_border.v)        ADD_STRING_CONFIG,"--tbblue-legacy-border");
 
   //if (tsconf_si_render_spritetile_rapido.v)   ADD_STRING_CONFIG,"--tsconf-fast-render");
 
@@ -3558,6 +3578,10 @@ int util_write_configfile(void)
   if (audio_midi_output_initialized)          ADD_STRING_CONFIG,"--enable-midi");
                                               ADD_STRING_CONFIG,"--midi-client %d",audio_midi_client);
                                               ADD_STRING_CONFIG,"--midi-port %d",audio_midi_port);
+
+                                              ADD_STRING_CONFIG,"--midi-raw-device %s",audio_raw_midi_device_out);
+  if (audio_midi_raw_mode==0)                 ADD_STRING_CONFIG,"--midi-no-raw-mode");
+		
 
   if (midi_output_record_noisetone.v)         ADD_STRING_CONFIG,"--midi-allow-tone-noise");			
 
@@ -3622,6 +3646,9 @@ int util_write_configfile(void)
 
   if (stats_asked.v)                          ADD_STRING_CONFIG,"--stats-send-already-asked");
   if (stats_enabled.v)                        ADD_STRING_CONFIG,"--stats-send-enabled");
+
+  if (tbblue_autoconfigure_sd_asked.v)             ADD_STRING_CONFIG,"--tbblue-autoconfigure-sd-already-asked");
+
           
 
   if (stats_uuid[0]!=0)                      ADD_STRING_CONFIG,"--stats-uuid %s",stats_uuid);
@@ -3652,6 +3679,34 @@ int util_write_configfile(void)
        ADD_STRING_CONFIG,"--windowgeometry %s %d %d %d %d", saved_config_window_geometry_array[i].nombre,
        saved_config_window_geometry_array[i].x,saved_config_window_geometry_array[i].y,
         saved_config_window_geometry_array[i].ancho,saved_config_window_geometry_array[i].alto);
+  }
+
+  if (menu_reopen_background_windows_on_start.v) ADD_STRING_CONFIG,"--enable-restore-windows");
+			
+
+  if (menu_allow_background_windows && menu_reopen_background_windows_on_start.v) {
+        //Guardar lista de ventanas activas
+	//Empezamos una a una, desde la de mas abajo
+	zxvision_window *ventana;
+
+	ventana=zxvision_current_window;
+
+	if (ventana!=NULL) {
+
+                ventana=zxvision_find_first_window_below_this(ventana);
+
+                while (ventana!=NULL) {
+
+                        if (ventana->geometry_name[0]!=0 && ventana->can_be_backgrounded) {
+                                ADD_STRING_CONFIG,"--restorewindow \"%s\"",ventana->geometry_name);
+                        }
+
+
+                        ventana=ventana->next_window;
+                                        
+                }
+        }
+
   }
 
 
@@ -5740,6 +5795,7 @@ void util_set_reset_mouse(enum util_mouse_buttons boton,int pressrelease)
         //printf ("reseteamos mouse_pressed_close_window desde utils ventana\n");
         //puerto_especial1 |=1;
         mouse_pressed_close_window=0;
+        mouse_pressed_background_window=0;
 
       }
     break;
@@ -6092,7 +6148,9 @@ int util_set_reset_key_continue_f_functions(enum util_teclas tecla,int pressrele
 
   debug_printf (VERBOSE_DEBUG,"Key: F%d Action: %s",indice+1,defined_f_functions_array[accion].texto_funcion);
 
-  if (accion!=F_FUNCION_DEFAULT) {
+  //Abrir menu si funcion no es defecto y no es background window
+  //if (accion!=F_FUNCION_DEFAULT && accion!=F_FUNCION_BACKGROUND_WINDOW) {
+  if (accion!=F_FUNCION_DEFAULT) {          
     if (pressrelease) {
       //Activar funcion f en menu
       menu_button_f_function.v=1;
@@ -7030,7 +7088,7 @@ void util_set_reset_key_continue_after_zeng(enum util_teclas tecla,int pressrele
 
                                 if (pressrelease) {
                                         menu_abierto=1;
-                                        menu_button_quickload.v=1;
+                                        menu_button_smartload.v=1;
                                 }
                                 else {
                                 }
@@ -9060,60 +9118,111 @@ int convert_p_to_rwa_tmpdir(char *origen, char *destino)
 }
 
 
+
+//Retorna 0 si ok
+//1 si error al abrir archivo 
+//Tiene en cuenta zonas de memoria
+int save_binary_file(char *filename,int valor_leido_direccion,int valor_leido_longitud)
+{
+	
+
+	menu_debug_set_memory_zone_attr();
+
+        char zone_name[MACHINE_MAX_MEMORY_ZONE_NAME_LENGHT+1];
+	menu_get_current_memory_zone_name_number(zone_name);
+
+        if (valor_leido_longitud==0) valor_leido_longitud=menu_debug_memory_zone_size;		
+
+
+	debug_printf(VERBOSE_INFO,"Saving %s file at %d address at zone %s with %d bytes",filename,valor_leido_direccion,zone_name,valor_leido_longitud);
+
+	FILE *ptr_binaryfile_save;
+	ptr_binaryfile_save=fopen(filename,"wb");
+	if (!ptr_binaryfile_save) {
+		
+		debug_printf (VERBOSE_ERR,"Unable to open Binary file %s",filename);
+		return 1;
+	}
+
+	else {
+
+		int escritos=1;
+		z80_byte byte_leido;
+		while (valor_leido_longitud>0 && escritos>0) {
+
+			byte_leido=menu_debug_get_mapped_byte(valor_leido_direccion);
+
+			escritos=fwrite(&byte_leido,1,1,ptr_binaryfile_save);
+			valor_leido_direccion++;
+			valor_leido_longitud--;
+		}
+
+
+		fclose(ptr_binaryfile_save);
+	}
+
+	return 0;
+
+}
+
 //Retorna 0 si ok
 //1 si archivo no encontrado
 //2 si error leyendo
-int load_binary_file(char *binary_file_load,int valor_leido_direccion,int valor_leido_longitud)
+//Tiene en cuenta zonas de memoria
+int load_binary_file(char *filename,int valor_leido_direccion,int valor_leido_longitud)
 {
-  int returncode=0;
+	int returncode=0;
 
-  if (!si_existe_archivo(binary_file_load)) return 1;
+	if (!si_existe_archivo(filename)) return 1;
 
-                if (MACHINE_IS_SPECTRUM) {
-                  if (valor_leido_longitud==0 || valor_leido_longitud>65536) valor_leido_longitud=65536;
+	if (valor_leido_longitud==0) valor_leido_longitud=4194304; //4 MB max
 
-                  //maximo hasta direccion 65535
-                  if (valor_leido_direccion+valor_leido_longitud > 65535) valor_leido_longitud=65536-valor_leido_direccion;
-                }
-
-                else { //MOTOROLA
-                  if (valor_leido_longitud==0) valor_leido_longitud=QL_MEM_LIMIT+1;
-                }
-
-                debug_printf(VERBOSE_INFO,"Loading %s file at %d address with maximum %d bytes",binary_file_load,valor_leido_direccion,valor_leido_longitud);
+    
+	menu_debug_set_memory_zone_attr();
 
 
+	char zone_name[MACHINE_MAX_MEMORY_ZONE_NAME_LENGHT+1];
+	menu_get_current_memory_zone_name_number(zone_name);
 
-                                FILE *ptr_binaryfile_load;
-                                  ptr_binaryfile_load=fopen(binary_file_load,"rb");
-                                  if (!ptr_binaryfile_load)
-                                {
-                                      debug_printf (VERBOSE_ERR,"Unable to open Binary file %s",binary_file_load);
-                                      returncode=2;
-
-                                  }
-                                else {
-
-                                                int leidos=1;
-                                                z80_byte byte_leido;
-                                                while (valor_leido_longitud>0 && leidos>0) {
-                                                        leidos=fread(&byte_leido,1,1,ptr_binaryfile_load);
-                                                        if (leidos>0) {
-                                                                //poke_byte_no_time(valor_leido_direccion,byte_leido);
-                                                                poke_byte_z80_moto(valor_leido_direccion,byte_leido);
-                                                                valor_leido_direccion++;
-                                                                valor_leido_longitud--;
-                                                        }
-                                                }
+	debug_printf(VERBOSE_INFO,"Loading %s file at %d address at zone %s with maximum %d bytes",filename,valor_leido_direccion,zone_name,valor_leido_longitud);
 
 
-                                  fclose(ptr_binaryfile_load);
+	FILE *ptr_binaryfile_load;
+	ptr_binaryfile_load=fopen(filename,"rb");
+	if (!ptr_binaryfile_load) {
+                                
+		debug_printf (VERBOSE_ERR,"Unable to open Binary file %s",filename);
+		returncode=2;
 
-                                }
+	}
+
+	else {
+
+		int leidos=1;
+		z80_byte byte_leido;
+		while (valor_leido_longitud>0 && leidos>0) {
+			leidos=fread(&byte_leido,1,1,ptr_binaryfile_load);
+			if (leidos>0) {
+
+					menu_debug_write_mapped_byte(valor_leido_direccion,byte_leido);
+
+					valor_leido_direccion++;
+					valor_leido_longitud--;
+			}
+		}
+
+
+		fclose(ptr_binaryfile_load);
+
+	}
 
     return returncode;
 
 }
+
+
+
+
 
 
 //extern char *mostrar_footer_game_name;
@@ -10794,6 +10903,87 @@ int util_parse_commands_argvc(char *texto, char *parm_argv[], int maximo)
                 }
 
                 if ( (*texto)==0) return args;
+
+                *texto=0; //Separar cadena
+                texto++;
+        }
+
+        return args;
+}
+
+
+//Separar comando con codigos 0 y rellenar array de parametros, parecido a 
+//util_parse_commands_argvc pero tienendo en cuenta si hay comillas
+int util_parse_commands_argvc_comillas(char *texto, char *parm_argv[], int maximo)
+{
+
+        int args=0;
+
+        //Si se han leido en algun momento al parsear un parametro
+        int comillas_algun_momento=0;
+
+
+        while (*texto) {
+                //Inicio parametro
+                parm_argv[args++]=texto;
+                if (args==maximo) {
+                        debug_printf(VERBOSE_DEBUG,"Max parameters reached (%d)",maximo);
+                        return args;
+                }
+
+                //Ir hasta espacio o final
+
+                comillas_algun_momento=0;
+
+                //Variable que va conmutando segun se lee
+                int comillas_leidas=0;
+
+                int antes_escape=0;
+
+                //TODO: al escapar comillas , incluye el caracter de escape tambien
+                //esto sucede porque estamos escribiendo en el mismo sitio que leemos
+                //deberia tener una cadena origen y una destino distintas
+
+                //TODO: controlar parametros como : 123"456 -> en este caso resulta: 23"45
+
+                while (*texto && (*texto!=' ' || comillas_leidas)  ) {
+                        //Si son comillas y no escapadas
+                        if ((*texto)=='"' && !antes_escape) {
+                                //printf ("Leemos comillas\n");
+                                comillas_leidas ^=1;
+
+                                comillas_algun_momento=1;
+                        }
+
+                        if ( (*texto)=='\\') antes_escape=1;
+                        else antes_escape=0;
+
+                        texto++;
+                }
+
+                if (comillas_algun_momento) {
+                        //Se ha leido en algun momento. Quitar comillas iniciales y finales
+                        //Lo que hacemos es cambiar el inicio de parametro a +1
+                        
+                        //printf ("Ajustar parametro porque esta entre comillas\n");
+
+                        char *inicio_parametro;
+                        inicio_parametro=parm_argv[args-1];
+
+                        inicio_parametro++;
+
+                        parm_argv[args-1]=inicio_parametro;
+
+                        //Y quitar comillas del final
+                        *(texto-1)=0;
+
+                        //printf ("Parametro ajustado sin comillas: [%s]\n",parm_argv[args-1]);
+
+                }                
+
+                if ( (*texto)==0) return args;
+ 
+
 
                 *texto=0; //Separar cadena
                 texto++;
@@ -16681,9 +16871,19 @@ int util_add_window_geometry(char *nombre,int x,int y,int ancho,int alto)
 
 }
 
-//Misma funcion que la anterior pero indicando solo nombre y puntero a ventana
-void util_add_window_geometry_compact(char *nombre,zxvision_window *ventana)
+//Misma funcion que la anterior pero indicando solo puntero a ventana
+//El nombre lo obtiene de la estructura de zxvision_window
+void util_add_window_geometry_compact(zxvision_window *ventana)
 {
+
+        char *nombre;
+
+        nombre=ventana->geometry_name;
+        if (nombre[0]==0) {
+                //printf ("Trying to save window geometry but name is blank\n");
+                return;
+        }
+
         util_add_window_geometry(nombre,ventana->x,ventana->y,ventana->visible_width,ventana->visible_height);        
 }
 
@@ -16781,7 +16981,7 @@ char *util_read_line(char *origen,char *destino,int size_orig,int max_size_dest,
 }
 
 //Retorna el codigo http o <0 si otros errores
-int util_download_file(char *hostname,char *url,char *archivo,int use_ssl)
+int util_download_file(char *hostname,char *url,char *archivo,int use_ssl,int estimated_maximum_size)
 {
   int http_code;
 	char *mem;
@@ -16790,7 +16990,10 @@ int util_download_file(char *hostname,char *url,char *archivo,int use_ssl)
 	int total_leidos;
 	int retorno;
         char redirect_url[NETWORK_MAX_URL];
-        retorno=zsock_http(hostname,url,&http_code,&mem,&total_leidos,&mem_after_headers,1,"",use_ssl,redirect_url);
+
+
+
+        retorno=zsock_http(hostname,url,&http_code,&mem,&total_leidos,&mem_after_headers,1,"",use_ssl,redirect_url,estimated_maximum_size);
 
         
         if (http_code==302 && redirect_url[0]!=0) {
@@ -16815,7 +17018,7 @@ int util_download_file(char *hostname,char *url,char *archivo,int use_ssl)
 
                 //El redirect sucede con las url a archive.org
 
-                retorno=zsock_http(nuevo_host,nueva_url,&http_code,&mem,&total_leidos,&mem_after_headers,1,"",use_ssl,redirect_url);
+                retorno=zsock_http(nuevo_host,nueva_url,&http_code,&mem,&total_leidos,&mem_after_headers,1,"",use_ssl,redirect_url,0);
 
 	}
 
@@ -16840,7 +17043,7 @@ int util_download_file(char *hostname,char *url,char *archivo,int use_ssl)
                 ptr_destino=fopen(archivo,"wb");
 
                 if (ptr_destino==NULL) {
-                        debug_printf (VERBOSE_ERR,"Error writing game file");
+                        debug_printf (VERBOSE_ERR,"Error writing output file");
                         return -1;
                 }
 
@@ -16856,12 +17059,11 @@ int util_download_file(char *hostname,char *url,char *archivo,int use_ssl)
         //Fin resultado http correcto
         else {	
                 if (retorno<0) {	
-                        //debug_printf(VERBOSE_ERR,"Error downloading game list. Return code: %d",http_code);
                         //printf ("Error: %d %s\n",retorno,z_sock_get_error(retorno));
                         return retorno;
                 }
                 else {
-                        debug_printf(VERBOSE_ERR,"Error downloading game list. Return code: %d",http_code);
+                        debug_printf(VERBOSE_ERR,"Error downloading file. Return code: %d",http_code);
                 }
         }	        
 
@@ -17020,4 +17222,255 @@ z80_byte get_memory_checksum_spectrum(z80_byte crc,z80_byte *origen,int longitud
         }
 
         return crc;
+}
+
+//Guardar valor de 16 bits en direccion de memoria 
+void util_store_value_little_endian(z80_byte *destination,z80_int value)
+{
+        destination[0]=value_16_to_8l(value);
+        destination[1]=value_16_to_8h(value);
+}
+
+
+//Recuperar valor de 16 bits de direccion de memoria 
+z80_int util_get_value_little_endian(z80_byte *origin)
+{
+        return value_8_to_16(origin[1],origin[0]);
+}
+
+
+
+void util_get_home_dir(char *homedir)
+{
+
+        //asumimos vacio
+        homedir[0]=0;
+
+  #ifndef MINGW
+        char *directorio_home;
+        directorio_home=getenv("HOME");
+        if ( directorio_home==NULL) {
+                  //printf("Unable to find $HOME environment variable to open configuration file\n");
+                return;
+        }
+
+        sprintf(homedir,"%s/",directorio_home);
+
+  #else
+        char *homedrive;
+        char *homepath;
+        homedrive=getenv("HOMEDRIVE");
+        homepath=getenv("HOMEPATH");
+
+        if (homedrive==NULL || homepath==NULL) {
+                //printf("Unable to find HOMEDRIVE or HOMEPATH environment variables to open configuration file\n");
+                  return;
+          }
+
+        sprintf(homedir,"%s\\%s\\",homedrive,homepath);
+
+  #endif
+
+
+}
+
+ #define UTIL_BMP_HEADER_SIZE (14+40)
+
+int util_bmp_get_file_size(int ancho,int alto)
+{
+        //File size
+        //cabecera + ancho*alto*3 (*3 porque es 24 bit de color)
+        int file_size=(ancho*alto*3)+UTIL_BMP_HEADER_SIZE;
+
+        return file_size;
+}
+
+//Asignar memoria para un archivo bmp de 24 bits y meter algunos valores en cabecera
+z80_byte *util_bmp_new(int ancho,int alto)
+{
+
+        //http://www.ece.ualberta.ca/~elliott/ee552/studentAppNotes/2003_w/misc/bmp_file_format/bmp_file_format.htm
+       
+
+        int memoria_necesaria=(ancho*alto*3)+UTIL_BMP_HEADER_SIZE;
+
+        z80_byte *puntero;
+
+        puntero=malloc(memoria_necesaria);
+
+        if (puntero==NULL) cpu_panic("Can not allocate memory for bmp file");
+
+        puntero[0]='B';
+        puntero[1]='M';
+
+        //File size
+        //cabecera + ancho*alto*3 (*3 porque es 24 bit de color)
+        int file_size=util_bmp_get_file_size(ancho,alto);
+        puntero[2]=file_size & 0xFF;
+        file_size >>=8;
+
+        puntero[3]=file_size & 0xFF;
+        file_size >>=8;
+
+        puntero[4]=file_size & 0xFF;
+        file_size >>=8;
+
+        puntero[5]=file_size & 0xFF;
+        file_size >>=8;                
+
+        //Unused
+        puntero[6]=puntero[7]=puntero[8]=puntero[9];
+
+        //Data offset
+        puntero[10]=value_16_to_8l(UTIL_BMP_HEADER_SIZE);
+        puntero[11]=value_16_to_8h(UTIL_BMP_HEADER_SIZE);
+        puntero[12]=puntero[13]=0;
+
+        //Size of info header = 40
+        puntero[14]=40;
+        puntero[15]=puntero[16]=puntero[17]=0;
+
+        //Ancho
+        puntero[18]=value_16_to_8l(ancho);
+        puntero[19]=value_16_to_8h(ancho);
+        puntero[20]=puntero[21]=0;
+
+        //Alto
+        puntero[22]=value_16_to_8l(alto);
+        puntero[23]=value_16_to_8h(alto);
+        puntero[24]=puntero[25]=0;    
+
+        //Planes = 1   
+        puntero[26]=1; 
+        puntero[27]=0;
+
+        //Bits per pixel -> 24 
+        puntero[28]=24; 
+        puntero[29]=0;
+
+        //Compression -> 0 no compression
+        puntero[30]=puntero[31]=puntero[32]=puntero[33]=0;
+
+        //Image size. If compression -> 0
+        puntero[34]=puntero[35]=puntero[36]=puntero[37]=0;
+        
+        //horizontal resolution: Pixels/meter. 2835. valor de referencia de otro bmp
+        puntero[38]=value_16_to_8l(2835);
+        puntero[39]=value_16_to_8h(2835);
+        puntero[40]=puntero[41]=0;        
+
+        
+        //vertical resolution: Pixels/meter
+        puntero[42]=value_16_to_8l(2835);
+        puntero[43]=value_16_to_8h(2835);
+        puntero[44]=puntero[45]=0;   
+
+        //Number of actually used colors. For a 8-bit / pixel bitmap this will be 100h or 256.
+        //-> 1 ^24
+        puntero[46]=puntero[47]=puntero[48]=0;        
+        puntero[49]=1;
+
+        //Number of important colors  0 = all
+        puntero[50]=puntero[51]=puntero[52]=puntero[53]=0;
+
+        return puntero;
+}
+
+void util_bmp_putpixel(z80_byte *puntero,int x,int y,int r,int g,int b)
+{
+        int ancho=value_8_to_16(puntero[19],puntero[18]);
+        int alto=value_8_to_16(puntero[23],puntero[22]);
+
+        //Se dibuja de abajo a arriba
+        int yfinal=(alto-1)-y;
+
+        int tamanyo_linea=ancho*3;
+        int offset_x=x*3;
+        int offset=(yfinal*tamanyo_linea)+offset_x+UTIL_BMP_HEADER_SIZE;
+
+        //Each 3-byte triplet in the bitmap array represents the relative intensities of blue, green, and red, respectively, for a pixel.
+
+        puntero[offset++]=b;
+        puntero[offset++]=g;
+        puntero[offset++]=r;
+
+}
+
+
+
+
+
+void util_write_screen_bmp(char *archivo)
+{
+
+        enable_rainbow();
+
+        int ancho,alto;
+
+
+        ancho=screen_get_emulated_display_width_no_zoom_border_en();
+        alto=screen_get_emulated_display_height_no_zoom_border_en();         
+
+
+        FILE *ptr_scrfile;
+        ptr_scrfile=fopen(archivo,"wb");
+        if (!ptr_scrfile) {
+                debug_printf (VERBOSE_ERR,"Unable to open Screen file");
+        }
+                               
+        else {
+
+
+                z80_byte *puntero_bitmap;
+
+                puntero_bitmap=util_bmp_new(ancho,alto);
+				
+
+//pixeles...
+
+
+
+                //Derivado de vofile_send_frame
+
+
+                z80_int *original_buffer;
+
+                original_buffer=rainbow_buffer;
+
+
+                z80_int color_leido;
+
+                int r,g,b;
+
+                int x,y; 
+
+
+                for (y=0;y<alto;y++) {
+                        for (x=0;x<ancho;x++) {
+                                color_leido=*original_buffer;
+                                convertir_color_spectrum_paleta_to_rgb(color_leido,&r,&g,&b);
+
+                                util_bmp_putpixel(puntero_bitmap,x,y,r,g,b);
+
+                                original_buffer++;
+                        }
+                }
+
+
+
+                int file_size=util_bmp_get_file_size(ancho,alto);
+					
+                fwrite(puntero_bitmap,1,file_size,ptr_scrfile);
+		              
+
+
+
+                fclose(ptr_scrfile);
+
+                free(puntero_bitmap);
+        }
+
+
+        
+
 }

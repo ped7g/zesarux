@@ -127,6 +127,9 @@ void t_scanline_next_fullborder(void)
 
         int i;
 
+		//No si esta desactivado en tbblue
+		if (MACHINE_IS_TBBLUE && tbblue_store_scanlines_border.v==0) return;
+
         //a 255
         for (i=0;i<CURRENT_FULLBORDER_ARRAY_LENGTH;i++) fullbuffer_border[i]=255;
 
@@ -165,6 +168,9 @@ void interrupcion_si_despues_lda_ir(void)
 
 void core_spectrum_store_rainbow_current_atributes(void)
 {
+
+	//No hacer esto en tbblue
+	if (MACHINE_IS_TBBLUE && tbblue_store_scanlines.v==0) return;	
 
 	//En maquina prism, no hacer esto
 	if (MACHINE_IS_PRISM) return;
@@ -498,23 +504,28 @@ void core_spectrum_fin_scanline(void)
 
 				else {
 					//if ((t_estados/screen_testados_linea)>319) printf ("storing rainbow buffer\n");
+					TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_store_scanline_rainbow);
 					screen_store_scanline_rainbow_solo_border();
 					screen_store_scanline_rainbow_solo_display();
+					TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_store_scanline_rainbow);
 				}
 
 				//t_scanline_next_border();
 
 			}
 
+			TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_t_scanline_next_line);
 			t_scanline_next_line();
+			TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_t_scanline_next_line);
 
 
 			//se supone que hemos ejecutado todas las instrucciones posibles de toda la pantalla. refrescar pantalla y
 			//esperar para ver si se ha generado una interrupcion 1/50
 
             if (t_estados>=screen_testados_total) {
-
+				TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_fin_frame_pantalla);
 				core_spectrum_fin_frame_pantalla();
+				TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_fin_frame_pantalla);
 			} 
 			//Fin bloque final de pantalla
 
@@ -574,13 +585,13 @@ void core_spectrum_handle_interrupts(void)
 
                                                 t_estados -=15;
 
-																								if (superupgrade_enabled.v) {
-																									//Saltar a NMI de ROM0. TODO: que pasa con puertos 32765 y 8189?
-																									superupgrade_puerto_43b = 0;
-																									puerto_32765=0;
-																									puerto_8189=0;
-																									superupgrade_set_memory_pages();
-																								}
+												if (superupgrade_enabled.v) {
+													//Saltar a NMI de ROM0. TODO: que pasa con puertos 32765 y 8189?
+													superupgrade_puerto_43b = 0;
+													puerto_32765=0;
+													puerto_8189=0;
+													superupgrade_set_memory_pages();
+												}
 
 						//Prueba
 						//Al recibir nmi tiene que poner paginacion normal. Luego ya saltara por autotrap de diviface
@@ -704,7 +715,10 @@ void core_spectrum_handle_interrupts_pentagon(void)
 
 void core_spectrum_ciclo_fetch(void)
 {
+
+	TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_store_rainbow_current_atributes);
 	core_spectrum_store_rainbow_current_atributes();
+	TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_store_rainbow_current_atributes);
 
 
 
@@ -773,9 +787,19 @@ void core_spectrum_ciclo_fetch(void)
 
 				rzx_in_fetch_counter_til_next_int_counter++;
 
-						
+
+#ifdef EMULATE_SCF_CCF_UNDOC_FLAGS	
+				//Guardar antes F
+				scf_ccf_undoc_flags_before=Z80_FLAGS;
+#endif
+
 	            codsinpr[byte_leido_core_spectrum]  () ;
-				
+
+
+#ifdef EMULATE_SCF_CCF_UNDOC_FLAGS	
+				//Para saber si se ha modificado
+				scf_ccf_undoc_flags_after_changed=(Z80_FLAGS  == scf_ccf_undoc_flags_before ? 0 : 1);
+#endif				
 
 				//Ultima duracion, si es que ultimo opcode no genera fetch de nuevo del opcode
 				if (!core_refetch) duracion_ultimo_opcode=t_estados-t_estados_antes_opcode;
@@ -897,7 +921,9 @@ void cpu_core_loop_spectrum(void)
 
 		else {
 			if (esperando_tiempo_final_t_estados.v==0) {
+				TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_ciclo_fetch);
 				core_spectrum_ciclo_fetch();
+				TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_ciclo_fetch);
             }
 
         }
@@ -912,10 +938,11 @@ void cpu_core_loop_spectrum(void)
 
 		//A final de cada scanline 
 		if ( (t_estados/screen_testados_linea)>t_scanline  ) {
+			TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_fin_scanline);
 			core_spectrum_fin_scanline();			
+			TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_fin_scanline);
 		}
 		
-
 
 		//Ya hemos leido duracion ultimo opcode. Resetearla a 0 si no hay que hacer refetch
 		if (!core_refetch) duracion_ultimo_opcode=0;		
@@ -934,11 +961,15 @@ void cpu_core_loop_spectrum(void)
 
             //y de momento actualizamos tablas de teclado segun tecla leida
 			//printf ("Actualizamos tablas teclado %d ", temp_veces_actualiza_teclas++);
+			TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_scr_actualiza_tablas_teclado);
 			scr_actualiza_tablas_teclado();
+			TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_scr_actualiza_tablas_teclado);
 
 
 			//lectura de joystick
+			TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_realjoystick_main);
 			realjoystick_main();
+			TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_realjoystick_main);
 
 
 
@@ -962,7 +993,9 @@ void cpu_core_loop_spectrum(void)
 
 		//Interrupcion de cpu. gestion im0/1/2. Esto se hace al final de cada frame en spectrum o al cambio de bit6 de R en zx80/81
 		if (interrupcion_maskable_generada.v || interrupcion_non_maskable_generada.v) {
+			TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_handle_interrupts);
 			core_spectrum_handle_interrupts();
+			TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_handle_interrupts);
         }
 		//Fin gestion interrupciones
 

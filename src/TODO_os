@@ -1,20 +1,16 @@
 
 --- Mac OS X ---
 
--Que hacemos con cocoa no opengl?
 
 -Poder asignar extensiones para abrir con zesarux en Mac OS X. Y de paso eliminar warnings de línea de comandos
 -cocoa: En Mac, si se pone en .zesaruxrc: --vo curses Inicializa la ventana en blanco de Cocoa y luego abre ventana de curses donde transcurre todo...
 Es poder saber antes las opciones de configuracion dado que la comprobacion del driver video (--vo) se hace en el main del scrcocoa.m
+
 -full screen con cocoa gl. desde menu, no redimensiona ventana
 y haciendo maximize desde ventana, hace full screen pero distorsionado
--cerrar el emulador desde el boton de cerrar ventana, con driver opengl, acaba provocando segmentation fault
+
 -script de speech say falla cuando texto empieza con "-", como en README
 -con app de "loopback audio", ejecutando ZEsarUX como app de Mac se oye diferente. ->  Desinstalando "loopback audio" no pasa
-
--Full screen cocoa gl
-
--en mac, con driver cocoagl o no cocoagl, hace una especie de parpadeo abajo en el footer a veces. quiza solo es en el no-opengl?
 
 
 Comentar los cambios de cocoa con llamadas al main thread, que son debidos a:
@@ -49,12 +45,9 @@ https://github.com/ThemsAllTook/libstem_gamepad
 
 Quizá en OSX superiores lo han simplificado. Pero hace falta swift o funciona con C?
 
-Y Windows sdl?
 
 -Fin Joystick en Mac
 
-
--parece que cocoa no opengl no redibuja... que hago? lo corrijo o solo dejo cocoa opengl?
 
 ------------------
 
@@ -63,6 +56,8 @@ Y Windows sdl?
 --- windows - mingw - fallos ---
 
 -footer en fullscreen no lo ubica bien. En SDL de Linux va bien
+
+-Revisar al expulsar cinta si Windows lo libera 
 
 -probar con sdl audio y video simpletext . parece que no se oye el sonido. En Linux va bien
 

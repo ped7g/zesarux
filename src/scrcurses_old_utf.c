@@ -111,10 +111,13 @@ curses_last_message_shown_timer=250;
 }
 
 //Rutina de putchar para menu
-void scrcurses_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrcurses_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
 	int brillo;
+
+        tinta=tinta&15;
+        papel=papel&15;
 	
 
 	//brillo para papel o tinta
@@ -150,10 +153,13 @@ void scrcurses_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_by
 #define CURSES_LINE_DEBUG_REGISTERS (24+(CURSES_TOP_BORDER*2)*border_enabled.v+3)
 #define CURSES_LINE_MESSAGES (24+(CURSES_TOP_BORDER*2)*border_enabled.v+4)
 
-void scrcurses_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrcurses_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
         int brillo;
+
+        tinta=tinta&15;
+        papel=papel&15;
 
         
         //brillo para papel o tinta

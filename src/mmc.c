@@ -31,6 +31,8 @@
 #include "menu.h"
 #include "screen.h"
 #include "divmmc.h"
+#include "compileoptions.h"
+#include "operaciones.h"
 
 
 //valores temporales
@@ -576,6 +578,63 @@ void mmc_cs(z80_byte value)
 	debug_printf (VERBOSE_PARANOID,"Card selected: %d",mmc_card_selected);
 }
 
+
+//-1 si no aplica
+int mmc_get_visualmem_position(unsigned int address)
+{
+#ifdef EMULATE_VISUALMEM
+	if (mmc_size>0) {
+
+		unsigned long int address_l,mmc_size_l;
+
+		address_l=address;
+		mmc_size_l=mmc_size;
+
+		// Necesario hacerlo asi porque son numeros de 64 bits y si no, no va bien
+		// Basicamente ajustamos el valor de direccion al total de tamanyo de visualmem
+		// Seria (address/mmc_size) * visualmem_size
+		// la primera division es decimal, entre 0 y 1, por eso la realizo al final,
+		// multiplico antes y luego divido, asi puedo usar numeros enteros y no necesito decimales
+		unsigned long int posicion_final=(address_l*VISUALMEM_MMC_BUFFER_SIZE);
+
+		posicion_final /=mmc_size_l;
+
+		//por si acaso
+		if (posicion_final>=0 && posicion_final<VISUALMEM_MMC_BUFFER_SIZE) {
+				return posicion_final;
+				//printf ("add %d mmc_size %ld visualsize: %d final: %ld\n",address,mmc_size,VISUALMEM_MMC_BUFFER_SIZE,posicion_final);
+
+		}
+	}
+
+#endif
+
+	return -1;
+}
+
+
+void mmc_set_visualmem_read(unsigned int address)
+{
+#ifdef EMULATE_VISUALMEM
+	int posicion_final=mmc_get_visualmem_position(address);
+	if (posicion_final>=0) {
+		set_visualmemmmc_read_buffer(posicion_final);
+	}
+
+#endif
+}
+ 
+void mmc_set_visualmem_write(unsigned int address)
+{
+#ifdef EMULATE_VISUALMEM
+	int posicion_final=mmc_get_visualmem_position(address);
+	if (posicion_final>=0) {
+		set_visualmemmmc_write_buffer(posicion_final);
+	}
+
+#endif
+}
+ 
 z80_byte mmc_read_byte_memory(unsigned int address)
 {
 
@@ -587,7 +646,12 @@ z80_byte mmc_read_byte_memory(unsigned int address)
 		mmc_disable();
 		return 0;
 	}
-	else return mmc_memory_pointer[address];
+	else {
+		mmc_set_visualmem_read(address);
+
+
+		return mmc_memory_pointer[address];
+	}
 }
 
 void mmc_write_byte_memory(unsigned int address,z80_byte value)
@@ -606,6 +670,8 @@ void mmc_write_byte_memory(unsigned int address,z80_byte value)
 
 	mmc_memory_pointer[address]=value;
 	mmc_flash_must_flush_to_disk=1;
+
+	mmc_set_visualmem_write(address);
 }
 
 

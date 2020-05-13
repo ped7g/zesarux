@@ -19,6 +19,9 @@
 
 */
 
+//para memcpy de ldir hack
+#include <string.h>
+
 #include "cpu.h"
 #include "operaciones.h"
 #include "debug.h"
@@ -28,6 +31,7 @@
 #include "tbblue.h"
 #include "screen.h"
 #include "settings.h"
+
 
 void invalid_opcode_ed(char *s)
 {
@@ -2049,10 +2053,54 @@ void instruccion_ed_175 ()
         invalid_opcode_ed("237 175");
 }
 
+void instruccion_ed_176_optimized ()
+{
+
+//LDIR optimized
+//printf ("LDIR optimized origen %d destino %d long %d\n",HL,DE,BC);
+        if (0 /*MACHINE_IS_SPECTRUM_48*/) {
+
+                //memcpy a lo bestia. lastima: esto no parece llevarse bien con cosas como:
+                //LDIR optimized origen 22208 destino 22209 long 63
+                //que hace el basic, porque se solapan
+                memcpy(&memoria_spectrum[DE],&memoria_spectrum[HL],BC);
+                HL +=BC;
+                DE +=BC;
+                BC = 0;
+        }
+
+        else {
+
+                z80_byte byte_leido;
+
+                do {
+
+                        byte_leido=peek_byte_no_time(HL);
+                        poke_byte_no_time(DE,byte_leido);
+
+                        HL++; DE++;
+                        BC--;
+                } while (BC!=0);
+
+        }
+
+        Z80_FLAGS &=(255-FLAG_H-FLAG_N-FLAG_PV-FLAG_3-FLAG_5);
+
+}
+
+
+
 void instruccion_ed_176 ()
 {
 
 //LDIR
+
+        if (cpu_ldir_lddr_hack_optimized.v) {
+                
+                instruccion_ed_176_optimized();
+               
+                return;
+        }
 
 #ifdef EMULATE_MEMPTR
         if (reg_b!=0 || reg_c!=1) set_memptr(reg_pc-1);
@@ -2292,9 +2340,43 @@ void instruccion_ed_183 ()
 }
 
 
+void instruccion_ed_184_optimized ()
+{
+
+//LDDR optimized
+//printf ("LDDR optimized origen %d destino %d long %d\n",HL,DE,BC);
+      
+
+        z80_byte byte_leido;
+
+        do {
+
+                byte_leido=peek_byte_no_time(HL);
+                poke_byte_no_time(DE,byte_leido);
+
+                HL--; DE--;
+                BC--;
+        } while (BC!=0);
+
+     
+
+        Z80_FLAGS &=(255-FLAG_H-FLAG_N-FLAG_PV-FLAG_3-FLAG_5);
+
+}
+
+
+
+
 void instruccion_ed_184 ()
 {
 //LDDR
+
+        if (cpu_ldir_lddr_hack_optimized.v) {
+                
+                instruccion_ed_184_optimized();
+               
+                return;
+        }
 #ifdef EMULATE_MEMPTR
         if (reg_b!=0 || reg_c!=1) set_memptr(reg_pc-1);
 #endif

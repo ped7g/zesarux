@@ -126,6 +126,11 @@ z80_byte *visualmem_read_buffer=NULL;
 //lo mismo pero para ejecucion de opcodes
 z80_byte *visualmem_opcode_buffer=NULL;
 
+//lo mismo pero para mmc lectura
+z80_byte *visualmem_mmc_read_buffer=NULL;
+
+//lo mismo pero para mmc escritura
+z80_byte *visualmem_mmc_write_buffer=NULL;
 
 
 
@@ -159,6 +164,23 @@ void init_visualmembuffer(void)
 		cpu_panic("Can not allocate visualmem opcode buffer");
 	}
 
+	debug_printf(VERBOSE_INFO,"Allocating %d bytes for visualmem mmc read buffer",VISUALMEM_MMC_BUFFER_SIZE);
+
+	visualmem_mmc_read_buffer=malloc(VISUALMEM_MMC_BUFFER_SIZE);
+	if (visualmem_mmc_read_buffer==NULL) {
+		cpu_panic("Can not allocate visualmem mmc read buffer");
+	}
+
+
+	debug_printf(VERBOSE_INFO,"Allocating %d bytes for visualmem mmc write buffer",VISUALMEM_MMC_BUFFER_SIZE);
+
+	visualmem_mmc_write_buffer=malloc(VISUALMEM_MMC_BUFFER_SIZE);
+	if (visualmem_mmc_write_buffer==NULL) {
+		cpu_panic("Can not allocate visualmem mmc write buffer");
+	}
+
+
+
 }
 
 void set_visualmembuffer(int dir)
@@ -189,6 +211,19 @@ void set_visualmemopcodebuffer(int dir)
 
 }
 
+void set_visualmemmmc_read_buffer(int dir)
+{
+        z80_byte valor=visualmem_mmc_read_buffer[dir];
+        if (valor<255) visualmem_mmc_read_buffer[dir]=valor+1;
+}
+
+void set_visualmemmmc_write_buffer(int dir)
+{
+        z80_byte valor=visualmem_mmc_write_buffer[dir];
+        if (valor<255) visualmem_mmc_write_buffer[dir]=valor+1;
+}
+
+
 void clear_visualmembuffer(int dir)
 {
         visualmem_buffer[dir]=0;
@@ -202,6 +237,16 @@ void clear_visualmemreadbuffer(int dir)
 void clear_visualmemopcodebuffer(int dir)
 {
         visualmem_opcode_buffer[dir]=0;
+}
+
+void clear_visualmemmmc_read_buffer(int dir)
+{
+        visualmem_mmc_read_buffer[dir]=0;
+}
+
+void clear_visualmemmmc_write_buffer(int dir)
+{
+        visualmem_mmc_write_buffer[dir]=0;
 }
 
 
@@ -1915,6 +1960,39 @@ z80_byte *tbblue_return_segment_memory(z80_int dir)
 }
 
 
+
+z80_byte *tbblue_get_altrom_dir(z80_int dir)
+{
+	/*
+	   -- 0x018000 - 0x01BFFF (16K)  => Alt ROM0 128k           A20:A16 = 00001,10
+   -- 0x01c000 - 0x01FFFF (16K)  => Alt ROM1 48k            A20:A16 = 00001,11
+	*/
+
+/*
+0x8C (140) => Alternate ROM
+(R/W) (hard reset = 0)
+IMMEDIATE
+  bit 7 = 1 to enable alt rom
+  bit 6 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
+  bit 5 = 1 to lock ROM1 (48K rom)
+  bit 4 = 1 to lock ROM0 (128K rom)
+*/
+
+	int puntero;
+
+	//Ver si es rom 0 o rom 1
+	int altrom;
+
+	altrom=tbblue_get_altrom();
+
+	//if (dir<2048) printf("tbblue_get_altrom_dir. altrom=%d\n",altrom);
+
+	puntero=tbblue_get_altrom_offset_dir(altrom,dir&16383);
+
+	return &memoria_spectrum[puntero];
+
+}
+
 void poke_byte_no_time_tbblue(z80_int dir,z80_byte valor)
 {
 
@@ -1923,6 +2001,45 @@ void poke_byte_no_time_tbblue(z80_int dir,z80_byte valor)
 set_visualmembuffer(dir);
 
 #endif
+
+	//Altrom. Si escribe en espacio de memoria de rom 0-3fffh
+	if (dir<16384 && (  (tbblue_registers[0x8c] & 192) ==192)   ) {
+		/*
+		0x8C (140) => Alternate ROM
+(R/W) (hard reset = 0)
+IMMEDIATE
+  bit 7 = 1 to enable alt rom
+  bit 6 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
+
+  //bit 6 =0 , only for read. bit 6=1, only for write
+  */
+
+		//printf ("Escribiendo en altrom dir: %04XH valor : %02XH  PC=%04XH diviface control: %d active: %d\n",dir,valor,reg_pc,
+		//		        diviface_control_register&128, diviface_paginacion_automatica_activa.v);
+
+
+		int escribir=1;
+
+		if (! (
+				(diviface_control_register&128)==0 && diviface_paginacion_automatica_activa.v==0) 
+		      )
+		{
+			escribir=0;
+			//printf ("No escribimos pues esta diviface ram conmutada\n");
+        }
+
+
+		//Y escribimos
+		if (escribir) {
+			z80_byte *altrompointer;
+	
+			altrompointer=tbblue_get_altrom_dir(dir);
+			*altrompointer=valor;
+		}
+	}
+
+
+
 
 		//Si se escribe en memoria layer2
 		if (tbblue_write_on_layer2()) {
@@ -6949,7 +7066,15 @@ void out_port_spectrum_border(z80_int puerto,z80_byte value)
 				}
 
 				else {
-					fullbuffer_border[i]=get_border_colour_from_out();
+					int actualiza_fullbuffer_border=1;
+					//No si esta desactivado en tbblue
+					if (MACHINE_IS_TBBLUE && tbblue_store_scanlines_border.v==0) {
+						actualiza_fullbuffer_border=0;
+					}
+
+					if (actualiza_fullbuffer_border) {
+						fullbuffer_border[i]=get_border_colour_from_out();
+					}
 				}
 				//printf ("cambio border i=%d color: %d\n",i,out_254 & 7);
 			}
@@ -7560,27 +7685,15 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 		if (puerto==TBBLUE_REGISTER_PORT) tbblue_set_register_port(value);
 		if (puerto==TBBLUE_VALUE_PORT) tbblue_set_value_port(value);
 
-                        //Puerto tipicamente 32765
-                        // the hardware will respond only to those port addresses with
-						//bit 1 reset, bit 14 set and bit 15 reset (as opposed to just bits 1 and 15 reset on the 128K/+2).
-        if ( (puerto & 49154) == 16384 ) {
-				tbblue_out_port_32765(value);
-				
-        }
+		//Puerto tipicamente 32765
+		// the hardware will respond only to those port addresses with
+		//bit 1 reset, bit 14 set and bit 15 reset (as opposed to just bits 1 and 15 reset on the 128K/+2).
+        if ( (puerto & 49154) == 16384 ) tbblue_out_port_32765(value);			
 
 
-                        //Puerto tipicamente 8189
-                         // the hardware will respond to all port addresses with bit 1 reset, bit 12 set and bits 13, 14 and 15 reset).
-                        if ( (puerto & 61442 )== 4096) {
-				//printf ("TBBLUE changing port 8189 value=0x%02XH\n",value);
-                                puerto_8189=value;
-
-				//En rom entra la pagina habitual de modo 128k, evitando lo que diga la mmu
-				tbblue_registers[80]=255;
-				tbblue_registers[81]=255;
-
-                                tbblue_set_memory_pages();
-                        }
+		//Puerto tipicamente 8189
+			// the hardware will respond to all port addresses with bit 1 reset, bit 12 set and bits 13, 14 and 15 reset).
+		if ( (puerto & 61442 )== 4096) tbblue_out_port_8189(value);
 
 		if (puerto==TBBLUE_SPRITE_INDEX_PORT)	tbblue_out_port_sprite_index(value);
 		if (puerto==TBBLUE_LAYER2_PORT) tbblue_out_port_layer2_value(value);
@@ -7592,8 +7705,8 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 
 		if (puerto_l==TBBLUE_SPRITE_SPRITE_PORT) tbblue_out_sprite_sprite(value);
 
-                if (puerto==DS1307_PORT_CLOCK) ds1307_write_port_clock(value);
-                if (puerto==DS1307_PORT_DATA) ds1307_write_port_data(value);
+		if (puerto==DS1307_PORT_CLOCK) ds1307_write_port_clock(value);
+		if (puerto==DS1307_PORT_DATA) ds1307_write_port_data(value);
 
 		if (puerto==TBBLUE_UART_TX_PORT) tbblue_uartbridge_writedata(value);				
 
@@ -7650,14 +7763,18 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 		//return;
 	}
 
-	//Puerto para modos extendidos ulaplus pero cuando la maquina no es zxuno
+	//Puerto para modos extendidos ulaplus o seleccion modo turbo chloe, pero cuando la maquina no es zxuno
 	if (!MACHINE_IS_ZXUNO && (puerto==0xFC3B  || puerto==0xFD3B)) {
 		if (puerto==0xFC3B) last_port_FC3B=value;
 
 		if (puerto==0xFD3B) {
 
-	                zxuno_ports[last_port_FC3B]=value;
+	        zxuno_ports[last_port_FC3B]=value;
 			if (last_port_FC3B==0x40) ulaplus_set_extended_mode(value);
+
+			if (MACHINE_IS_CHLOE && last_port_FC3B==0x0B) {
+				zxuno_set_emulator_setting_scandblctrl();
+			}
 		}
 	}
 

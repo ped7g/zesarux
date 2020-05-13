@@ -81,8 +81,11 @@ aa_last_message_shown_timer=250;
 }
 
 //Rutina de putchar para menu
-void scraa_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scraa_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
+
+        tinta=tinta&15;
+        papel=papel&15;
 
 	enum aa_attribute attr=AA_NORMAL;
 	if (tinta>7 || papel>7) attr=AA_BOLD;
@@ -103,12 +106,15 @@ void scraa_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte p
 
 }
 
-void scraa_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scraa_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 	//De momento Nada de footer
 	//Calcular posicion y. Total de alto-3
 	//int yorigin=aa_scrheight(context)-3;
 	//aa_printf(context,x,yorigin+y,AA_NORMAL,"%c",caracter);
+
+        tinta=tinta&15;
+        papel=papel&15;
 
 	//para que no se queje el compilador de variables no usadas
 	x++;

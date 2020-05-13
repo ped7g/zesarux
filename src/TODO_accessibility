@@ -13,7 +13,6 @@ O quizá setting configurable
 -				//TODO: esto no tiene efecto, sigue releyendo cuando estas sobre item que no tiene tooltip
 				//menu_speech_tecla_pulsada=1;	
 
--settings activados con [X] se leen raro, con equis: ejemplo: "ex CPC mode" (activado), o "CPC mode" (desactivado)
 
 -script de mac say no reproduce lineas que empiezan por "--", como algunas lineas del FAQ
 

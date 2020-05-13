@@ -3,7 +3,6 @@
 Macros o lenguaje en ZEsarUX
 Que permita integrar con ZRCP y acciones...
 
--Parseo de parámetros con comillas en ZRCP 
 
 -Que se puedan ver errores debug verbose etc pero en ZRCP, de manera que no se vean en consola pero si en ZRCP. Eso permitiría debugar remotamente en raspiboy por ejemplo
 
@@ -21,13 +20,11 @@ Ver si la simulación de pulsado de escape desde smartload de remote protocol no
 
 -opcion ZRCP que indique que memoria divmmc/divide esta mapeada: de momento dice divmmc sin mas
 
--opcion ZRCP para cargar y grabar binary
-
 -Comandos ZRCP obtener datos sprites tsconf
 
 
 -Comando genérico para alterar algunos settings desde ZRCP hacia settings de menú
-Quizá haver función que mediante una string de entrada (quizá misma que command line) que pueda:
+Quizá hacer función que mediante una string de entrada (quizá misma que command line) que pueda:
 -establecer valor
 -conmutar valor, en el caso de variables 0/1
 Luego se podrá usar en el futuro para nuevos settings de menú y command line, y automáticamente desde ZRCP 
@@ -38,6 +35,11 @@ Mark Hutchings
 
 -exit-emulator de ZRCP no parece funcionar en Mac, pero en Linux si. Va como a medias, desactiva el sonido pero no sale
 
+-al salir emulador desde exit-emulator de ZRCP no acaba de salir del todo. Luego salgo con ctrl-c y el footer luego arranca desactivado
+
+-Agregar a extended stack: fecha y hora de entrada en stack. También puede testado y milisegundos de la hora 
+Extended stack visible en menu. Consultable
+Poder consultar stack normal también en menú 
 
 -------------
 

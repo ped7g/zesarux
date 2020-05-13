@@ -77,6 +77,21 @@ http://www.dilwyn.me.uk/downloads.html
 
 -util z80 moto poke pokea en motorola pero sin protección de escritura en rom
 
+
+-ql:Convertir nombre ql a nombre disco. Solo cambiar la última _ por ., para poder cargar juegos que tengan una _ en su nombre  
+Esta ya?
+
+-Mdv dos formatos
+
+http://qlforum.co.uk/viewtopic.php?t=749&start=20
+
+You know that q-emulator supports two different types of mdv image files Both with ".mdv" file extensions?
+
+QLay style, and Q-emulator style made with the mdump_exe program.
+
+QLay image files are 174,930 bytes long, and q-emulater image files are of a varying length due to only storing the good sectors of the Microdrive.
+
+
 -------------
 
 
@@ -300,37 +315,12 @@ D3 = 1 - disable rom and connect ram page 0 in adress space 0-3FFF
 --- TBBlue ---
 
 -Activar el kempston mouse entra en conflicto con el editor de basic. 
-Al mover raton hace cosas raras. Quizá era por los bits wheel. Ya corregido?
+Al mover raton hace cosas raras. Tambien en el menu de tbblue
 
 -tools/tile editor: no se ve bien?
 
 Refresco de Tbblue para curses , stdout y simpletext en caso de:
 -rainbow y modos tiles etc habilitados. O simplemente modo rainbow  
-
-Last of the incompatible changes to tilemap made.
-
-(R/W) 0x6B (107) => Tilemap Control
-  bit 7    = 1 to enable the tilemap
-  bit 6    = 0 for 40x32, 1 for 80x32
-  bit 5    = 1 to eliminate the attribute entry in the tilemap
-  bit 4    = palette select
-  bits 3-2 = Reserved set to 0
-  bit 1    = 1 to activate 512 tile mode
-  bit 0    = 1 to force tilemap on top of ULA
-
-512 tile mode is solely entered via bit 1.  Whether the ula is enabled or not makes no difference
-
-when in 512 tile mode, the ULA is on top of the tilemap.  You can change this by setting bit 0
-
-
-512 mode is its like the 256 tile mode, but with twice as many 
-
-The tile number is 9 bits instead of 8 bits.  The "ula on top" bit of the tilemap flags is take as bit 8.
-
-Before this update, 512 tile mode was automatically entered when the ula was disabled.  In this case "ula on top" was useless so was made bit 9 of the tile number.  Now we're getting rid of the requirement that the ULA be turned off to access 512 tiles
-
-"ULA over tilemap" was only bit 8 of the tile number if the ULA was disabled.  We're getting rid of that requirement by making it bit 8 when the 512 tile mode is enabled.  So no need to have the ULA disabled to get there anymore.
-
 
 
 
@@ -422,7 +412,7 @@ Así es más fácil saber cuando agregan o modifican algo nuevo
 https://specnext.dev/wiki/Next_Memory_Bank_Select
 
 -27 noviembre 2019:
-The tilemap and sprites can extend into the border area.  In the future, layer 2 will as well.
+The tilemap and sprites can extend into the border area.  
 
 Because there can be so many sprites on screen (128 without any multiplexing), people have used sprites 
 to generate background in the border.  You need 96 to cover the 32 pixels on the left and right sides of 
@@ -458,7 +448,6 @@ De momento estoy haciendo 64 patterns-> por tanto, 256 bytes por pattern
 -Sincronizar bits de joystick de puerto config2
 -no dejar aumentar memoria divmmc mas de 128kb, pues tbblue no tiene mas que eso. sino, se accederia a memoria mas alla del divmmc
 
--a veces al arrancar la maquina no encuentra archivos de la sd. Quiza por algun registro de la mmc que no se inicializa correctamente?
 -para emulacion de +3e, la sd se utiliza la sd secundaria. emular segunda SD????
 -considerar algunas escrituras de puertos que dicen:
 only in bootrom or config mode:
@@ -476,6 +465,69 @@ Ver registro 2:
 
 -PIXELUP/DN quiza pueda ir mas alla de coordenada 191
 https://www.specnext.com/forum/viewtopic.php?p=8226#p8226
+
+
+-sistema altrom esta reemplazado en siguientes versiones del core fpga por otro metodo!
+
+
+-tbblue: considerar mejor prioridades de capas de memoria, por ejemplo al escribir altrom esta comprobando aparte si esta diviface habilitdo
+esto por ejemplo fallaria si alguien le da por escribir en altrom pero habilitando layer2, creo que layer2 tiene mas prioridad por tanto altrom no se deberia escribir 
+Hay una lista de capas de prioridades en el codigo fuente de la fpga. Segun src/zxnext.vhd:
+
+   -- memory decode order
+   --
+   -- 0-16k:
+   --   1. bootrom
+   --   2. machine config mapping
+   --   3. multiface
+   --   4. divmmc
+   --   5. layer 2 mapping
+   --   6. mmu
+   --   7. romcs expansion bus
+   --   8. rom
+   --
+   -- 16k-48k:
+   --   1. layer 2 mapping
+   --   2. mmu
+   --
+   -- 48k-64k:
+   --   1. mmu
+
+
+-4 puertos Dac de Next
+
+
+-Allow config mode banking to reach the entire 2MB memory space (nextreg 0x04)
+
+
+Implementar bit 4 puerto layer2 0x123B:
+-0x123B Layer 2 control
+(R/W) If bit 4 = 0:
+  (soft reset = 0)
+  bits 7:6 = layer 2 memory map type
+    00 = first 16K of layer 2 in the bottom 16K
+    01 = second 16K of layer 2 in the bottom 16K
+    10 = third 16K of layer 2 in the bottom 16K
+    11 = first 48K of layer 2 in the bottom 48K
+  bit 5 = Reserved, must be 0
+  bit 4 = 0
+  bit 3 = 0 to map active layer 2 (nextreg 0x12), 1 to map shadow layer 2 (nextreg 0x13)
+  bit 2 = 1 to enable mapping for memory reads
+  bit 1 = 1 to enable layer 2 display
+  bit 0 = 1 to enable mapping for memory writes
+(W) If bit 4 = 1:
+  (soft reset = 0)
+  bits 7:5 = Reserved, must be 0
+  bit 4 = 1
+  bit 3 = Reserved, must be 0
+  bits 2:0 = 16K bank offset applied to layer 2 memory mapping
+
+Memory pointed at by nextreg 0x12 or nextreg 0x13 can be mapped into the lower 16K or 48K if 
+layer 2 memory mapping is enabled in bit 2 and/or bit 0.  This mechanism is separate from MMU 
+and will overlay the paging state set by MMU but only if the memory access type matches 
+the enable condition (read-only, write-only). The particular 16K bank(s) mapped in begin 
+at the pointed bank plus an optional offset written when bit 4 = 1.  For out of range banks, 
+writes do not have an effect and reads return unspecified data.
 
 -------------
 
@@ -634,6 +686,8 @@ Quizá demo raster zxuno falla porque la interrupción tarda demasiado...
 -texto inverso en zx-80/81 con extension ansi y drivers de texto
 
 -No hace auto turbo para real tape ZX 80, 81
+
+-Zx99 interface para zx81
 
 -------------
 

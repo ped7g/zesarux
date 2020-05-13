@@ -156,6 +156,10 @@ z80_bit hardware_debug_port={0};
 char zesarux_zxi_hardware_debug_file[PATH_MAX]="";
 
 
+//Si se muestra visualmem grafico en drivers grafico. Si no, muestra visualmem de texto en drivers graficos
+z80_bit setting_mostrar_visualmem_grafico={1}; 
+
+
 //
 // Snapshot Settings
 //
@@ -185,7 +189,7 @@ z80_bit fast_autoload={0};
 //
 
 //Si se muestra piano grafico en drivers grafico. Si no, muestra piano de texto en drivers graficos
-z80_bit setting_mostrar_ay_piano_grafico={1};
+z80_bit setting_mostrar_ay_piano_grafico={1}; 
 
 
 
@@ -211,3 +215,28 @@ int adventure_keyboard_key_length=DEFAULT_ADV_KEYBOARD_KEY_LENGTH;
 //Usar caracteres extendidos de cursesw. La opcion se puede usar aunque no este compilado cursesw
 //(se cargará y grabará de config aunque no tenga ningún efecto)
 z80_bit use_scrcursesw={0};
+
+
+//Si se ha preguntado ya para descargar la imagen SD al seleccionar maquina tbblue
+z80_bit tbblue_autoconfigure_sd_asked={0};
+
+
+
+//Guardar scanlines en pixel/atributos en tbblue, requerido para demos hi-res (de spectrum , no de next necesariamente)
+//Por defecto, desactivado
+z80_bit tbblue_store_scanlines={0};
+
+//Lo mismo pero para el border
+z80_bit tbblue_store_scanlines_border={0};
+
+
+
+//
+// Windows Settings
+//
+
+//Si permitimos o no ventanas en background al pulsar F6
+int menu_allow_background_windows=0;
+
+//Reabrir ventanas al iniciar el emulador 
+z80_bit menu_reopen_background_windows_on_start={0};

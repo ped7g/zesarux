@@ -41,15 +41,15 @@ Examples
 
 */
 
-//#define EMULATOR_VERSION "8.1"
+//#define EMULATOR_VERSION "8.2"
 
-#define EMULATOR_VERSION "8.1-Ped7g"
-//#define EMULATOR_VERSION "8.-RC"
+#define EMULATOR_VERSION "8.2-Ped7g"
+//#define EMULATOR_VERSION "8.2-RC"
 #define SNAPSHOT_VERSION
 
-#define EMULATOR_DATE "8 January 2020"
-#define EMULATOR_SHORT_DATE "08/01/2020"
-#define EMULATOR_GAME_EDITION "The Great Escape"
+#define EMULATOR_DATE "16 March 2020"
+#define EMULATOR_SHORT_DATE "16/03/2020"
+#define EMULATOR_GAME_EDITION "xxx"
 #define EMULATOR_EDITION_NAME EMULATOR_GAME_EDITION " edition"
 
 //8 bits
@@ -147,6 +147,9 @@ extern z80_byte Z80_FLAGS_SHADOW;
 #define FLAG_S  0x80
 
 extern z80_int memptr;
+
+extern z80_byte scf_ccf_undoc_flags_before;
+extern int scf_ccf_undoc_flags_after_changed;
 
 extern z80_bit iff1,iff2;
 
@@ -282,6 +285,7 @@ extern z80_bit autoselect_snaptape_options;
 extern z80_bit tape_loading_simulate;
 extern z80_bit tape_loading_simulate_fast;
 extern void end_emulator(void);
+extern void end_emulator_saveornot_config(int saveconfig);
 
 extern z80_bit snow_effect_enabled;
 
@@ -428,6 +432,8 @@ extern z80_bit stdout_simpletext_automatic_redraw;
 extern int machine_emulate_memory_refresh;
 extern int machine_emulate_memory_refresh_counter;
 
+extern z80_bit cpu_ldir_lddr_hack_optimized;
+
 extern z80_byte last_inves_low_ram_poke_menu;
 
 extern void random_ram_inves(z80_byte *puntero,int longitud);
@@ -508,6 +514,8 @@ extern z80_bit core_spectrum_uses_reduced;
 extern char parameter_disablebetawarning[];
 
 extern int total_minutes_use;
+
+extern char macos_path_to_executable[];
 
 
 #endif

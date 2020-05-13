@@ -41,11 +41,20 @@
 
 
 struct s_overlay_screen {
-	z80_byte tinta,papel,parpadeo;
+	int tinta,papel,parpadeo;
 	z80_byte caracter;
 };
 
 typedef struct s_overlay_screen overlay_screen;
+
+
+//Para el guardado de la geometria de ventanas
+
+//Maximo de ventanas que se guarda geometria
+#define MAX_CONFIG_WINDOW_GEOMETRY 100
+//Tamaño maximo del nombre para la geometria
+#define MAX_NAME_WINDOW_GEOMETRY 100
+
 
 
 //Nuevas ventanas zxvision
@@ -64,9 +73,15 @@ struct s_zxvision_window {
 	int total_width,total_height;
 	char window_title[256];
 
+	//Para el guardado de geometria
+	char geometry_name[MAX_NAME_WINDOW_GEOMETRY];
+
 	int can_be_resized;
 	int is_minimized;
 	int is_maximized;
+
+	//Si boton de background aparece en ventana. Nota: en principio F6 funciona aunque esto no se establezca
+	int can_be_backgrounded;
 
 	int height_before_max_min_imize;
 	int width_before_max_min_imize;
@@ -97,7 +112,6 @@ typedef struct s_zxvision_window zxvision_window;
 
 
 
-
 //Aqui hay un problema, y es que en utils.h se esta usando zxvision_window, y hay que declarar este tipo de ventana antes
 #include "utils.h"
 
@@ -111,7 +125,7 @@ typedef struct s_zxvision_window zxvision_window;
 //Usado en ver sprites y ver colores mapeados
 #define MENU_TOTAL_MAPPED_PALETTES 16
 
-
+#define MENU_LAST_DIR_FILE_NAME "zesarux_last_dir.txt"
 
 extern int menu_overlay_activo;
 extern void (*menu_overlay_function)(void);
@@ -128,7 +142,7 @@ extern void reset_menu_overlay_function(void);
 extern void pruebas_texto_menu(void);
 extern void cls_menu_overlay(void);
 extern void menu_cls_refresh_emulated_screen();
-extern void menu_escribe_texto(z80_byte x,z80_byte y,z80_byte tinta,z80_byte papel,char *texto);
+extern void menu_escribe_texto(int x,int y,int tinta,int papel,char *texto);
 extern void normal_overlay_texto_menu(void);
 extern int si_menu_mouse_en_ventana(void);
 extern void menu_calculate_mouse_xy(void);
@@ -220,13 +234,37 @@ typedef struct s_generic_message_tooltip_return generic_message_tooltip_return;
 
 extern void zxvision_new_window(zxvision_window *w,int x,int y,int visible_width,int visible_height,int total_width,int total_height,char *title);
 extern void zxvision_new_window_nocheck_staticsize(zxvision_window *w,int x,int y,int visible_width,int visible_height,int total_width,int total_height,char *title);
+extern void zxvision_cls(zxvision_window *w);
 extern void zxvision_destroy_window(zxvision_window *w);
 extern void zxvision_draw_window(zxvision_window *w);
 extern void zxvision_print_char(zxvision_window *w,int x,int y,overlay_screen *caracter);
 extern void zxvision_print_char_simple(zxvision_window *w,int x,int y,int tinta,int papel,int parpadeo,z80_byte caracter);
 extern void zxvision_draw_window_contents(zxvision_window *w);
 extern void zxvision_draw_window_contents_no_speech(zxvision_window *ventana);
-extern void zxvision_wait_until_esc(zxvision_window *w);
+extern int zxvision_wait_until_esc(zxvision_window *w);
+
+extern void zxvision_draw_overlay_if_exists(zxvision_window *w);
+//extern void menu_draw_background_windows_overlay(void);
+
+extern void zxvision_window_move_this_window_on_top(zxvision_window *ventana);
+extern int zxvision_if_window_already_exists(zxvision_window *w);
+extern void zxvision_window_delete_this_window(zxvision_window *ventana);
+extern zxvision_window *zxvision_return_n_window_from_top(int indice);
+extern void zxvision_redraw_all_windows(void);
+extern void zxvision_delete_window_if_exists(zxvision_window *ventana);
+extern int zxvision_window_can_be_backgrounded(zxvision_window *w);
+extern void zxvision_message_put_window_background(void);
+extern void zxvision_window_delete_all_windows(void);
+
+extern zxvision_window *zxvision_coords_in_below_windows(zxvision_window *w,int x,int y);
+
+extern void zxvision_set_window_overlay_from_current(zxvision_window *ventana);
+
+extern zxvision_window *zxvision_find_first_window_below_this(zxvision_window *w);
+
+//extern int tecla_f_background;
+//extern int menu_get_mask_puerto_especial(int tecla_f);
+//extern z80_byte *menu_get_port_puerto_especial(int tecla_f);
 
 #define MAX_ESCR_LINEA_OPCION_ZXVISION_LENGTH 128
 
@@ -251,11 +289,36 @@ extern void zxvision_send_scroll_left(zxvision_window *w);
 extern void zxvision_send_scroll_right(zxvision_window *w);
 
 extern void zxvision_draw_below_windows(zxvision_window *w);
-extern void zxvision_draw_below_windows_with_overlay(zxvision_window *w);
+extern void zxvision_draw_overlays_below_windows(zxvision_window *w);
 extern void zxvision_clear_window_contents(zxvision_window *w);
 
 extern void zxvision_set_not_resizable(zxvision_window *w);
 extern void zxvision_set_resizable(zxvision_window *w);
+
+
+extern void zxvision_window_save_size(zxvision_window *ventana,int *ventana_ancho_antes,int *ventana_alto_antes);
+
+//Maximo de ventanas que se pueden restaurar
+#define MAX_RESTORE_WINDOWS_START 50
+
+extern char restore_window_array[MAX_RESTORE_WINDOWS_START][MAX_NAME_WINDOW_GEOMETRY];
+
+
+struct s_zxvision_known_window_names {
+//Ventanas conocidas y sus funciones que las inicializan. Usado al restaurar ventanas al inicio
+	char nombre[MAX_NAME_WINDOW_GEOMETRY];
+	void (*start)(MENU_ITEM_PARAMETERS);
+};
+
+//#define MAX_KNOWN_WINDOWS 100
+typedef struct s_zxvision_known_window_names zxvision_known_window_names;
+
+extern int total_restore_window_array_elements;
+
+extern int zxvision_currently_restoring_windows_on_start;
+extern void zxvision_restore_windows_on_startup(void);
+extern void menu_calculate_mouse_xy_absolute_interface(int *resultado_x,int *resultado_y);
+extern void menu_calculate_mouse_xy_absolute_interface_pixel(int *resultado_x,int *resultado_y);
 
 extern void zxvision_putpixel(zxvision_window *w,int x,int y,int color);
 extern z80_byte zxvision_read_keyboard(void);
@@ -296,7 +359,7 @@ extern void menu_first_aid_init(void);
 extern void menu_first_aid_random_startup(void);
 extern int menu_first_aid_title(char *key_setting,char *title);
 
-#define MAX_F_FUNCTIONS 21
+#define MAX_F_FUNCTIONS 24
 
 enum defined_f_function_ids {
 	//reset, hard-reset, nmi, open menu, ocr, smartload, osd keyboard, exitemulator.
@@ -308,24 +371,29 @@ enum defined_f_function_ids {
 	F_FUNCION_OPENMENU,
 	F_FUNCION_OCR,
 	F_FUNCION_SMARTLOAD,
+	F_FUNCION_QUICKLOAD,
 	F_FUNCION_QUICKSAVE,
-	F_FUNCION_LOADBINARY, //10
+	F_FUNCION_LOADBINARY, //11
 	F_FUNCION_SAVEBINARY,
 	F_FUNCION_ZENG_SENDMESSAGE,
 	F_FUNCION_OSDKEYBOARD,
 	F_FUNCION_OSDTEXTKEYBOARD,
     F_FUNCION_SWITCHBORDER,
-	F_FUNCION_SWITCHFULLSCREEN, //16
+	F_FUNCION_SWITCHFULLSCREEN, //17
 	F_FUNCION_RELOADMMC, 
 	F_FUNCION_REINSERTTAPE, 
 	F_FUNCION_DEBUGCPU,   
-	F_FUNCION_PAUSE,      
- 	F_FUNCION_EXITEMULATOR //21
+	F_FUNCION_PAUSE,    //21
+	F_FUNCION_TOPSPEED,  
+ 	F_FUNCION_EXITEMULATOR, //23
+	F_FUNCION_BACKGROUND_WINDOW
 };
+//Nota: F_FUNCION_BACKGROUND_WINDOW no se llama de la misma manera que las otras funciones F
+//solo esta aqui para evitar que una misma tecla F se asigne a una funcion F normal y tambien a background window
 
 //Define teclas F que se pueden mapear a acciones
 struct s_defined_f_function {
-	char texto_funcion[20];
+	char texto_funcion[30]; 
 	enum defined_f_function_ids id_funcion;
 };
 
@@ -422,6 +490,7 @@ Como quedan los textos:
 #define MENU_RETORNO_F1 -2
 #define MENU_RETORNO_F2 -3
 #define MENU_RETORNO_F10 -4
+#define MENU_RETORNO_BACKGROUND -5
 
 extern void menu_footer_activity(char *texto);
 extern void menu_delete_footer_activity(void);
@@ -535,6 +604,8 @@ extern int menu_confirm_yesno(char *texto_ventana);
 extern int menu_confirm_yesno_texto(char *texto_ventana,char *texto_interior);
 extern int menu_ask_no_append_truncate_texto(char *texto_ventana,char *texto_interior);
 extern int menu_simple_two_choices(char *texto_ventana,char *texto_interior,char *opcion1,char *opcion2);
+extern int menu_simple_three_choices(char *texto_ventana,char *texto_interior,char *opcion1,char *opcion2,char *opcion3);
+extern int menu_simple_four_choices(char *texto_ventana,char *texto_interior,char *opcion1,char *opcion2,char *opcion3,char *opcion4);
 
 extern void menu_refresca_pantalla(void);
 
@@ -562,11 +633,11 @@ extern void menu_debug_registers_show_scan_position(void);
 
 
 
-extern void putchar_menu_overlay(int x,int y,z80_byte caracter,z80_byte tinta,z80_byte papel);
-extern void putchar_menu_overlay_parpadeo(int x,int y,z80_byte caracter,z80_byte tinta,z80_byte papel,z80_byte parpadeo);
-//extern void putchar_menu_second_overlay(int x,int y,z80_byte caracter,z80_byte tinta,z80_byte papel);
-extern void new_menu_putchar_footer(int x,int y,z80_byte caracter,z80_byte tinta,z80_byte papel);
-extern void menu_putstring_footer(int x,int y,char *texto,z80_byte tinta,z80_byte papel);
+extern void putchar_menu_overlay(int x,int y,z80_byte caracter,int tinta,int papel);
+extern void putchar_menu_overlay_parpadeo(int x,int y,z80_byte caracter,int tinta,int papel,int parpadeo);
+
+extern void new_menu_putchar_footer(int x,int y,z80_byte caracter,int tinta,int papel);
+extern void menu_putstring_footer(int x,int y,char *texto,int tinta,int papel);
 extern void menu_footer_clear_bottom_line(void);
 extern void cls_menu_overlay(void);
 extern int menu_multitarea;
@@ -622,7 +693,7 @@ extern z80_bit mouse_menu_disabled;
 extern char *quickfile;
 extern char quickload_file[];
 
-extern z80_bit menu_button_quickload;
+extern z80_bit menu_button_smartload;
 extern z80_bit menu_button_osdkeyboard;
 extern z80_bit menu_button_osdkeyboard_return;
 extern z80_bit menu_button_osd_adv_keyboard_return;
@@ -667,8 +738,8 @@ extern void menu_textspeech_send_text(char *texto);
 
 extern void menu_textspeech_filter_corchetes(char *texto_orig,char *texto);
 
-extern void screen_print_splash_text(int y,z80_byte tinta,z80_byte papel,char *texto);
-extern void screen_print_splash_text_center(z80_byte tinta,z80_byte papel,char *texto);
+extern void screen_print_splash_text(int y,int tinta,int papel,char *texto);
+extern void screen_print_splash_text_center(int tinta,int papel,char *texto);
 
 extern char menu_realtape_name[];
 
@@ -684,6 +755,9 @@ extern void draw_middle_footer(void);
 extern z80_int menu_mouse_frame_counter;
 
 struct s_estilos_gui {
+
+		int require_complete_video_driver;
+
         char nombre_estilo[20];
         int papel_normal;
         int tinta_normal;
@@ -734,7 +808,7 @@ struct s_estilos_gui {
 typedef struct s_estilos_gui estilos_gui;
 
 
-#define ESTILOS_GUI 12
+#define ESTILOS_GUI 14
 
 
 #define ESTILO_GUI_RETROMAC 8
@@ -753,6 +827,9 @@ extern estilos_gui definiciones_estilos_gui[];
 extern void set_charset(void);
 
 extern void menu_draw_ext_desktop(void);
+
+extern int menu_ext_desktop_enabled_place_menu(void);
+extern int menu_get_width_characters_ext_desktop(void);
 
 extern int menu_ext_desktop_fill;
 extern int menu_ext_desktop_fill_solid_color;
@@ -795,6 +872,7 @@ extern int menu_ext_desktop_fill_solid_color;
 #define ESTILO_GUI_FRANJAS_OSCURAS (definiciones_estilos_gui[estilo_gui_activo].franjas_oscuras)
 
 
+#define ESTILO_GUI_REQUIRE_COMPLETE_VIDEO_DRIVER (definiciones_estilos_gui[estilo_gui_activo].require_complete_video_driver)
 
 
 #define MENU_ANCHO_FRANJAS_TITULO 5
@@ -853,7 +931,7 @@ extern int menu_escribe_linea_startx;
 extern z80_bit menu_disable_special_chars;
 
 extern void menu_onscreen_keyboard(MENU_ITEM_PARAMETERS);
-extern void menu_quickload(MENU_ITEM_PARAMETERS);
+extern void menu_smartload(MENU_ITEM_PARAMETERS);
 
 extern int timer_osd_keyboard_menu;
 
@@ -886,6 +964,8 @@ extern int menu_button_f_function_action;
 extern int menu_hardware_autofire_cond(void);
 
 extern void menu_file_mmc_browser_show_file(z80_byte *origen,char *destino,int sipuntoextension,int longitud);
+
+extern void menu_file_viewer_read_file(char *title,char *file_name);
 
 extern void menu_dsk_getoff_block(z80_byte *dsk_file_memory,int longitud_dsk,int bloque,int *offset1,int *offset2);
 
@@ -924,7 +1004,7 @@ extern void menu_debug_daad_init_flagobject(void);
 extern void menu_draw_last_fps(void);
 extern void menu_draw_cpu_use_last(void);
 
-extern void putchar_footer_array(int x,int y,z80_byte caracter,z80_byte tinta,z80_byte papel,z80_byte parpadeo);
+extern void putchar_footer_array(int x,int y,z80_byte caracter,int tinta,int papel,int parpadeo);
 extern void redraw_footer(void);
 extern void cls_footer(void);
 
@@ -936,6 +1016,7 @@ extern z80_bit no_close_menu_after_smartload;
 
 extern void zxvision_espera_tecla_condicion_progreso(zxvision_window *w,int (*funcioncond) (zxvision_window *),void (*funcionprint) (zxvision_window *) );
 extern void zxvision_simple_progress_window(char *titulo, int (*funcioncond) (zxvision_window *),void (*funcionprint) (zxvision_window *) );
+extern void menu_uncompress_zip_progress(char *zip_file,char *dest_dir);
 
 //"[VARIABLE][VOP][CONDITION][VALUE] [OPERATOR] [VARIABLE][VOP][CONDITION][VALUE] [OPERATOR] .... where: \n" 
 
@@ -959,6 +1040,7 @@ extern void zxvision_simple_progress_window(char *titulo, int (*funcioncond) (zx
 "RAM: RAM mapped on 49152-65535 on Spectrum 128 or Prism,\n" \
 "ROM: ROM mapped on 0-16383 on Spectrum 128,\n" \
 "SEG0, SEG1, SEG2, SEG3: memory banks mapped on each 4 memory segments on Z88\n" \
+"SEG0, SEG1, ...., SEG7: memory banks mapped on each 8 memory segments on TBBlue\n" \
 "MRV: value returned on read memory operation\n" \
 "MWV: value written on write memory operation\n" \
 "MRA: address used on read memory operation\n" \
@@ -1037,6 +1119,7 @@ extern void zxvision_simple_progress_window(char *titulo, int (*funcioncond) (zx
 "prints string: Prints string to console\n" \
 "putv expression: Adds expression result value in the Debug Memory Zone. Result is always treated as a 8-bit value. Zone is cleared when running Reset\n" \
 "quicksave: Saves a quick snapshot\n" \
+"reset-tstatp: Resets t-states partial counter\n" \
 "set-register string: Sets register indicated on string. Example: set-register PC=32768\n" \
 "write address value: Write memory address with indicated value\n" \
 

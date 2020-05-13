@@ -22,6 +22,10 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#ifdef __FreeBSD__
+#include <limits.h>
+#endif
+
 #include "cpu.h"
 #include "compileoptions.h"
 #include "menu.h"
@@ -423,6 +427,7 @@ extern int convert_hdf_to_raw(char *origen, char *destino);
 extern z80_bit quickload_guessing_tzx_type;
 
 extern int load_binary_file(char *binary_file_load,int valor_leido_direccion,int valor_leido_longitud);
+extern int save_binary_file(char *filename,int valor_leido_direccion,int valor_leido_longitud);
 extern void parse_customfile_options(void);
 extern void parse_custom_file_config(char *archivo);
 
@@ -551,12 +556,11 @@ struct s_subzone_info
 
 typedef struct s_subzone_info subzone_info;
 
-#define MAX_CONFIG_WINDOW_GEOMETRY 100
 
 //Tabla para guardar configuracion de geometria de ventanas
 struct s_saved_config_window_geometry 
 {
-	char nombre[100];
+	char nombre[MAX_NAME_WINDOW_GEOMETRY];
 	int x,y,ancho,alto;
 };
 
@@ -567,7 +571,7 @@ extern int total_config_window_geometry;
 extern int util_find_window_geometry(char *nombre,int *x,int *y,int *ancho,int *alto);
 extern int util_add_window_geometry(char *nombre,int x,int y,int ancho,int alto);
 
-extern void util_add_window_geometry_compact(char *nombre,zxvision_window *ventana);
+extern void util_add_window_geometry_compact(zxvision_window *ventana);
 
 extern void util_clear_all_windows_geometry(void);
 
@@ -626,6 +630,8 @@ extern int si_menu_mouse_activado(void);
 //extern long long int parse_string_to_long_number(char *texto);
 
 extern int util_parse_commands_argvc(char *texto, char *parm_argv[], int maximo);
+
+extern int util_parse_commands_argvc_comillas(char *texto, char *parm_argv[], int maximo);
 
 extern int get_machine_id_by_name(char *machine_name);
 
@@ -850,7 +856,7 @@ extern char util_printable_char(char c);
 
 extern char *util_read_line(char *origen,char *destino,int size_orig,int max_size_dest,int *leidos);
 extern void util_normalize_name(char *texto);
-extern int util_download_file(char *hostname,char *url,char *archivo,int use_ssl);
+extern int util_download_file(char *hostname,char *url,char *archivo,int use_ssl,int estimated_maximum_size);
 extern void util_normalize_query_http(char *orig,char *dest);
 
 extern int util_extract_scl(char *sclname, char *dest_dir);
@@ -871,5 +877,13 @@ extern int convert_pzx_to_rwa(char *origen, char *destino);
 extern int convert_scr_to_tap(char *origen, char *destino);
 
 extern z80_byte get_memory_checksum_spectrum(z80_byte crc,z80_byte *origen,int longitud);
+
+extern void util_store_value_little_endian(z80_byte *destination,z80_int value);
+
+extern z80_int util_get_value_little_endian(z80_byte *origin);
+
+extern void util_get_home_dir(char *homedir);
+
+extern void util_write_screen_bmp(char *archivo);
 
 #endif

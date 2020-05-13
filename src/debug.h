@@ -24,6 +24,7 @@
 
 #include "cpu.h"
 #include "expression_parser.h"
+#include "compileoptions.h"
 
 
 #define DEBUG_STRING_FLAGS         ( Z80_FLAGS & FLAG_S ? 'S' : '-'), ( Z80_FLAGS & FLAG_Z ? 'Z' : '-'), ( Z80_FLAGS & FLAG_5 ? '5' : '-'), ( Z80_FLAGS & FLAG_H ? 'H' : '-'),  ( Z80_FLAGS & FLAG_3 ? '3' : '-'), ( Z80_FLAGS & FLAG_PV ? 'P' : '-'), ( Z80_FLAGS & FLAG_N ? 'N' : '-'), ( Z80_FLAGS & FLAG_C ? 'C' : '-')
@@ -472,6 +473,82 @@ extern void set_cpu_core_history_enable(void);
 extern int cpu_history_set_max_size(int total);
 extern void cpu_history_init_buffer(void);
 extern void cpu_history_get_pc_register_element(int indice,char *string_destino);
+
+
+#ifdef TIMESENSORS_ENABLED
+ 
+
+#include <time.h>
+#include <sys/time.h>
+#ifndef MINGW
+        #include <unistd.h>
+#endif
+
+enum timesensor_id
+{
+	TIMESENSOR_ID_core_spectrum_store_rainbow_current_atributes=0,
+	TIMESENSOR_ID_core_cpu_timer_refresca_pantalla,
+	TIMESENSOR_ID_core_spectrum_ciclo_fetch,
+	TIMESENSOR_ID_core_spectrum_fin_scanline,
+	TIMESENSOR_ID_realjoystick_main,
+	TIMESENSOR_ID_scr_actualiza_tablas_teclado,    //5
+	TIMESENSOR_ID_core_spectrum_store_scanline_rainbow,
+	TIMESENSOR_ID_core_spectrum_t_scanline_next_line,
+	TIMESENSOR_ID_core_spectrum_fin_frame_pantalla,
+	TIMESENSOR_ID_core_spectrum_handle_interrupts
+
+};
+
+#define MAX_TIMESENSORS 256
+
+#define MAX_TIMESENSORS_METRICS 1024
+
+struct s_timesensor_entry {
+	//enum timesensor_id id;
+
+	struct timeval tiempo_antes;
+	struct timeval tiempo_despues;
+
+	long metrics[MAX_TIMESENSORS_METRICS];
+
+	int index_metrics;
+
+};
+
+#define TIMESENSOR_ENTRY_PRE(x) timesensor_call_pre(x)
+#define TIMESENSOR_ENTRY_POST(x) timesensor_call_post(x)
+#define TIMESENSOR_ENTRY_MEDIATIME(x) timesensor_call_mediatime(x)
+#define TIMESENSOR_ENTRY_MAXTIME(x) timesensor_call_maxtime(x)
+
+#define TIMESENSOR_INIT() timesensor_call_init()
+
+
+extern void timesensor_call_pre(enum timesensor_id id);
+
+extern void timesensor_call_post(enum timesensor_id id);
+
+extern long timesensor_call_mediatime(enum timesensor_id id);
+
+extern void timesensor_call_init(void);
+
+extern int timesensors_started;
+
+extern long timesensor_call_maxtime(enum timesensor_id id);
+
+#else
+
+//Si no esta activado, son entradas vacias
+#define TIMESENSOR_ENTRY_PRE(x)
+#define TIMESENSOR_ENTRY_POST(x)
+//Esta retorna un 0 pues es una funcion que retorna algo
+#define TIMESENSOR_ENTRY_MEDIATIME(x) 0L
+#define TIMESENSOR_ENTRY_MAXTIME(x) 0L
+
+#define TIMESENSOR_INIT()
+
+#endif
+
+
 
 
 #endif

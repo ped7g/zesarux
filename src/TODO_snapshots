@@ -64,7 +64,9 @@ Quiza habria que parsear algunos parametros del .config tambien despues de carga
 
 
 
+-Setting de guardado tamanyo memoria RAM de divmmc/divide (probablemente variable diviface_current_ram_memory_bits)
 
+-Soporte Z88 en snapshots zsf
 
 
 ---------------
@@ -73,6 +75,9 @@ Quiza habria que parsear algunos parametros del .config tambien despues de carga
 
 Otros TODO menos prioritarios, de aqui hasta el final del archivo:
 *** Snapshots ***
+
+
+-Opción para formato de grabación de autosave snap
 
 -RZX: mejorar. Falla carlos sainz. Pero por otra parte, abadia del crimen funciona en ZEsarUX y no en fuse
 Quiza los de speculator no van bien del todo?
@@ -102,12 +107,12 @@ Pero el "--enable-dsk", al iniciar el emulador, se parsea antes de cargar el sna
 dskplusthree_emulation.v=0 , con lo que arranca con dsk desactivado. Hay varios parametros como ese
 
 
-*asignacion de eventos a botones de realjoystick ->no, porque depende del tipo de joystick
-*asignacion de teclas a botones de realjoystick ->en teoria no, porque tambien depende del tipo de joystick,
-pero se podria intentar hacer que se guardase de alguna manera... como intentando asociar, por ejemplo,
-"boton arriba" -> tecla "w"
-...
-pero con esto solo podriamos tener facilmente las teclas de direcciones (son los ejes normales) (-0/+0 izq-der, -1/+1 arr-aba),
-pero no otras teclas alternativas: enter, espacio, etc
+-En snapshot poder guardar notas. Visibles desde menú snapshot. Se pierden al cargar otro snapshot
+Esto es un nuevo tipo de campo en ZSF. Como se pide? Al guardar un snapshot o desde menú snapshot? 
+Quizá desde menú y con un first aid que lo explique
+
+--ZSF tbblue: * estado dma (esto no solo afecta a tbblue sino a todos. tener en cuenta grabar tambien valor datagear_dma_tbblue_prescaler)
+
+
 
 

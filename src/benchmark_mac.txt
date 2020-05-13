@@ -216,3 +216,32 @@
         //Fin pruebas 18 Marzo 2019
         //
 
+
+
+
+        //
+        //Pruebas 10 Febrero 2020. Compilando sin optimizaciones ni opciones (./configure)
+        //
+        //sin rainbow
+        //sin memptr,sin visualmem, sin cpustats
+        //con contended memory
+        //con pthreads
+        ./zesarux --noconfigfile --ao null --vo null
+        //48k, ao null, vo null, 6% cpu
+
+        //sin rainbow
+        //sin memptr,sin visualmem, sin cpustats
+        //con contended memory
+        ./zesarux --noconfigfile --ao null --vo cocoa --zoom 1
+        //con cocoa-gl: 12%
+
+        //con rainbow
+        //sin memptr,sin visualmem, sin cpustats
+        //con contended memory
+        ./zesarux --noconfigfile --ao null --vo cocoa --zoom 1 extras/media/spectrum/rainbow/over128.z80
+        //128k, ao null, vo cocoagl, zoom 1, frameskip 0, over128.z80, 21% cpu
+        //128k, ao null, vo xwindows, zoom 1, frameskip 0, over128.z80, 19% cpu
+
+        //
+        //Fin pruebas 10 Febrero 2020
+        //

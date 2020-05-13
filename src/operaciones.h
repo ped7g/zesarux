@@ -35,6 +35,9 @@
 
 #ifdef EMULATE_VISUALMEM
 
+#define VISUALMEM_MMC_BUFFER_SIZE (1024*1024)
+
+
 extern z80_byte *visualmem_buffer;
 extern z80_byte *visualmem_read_buffer;
 extern z80_byte *visualmem_opcode_buffer;
@@ -49,6 +52,14 @@ extern void clear_visualmemopcodebuffer(int dir);
 
 extern void set_visualmemreadbuffer(int dir);
 extern void clear_visualmemreadbuffer(int dir);
+
+extern z80_byte *visualmem_mmc_read_buffer;
+extern void set_visualmemmmc_read_buffer(int dir);
+extern void clear_visualmemmmc_read_buffer(int dir);
+
+extern z80_byte *visualmem_mmc_write_buffer;
+extern void set_visualmemmmc_write_buffer(int dir);
+extern void clear_visualmemmmc_write_buffer(int dir);
 
 
 #endif

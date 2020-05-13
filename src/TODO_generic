@@ -114,17 +114,6 @@ rpi2 no? quizá es porque no he usado parámetro fullscreen y por tanto no ha re
 -Make utils al construir binario
 Incluir bmp a sprite y bmp a prism en utils
 
--formato .zx:
-Agregar:
--divmmc
--zxmmc
--zxpand
-
-Formato .zx en máquinas bigendian los enteros 16 bits se guardan big endian
-
-
-
--Implementar flag Q? Ver docs/flagq.txt
 
 
 -Mas archivos auto config pues versión Windows no tiene ssl
@@ -132,23 +121,23 @@ Formato .zx en máquinas bigendian los enteros 16 bits se guardan big endian
 -en fbdev, con --no-use-ttyrawfbdev, enviar F6 y F7 en Z88 tal y como se hace en curses, por ejemplo (diamond, square).
 he intentado meterlo en :
                                 //Para Home
-                                                                                                                case 49:
-                                                                                                                        if (scrfbdev_kbhit() ) {
-                                                                                                                                unsigned char tecla4;
-                                                                                                                                tecla4=scrfbdev_getch();
-                                                                                                                                printf (" tecla4 %u \n",tecla4);
+        case 49:
+                if (scrfbdev_kbhit() ) {
+                unsigned char tecla4;
+                tecla4=scrfbdev_getch();
+                printf (" tecla4 %u \n",tecla4);
 
-                                                                                                                                switch (tecla4) {
+                switch (tecla4) {
 
-                                                                                                                                        case 126:
-                                                                                                                                                util_set_reset_key(UTIL_KEY_HOME,1);
-                                                                                                                                                break;
+                        case 126:
+                                util_set_reset_key(UTIL_KEY_HOME,1);
+                                break;
 
-                                                                                                                                        case 55:
-                        printf ("F6 ");
-                                                                                                                                                //F6 es Ctrl /diamond
-                                                                                                                                                util_set_reset_key(UTIL_KEY_CONTROL_L,1);
-                                                                                                                                                break
+                        case 55:
+                                printf ("F6 ");
+                                //F6 es Ctrl /diamond
+                                util_set_reset_key(UTIL_KEY_CONTROL_L,1);
+                                break
 
 pero parece que envia otra tecla diferente
 

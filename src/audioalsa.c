@@ -870,8 +870,51 @@ int alsa_mid_unsubscribe_midi_port(void)
 }
 
 
+snd_rawmidi_t *alsa_raw_handle_out = 0;
+
+//char *alsa_mid_device_out="hw:1,0";
+
+//char alsa_mid_device_out[MAX_ALSA_MID_DEVICE_OUT]="hw:0,0";
+
+
+void alsa_midi_output_reset(void)
+{
+
+	z80_byte reset[] = {0xFF, 0, 0,0}; 
+
+	if (audio_midi_raw_mode) {
+		//TODO: Esto no parece hacer nada. El reset de midi solo parece funcionar en windows
+		snd_rawmidi_write(alsa_raw_handle_out,reset,4);
+	}
+	
+}
+
+//enviar nota midi raw inmediatamente, esto viene de las funciones aymidi_rs232_, solo valido cuando hay modo raw
+int alsa_midi_raw(z80_byte value)
+{
+
+	if (!audio_midi_raw_mode) return 0;
+
+	//printf ("Sending alsa_midi_raw value %02XH\n",value);
+
+	snd_rawmidi_write(alsa_raw_handle_out,&value,1);
+	
+
+	return 0;
+
+}
+
+
+
+
+
+
+
+
+
+
 //Hacer note on de una nota inmediatamente
-int alsa_note_on(unsigned char channel, unsigned char note,unsigned char velocity)
+int alsa_note_on_noraw(unsigned char channel, unsigned char note,unsigned char velocity)
 {
 
 	debug_printf (VERBOSE_PARANOID,"noteon event channel %d note %d velocity %d",channel,note,velocity);
@@ -890,8 +933,34 @@ int alsa_note_on(unsigned char channel, unsigned char note,unsigned char velocit
 }
 
 
+//Hacer note on de una nota inmediatamente en modo raw
+int alsa_note_on_raw(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+
+  debug_printf (VERBOSE_PARANOID,"noteon event channel %d note %d velocity %d",channel,note,velocity);
+
+  z80_byte noteon[] = {0x90, note, velocity}; 
+
+  snd_rawmidi_write(alsa_raw_handle_out,noteon,3);
+  
+
+  return 0;
+}
+
+
+
+int alsa_note_on(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+	if (audio_midi_raw_mode) return alsa_note_on_raw(channel, note, velocity);
+	else return alsa_note_on_noraw(channel, note, velocity);
+
+}
+
+
+
+
 //Hacer note off de una nota inmediatamente
-int alsa_note_off(unsigned char channel, unsigned char note,unsigned char velocity)
+int alsa_note_off_noraw(unsigned char channel, unsigned char note,unsigned char velocity)
 {
 
 	debug_printf (VERBOSE_PARANOID,"noteoff event channel %d note %d velocity %d",channel,note,velocity);
@@ -908,6 +977,41 @@ int alsa_note_off(unsigned char channel, unsigned char note,unsigned char veloci
 	return (snd_seq_event_output(zesarux_mid_alsa_audio_info.handle, &ev));
 
 }
+
+int alsa_note_off_raw(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+
+  debug_printf (VERBOSE_PARANOID,"noteoff event channel %d note %d velocity %d",channel,note,velocity);
+
+  z80_byte noteoff[] = {0x80, note, velocity}; 
+
+  snd_rawmidi_write(alsa_raw_handle_out,noteoff,3);
+
+
+  return 0;  
+}
+
+int alsa_note_off(unsigned char channel, unsigned char note,unsigned char velocity)
+{
+	if (audio_midi_raw_mode) return alsa_note_off_raw(channel, note, velocity);
+	else return alsa_note_off_noraw(channel, note, velocity);
+}
+
+
+
+//Inicializar el sistema ALSA en modo raw
+int alsa_mid_initialize_audio_raw(void)
+{
+
+		int err = snd_rawmidi_open(NULL,&alsa_raw_handle_out,audio_raw_midi_device_out,SND_RAWMIDI_NONBLOCK);
+        if (err) {
+            debug_printf (VERBOSE_ERR,"snd_rawmidi_open %s failed: %d",audio_raw_midi_device_out,err);
+			return 1;
+        }
+
+	return 0;
+}
+
 
 
 
@@ -985,12 +1089,12 @@ long alsa_mid_percent_to_alsa(int val, long pmin, long pmax)
 
 
 //Establecer el volumen del master
-void alsa_mid_set_volume_master(int percent)
+void alsa_mid_set_volume_master(int percent GCC_UNUSED)
 {
 	snd_mixer_t *mixer;
-	snd_mixer_elem_t *elem;    //utilitzat pel master volume
+	//snd_mixer_elem_t *elem;    //utilitzat pel master volume
 	snd_mixer_selem_id_t *id;
-	long pmin,pmax;
+	//long pmin,pmax;
 
 	snd_mixer_selem_id_alloca(&id);
 
@@ -1001,7 +1105,7 @@ void alsa_mid_set_volume_master(int percent)
 
 	snd_mixer_selem_id_set_name(id, "Master");
 
-	elem = snd_mixer_find_selem(mixer, id);
+	//elem = snd_mixer_find_selem(mixer, id);
 
 	//Parece que da error al ejecutar esto
 	//snd_mixer_selem_get_playback_volume_range(elem,&pmin,&pmax);
@@ -1033,7 +1137,7 @@ int alsa_midi_volume=100;
 
 
 
-int alsa_mid_initialize_all(void)
+int alsa_mid_initialize_all_noraw(void)
 //Devuelve 1 si error
 {
 
@@ -1045,7 +1149,7 @@ int alsa_mid_initialize_all(void)
 
 	alsa_mid_initialize_volume();
 
-
+	//if (alsa_mid_initialize_audio_raw() ) return 1;
 
 	return 0;
 
@@ -1053,14 +1157,67 @@ int alsa_mid_initialize_all(void)
 
 }
 
-void alsa_mid_finish_all(void)
+
+int alsa_mid_initialize_all_raw(void)
+//Devuelve 1 si error
+{
+
+    if (alsa_mid_initialize_audio_raw() ) return 1;
+
+	return 0;
+
+
+
+}
+
+
+int alsa_mid_initialize_all(void)
+{
+	if (audio_midi_raw_mode) return alsa_mid_initialize_all_raw();
+	else return alsa_mid_initialize_all_noraw();
+}
+
+
+
+void alsa_mid_finish_all_noraw(void)
 {
 	alsa_mid_unsubscribe_midi_port();
+}
+
+void alsa_mid_finish_all_raw(void)
+{
+
+
+		int err=snd_rawmidi_close(alsa_raw_handle_out);
+
+	if (err<0) {
+		debug_printf (VERBOSE_ERR,"Error closing midi alsa raw port");
+
+	}
+
+}
+
+void alsa_mid_finish_all(void)
+{
+	if (audio_midi_raw_mode) alsa_mid_finish_all_raw();
+	else alsa_mid_finish_all_noraw();	
+}
+
+
+void alsa_midi_output_flush_output_noraw(void)
+{
+	snd_seq_drain_output(zesarux_mid_alsa_audio_info.handle);
+}
+
+
+void alsa_midi_output_flush_output_raw(void)
+{
+	//snd_seq_drain_output(zesarux_mid_alsa_audio_info.handle);
 }
 
 
 void alsa_midi_output_flush_output(void)
 {
-	snd_seq_drain_output(zesarux_mid_alsa_audio_info.handle);
+	if (audio_midi_raw_mode) alsa_midi_output_flush_output_raw();
+	else alsa_midi_output_flush_output_noraw();	
 }
-

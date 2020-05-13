@@ -749,7 +749,7 @@ void scrxwindows_putchar_zx8081(int x,int y, z80_byte caracter)
 
 
 //Rutina de putchar para menu
-void scrxwindows_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrxwindows_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
         z80_bit inverse;
@@ -765,7 +765,7 @@ void scrxwindows_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_
 }
 
 //Rutina de putchar para footer window
-void scrxwindows_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel) {
+void scrxwindows_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel) {
 
 
         int yorigen;

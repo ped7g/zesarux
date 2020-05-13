@@ -1003,6 +1003,9 @@ nota_musical tabla_notas_musicales[MAX_NOTAS_MUSICALES]={
 {"B9",15804}
 };
 
+//Para si hay que retornar una nota desconocida;
+char *unknown_nota_musical="XX";
+
 //convertir nombre nota en formato string a formato mid
 //Si no coincide, retornar -1
 int get_mid_number_note(char *str)
@@ -1052,6 +1055,14 @@ char *get_note_name(int frecuencia)
 
 	//debug_printf (VERBOSE_DEBUG,"Nota frecuencia: %d Indice result: %d nota: %s",frecuencia,indice_result,tabla_notas_musicales[indice_result].nombre);
 	return tabla_notas_musicales[indice_result].nombre;
+}
+
+//devuelve nombre nota, segun su indice (igual que el pitch)
+char *get_note_name_by_index(int index)
+{
+	if (index<0 || index>=MAX_NOTAS_MUSICALES) return unknown_nota_musical;
+
+	else return tabla_notas_musicales[index].nombre;
 }
 
 //devuelve numero nota (0...6 do,re... si), si es sostenido, y numero de octava, segun string obtenido de funcion get_note_name
@@ -2748,6 +2759,194 @@ void midi_output_frame_event(void)
 }
 
 
+enum AUDIO_MIDI_RAW_PARSER_STATUS {
+	MIDI_STATUS_UNKNOWN,
+	MIDI_STATUS_RECEIVING_DATA
+	/*,
+	MIDI_STATUS_RECEIVED_DATA*/
+};
+
+//Estado inicial
+enum AUDIO_MIDI_RAW_PARSER_STATUS audio_midi_raw_parse_estado=MIDI_STATUS_UNKNOWN;
+
+//Estado que lee desde el post
+enum AUDIO_MIDI_RAW_PARSER_STATUS audio_midi_raw_parse_estado_next=MIDI_STATUS_UNKNOWN;
+
+
+#define MAX_AUDIO_MIDI_RAW_PARSER_ARRAY 256
+
+z80_byte audio_midi_raw_parse_array[MAX_AUDIO_MIDI_RAW_PARSER_ARRAY];
+
+//Indice al array de bytes recibidos
+int audio_midi_raw_parse_indice=0;
+
+
+#define MAX_MIDI_STATUS_COMMAND_TEXT 128
+
+void audio_midi_raw_get_status_name(z80_byte value,char *destination)
+{
+	//Retorna nombre para el status. Maximo MAX_MIDI_STATUS_COMMAND_TEXT
+	if      ( (value & 0xF0) == 0x80 ) sprintf(destination,"Note off channel %d",value & 0xF);
+	else if ( (value & 0xF0) == 0x90 ) sprintf(destination,"Note on channel %d",value & 0xF);
+	else if ( (value & 0xF0) == 0xA0 ) sprintf(destination,"Key pressure channel %d",value & 0xF);
+	else if ( (value & 0xF0) == 0xB0 ) sprintf(destination,"Controller change channel %d",value & 0xF);
+	else if ( (value & 0xF0) == 0xC0 ) sprintf(destination,"Program change channel %d",value & 0xF);
+	else if ( (value & 0xF0) == 0xD0 ) sprintf(destination,"Channel pressure channel %d",value & 0xF);
+	else if ( (value & 0xF0) == 0xE0 ) sprintf(destination,"Pitch blend channel %d",value & 0xF);
+
+	else if (  value         == 0xF0 ) strcpy(destination,"System Exclusive");
+
+	else if (  value         == 0xF2 ) strcpy(destination,"Song Position");
+	else if (  value         == 0xF3 ) strcpy(destination,"Song Select");
+
+	else if (  value         == 0xF5 ) strcpy(destination,"Unofficial Bus Select");
+	else if (  value         == 0xF6 ) strcpy(destination,"Tune Request");
+	else if (  value         == 0xF7 ) strcpy(destination,"End of System Exclusive");
+	else if (  value         == 0xF8 ) strcpy(destination,"Timing Trick");
+
+	else if (  value         == 0xFA ) strcpy(destination,"Start Song");
+	else if (  value         == 0xFB ) strcpy(destination,"Continue Song");
+	else if (  value         == 0xFC ) strcpy(destination,"Stop Song");
+
+	else if (  value         == 0xFE ) strcpy(destination,"Active Sensing");
+	else if (  value         == 0xFF ) strcpy(destination,"System Reset");
+
+
+	else sprintf(destination,"Unknown status byte: %02XH",value);
+}
+
+//Parsear byte midi y saber si es de status o data, llevar conteo de mensajes finalizados etc
+//Retorna el siguiente estado que tiene que procesar el _post
+void audio_midi_raw_parse_value(z80_byte value)
+{
+	if (value & 128) {
+		//printf ("audio_midi_raw_parse_value: is a status byte\n");
+
+		
+		switch (audio_midi_raw_parse_estado) {
+			//Si estamos en estado desconocido, pasar a MIDI_STATUS_RECEIVING_DATA
+			case MIDI_STATUS_UNKNOWN:
+				//printf ("Pasando a MIDI_STATUS_RECEIVING_DATA\n");
+				audio_midi_raw_parse_indice=0;
+				audio_midi_raw_parse_array[audio_midi_raw_parse_indice++]=value;
+
+				audio_midi_raw_parse_estado=MIDI_STATUS_RECEIVING_DATA;
+			break;
+
+			case MIDI_STATUS_RECEIVING_DATA:
+				//Recibimos byte de status mientras recibiamos datos. Finalizar
+				//printf ("Received status byte while receiving data. Starting a new command. Previous command lenght: %d\n",audio_midi_raw_parse_indice);
+
+
+				/* 
+				//Todo esto solo es debug
+				char buf_status_mensaje[MAX_MIDI_STATUS_COMMAND_TEXT];
+
+				audio_midi_raw_get_status_name(audio_midi_raw_parse_array[0],buf_status_mensaje);
+
+
+				//Meter data bytes en una string para escribirlo luego
+				//3 caracteres por cada byte. Y 1 de final de string
+				char buf_data_mensaje[MAX_AUDIO_MIDI_RAW_PARSER_ARRAY*3+1];
+
+				int i;
+				int destino_string=0;
+				for (i=1;i<audio_midi_raw_parse_indice;i++) {
+					sprintf(&buf_data_mensaje[destino_string],"%02X ",audio_midi_raw_parse_array[i]);
+
+					destino_string +=3;
+				}
+				printf ("Previous message was: [%s] Data: [%s]\n",buf_status_mensaje,buf_data_mensaje);
+
+				//Debug en el caso de noteon/off
+
+				if ( (audio_midi_raw_parse_array[0] & 0xF0) == 0x80 || 
+				     (audio_midi_raw_parse_array[0] & 0xF0) == 0x90
+					 ) {
+					int i;
+					for (i=1;i<audio_midi_raw_parse_indice;i+=2) {
+						printf ("Notes: %s\n",get_note_name_by_index(audio_midi_raw_parse_array[i]));
+					}
+				}
+
+				//Fin Debug
+				*/
+
+				audio_midi_raw_parse_indice=0;
+				audio_midi_raw_parse_array[audio_midi_raw_parse_indice++]=value;
+
+				audio_midi_raw_parse_estado=MIDI_STATUS_RECEIVING_DATA;
+			break;
+
+			/*case MIDI_STATUS_RECEIVED_DATA:
+				//esto se actuara en el post
+			break;*/
+		}
+	}
+
+	else {
+		//printf ("audio_midi_raw_parse_value: is a data byte\n");
+
+		switch (audio_midi_raw_parse_estado) {
+			case MIDI_STATUS_UNKNOWN:
+				//printf ("Receiving a data byte while in unknown state. Discarding\n");
+			break;
+
+			// Pues seguimos recibiendo datos
+			case MIDI_STATUS_RECEIVING_DATA:
+				//printf ("Receiving a data byte while in receiving state. Adding it\n");
+
+				if (audio_midi_raw_parse_indice!=MAX_AUDIO_MIDI_RAW_PARSER_ARRAY) {
+					audio_midi_raw_parse_array[audio_midi_raw_parse_indice++]=value;
+				}
+
+				else {
+					//printf ("Reached the end of audio_midi_raw_parse_array. Not adding it!\n");
+				}
+			break;
+
+			/*case MIDI_STATUS_RECEIVED_DATA:
+
+			break;*/
+		}		
+
+	}
+}
+
+
+
+void audio_midi_output_raw(z80_byte value)
+{
+
+
+	if (audio_midi_output_initialized==0) return;
+
+	
+
+#ifdef COMPILE_COREAUDIO
+		coreaudio_mid_raw_send(value);
+		
+#endif
+
+#ifdef COMPILE_ALSA
+alsa_midi_raw(value);
+#endif
+
+
+#ifdef MINGW
+//De momento no va
+
+
+windows_midi_raw(value);
+
+
+audio_midi_raw_parse_value(value);
+#endif
+
+	
+
+
+}
 
 int audio_midi_output_note_on(unsigned char channel, unsigned char note)
 {
@@ -2799,6 +2998,21 @@ void audio_midi_output_flush_output(void)
 }
 
 
+void audio_midi_output_reset(void)
+{
+	#ifdef COMPILE_ALSA
+	alsa_midi_output_reset();
+	#endif
+
+	#ifdef COMPILE_COREAUDIO
+	coreaudio_midi_output_reset();
+	#endif	
+
+	#ifdef MINGW
+	windows_midi_output_reset();
+	#endif	
+}
+
 //Notas anteriores sonando, 3 canales
 char midi_output_nota_sonando[MAX_AY_CHIPS*3][4];
 
@@ -2807,6 +3021,11 @@ int audio_midi_client=0;
 int audio_midi_port=0;
 //Client solo es usado por alsa
 //Port lo utilizan alsa y windows 
+
+char audio_raw_midi_device_out[MAX_AUDIO_RAW_MIDI_DEVICE_OUT]="hw:0,0";
+
+//de momento usado en Linux
+int audio_midi_raw_mode=1;
 
 
 void audio_midi_output_finish(void)
@@ -3181,19 +3400,81 @@ void windows_midi_output_flush_output(void)
 }
 
 
+HMIDISTRM lphStream;
+
+void other_windows_mid_initialize_raw(void)
+{
+	
+	//LPHMIDISTRM lphStream;
+
+
+//LPUINT puDeviceID;
+unsigned int puDeviceID;
+DWORD cMidi=1;
+DWORD_PTR dwCallback=NULL;
+DWORD_PTR dwInstance=NULL;
+DWORD fdwOpen=CALLBACK_NULL;
+
+puDeviceID=audio_midi_port; //que dispositivo???
+
+//open in raw mode
+MMRESULT resultado;
+  resultado=midiStreamOpen(&lphStream,&puDeviceID,cMidi,dwCallback,dwInstance,fdwOpen);
+  if (resultado!=MMSYSERR_NOERROR) {
+char men[100];
+    if (resultado==MMSYSERR_BADDEVICEID) strcpy(men,"BADDEVICEID");
+    else if (resultado==MMSYSERR_INVALPARAM) strcpy(men,"INVALPARAM");
+    else if (resultado==MMSYSERR_NOMEM) strcpy(men,"NOMEM");
+    else sprintf(men,"error number: %d",resultado);
+
+    debug_printf(VERBOSE_ERR,"Error opening MIDI in raw mode. %s",men);
+    //return 1;
+   }
+
+midiStreamRestart(lphStream);
+}
+
+HMIDISTRM out;
+
+void windows_mid_initialize_raw(void)
+{
+unsigned int device = 0;
+midiStreamOpen(&out, &device, 1, NULL, 0, CALLBACK_NULL);
+
+midiStreamRestart(out);
+}
 
 int windows_mid_initialize_all(void)
 {
 // Open the MIDI output port
+
    int flag = midiOutOpen(&windows_midi_device, audio_midi_port, 0, 0, CALLBACK_NULL);
    if (flag != MMSYSERR_NOERROR) {
       debug_printf(VERBOSE_ERR,"Error opening MIDI Output");
       return 1;
    }
 
-
+//De momento nada de RAW en windows
+//windows_mid_initialize_raw();
 
   return 0;
+}
+
+void windows_midi_output_reset(void)
+{
+  		windows_midi_message mensaje;
+
+  		mensaje.data[0]=0xFF;
+  		mensaje.data[1]=0;
+  		mensaje.data[2]=0;
+  		mensaje.data[3]=0;
+
+
+				//Y envio a midi
+				windows_mid_add_note(mensaje);	
+
+
+	midiOutReset(windows_midi_device);				
 }
 
 void windows_mid_finish_all(void)
@@ -3203,6 +3484,189 @@ void windows_mid_finish_all(void)
 
    // Remove any data in MIDI device and close the MIDI Output port
    midiOutClose(windows_midi_device);	
+}
+
+void test_windows_midi_raw(z80_byte value)
+{
+
+
+	MIDIHDR mhdr;
+mhdr.lpData = &value;
+mhdr.dwBufferLength = mhdr.dwBytesRecorded = 1;
+mhdr.dwFlags = 0;
+midiOutPrepareHeader((HMIDIOUT)out, &mhdr, sizeof(MIDIHDR));
+}
+
+int windows_midi_raw_indice=0;
+
+int windows_midi_raw_multibyte=0;
+
+void windows_midi_raw(z80_byte value)
+{
+
+//No me gusta para nada este código. Lo ideal es que Windows funcionase el envio raw de eventos midi,
+//pero como no va, tengo que hacer este tipo de inventos....
+
+	/*if ( (value & 128)==0) {
+		printf ("windows midi raw: byte is not status. Not sending anything\n");
+		return;
+	} */
+
+	//printf ("windows_midi_raw_indice %d audio_midi_raw_parse_indice %d\n",windows_midi_raw_indice,audio_midi_raw_parse_indice);
+
+	//Si es menor indice actual, pasar a 0
+	if (audio_midi_raw_parse_indice<windows_midi_raw_indice) windows_midi_raw_indice=0;
+
+	//Estado anterior cual es?
+	if (audio_midi_raw_parse_estado==MIDI_STATUS_UNKNOWN) {
+		//printf ("windows midi raw: previous state is unknown. Not sending anything\n");
+		return;
+	}
+
+	int enviar=0;
+
+
+
+	//Si es multibyte, y hay dos mas para enviar
+	if (windows_midi_raw_multibyte) {
+		if (audio_midi_raw_parse_indice-windows_midi_raw_indice==2) {
+			enviar=1;
+			//printf ("Es multibyte y ha dos mas para enviar\n");
+		}
+	}
+
+	//Si pasamos de 3 bytes y el actual no es status, es multibyte
+	if (!windows_midi_raw_multibyte && (value & 128)==0) {
+		if (audio_midi_raw_parse_indice-windows_midi_raw_indice==3) {
+			windows_midi_raw_multibyte=1;
+			enviar=1;
+			//printf ("Son 3 bytes. Activamos multibyte\n");
+		}
+	}
+
+	//Si hay bit 7 alzado, enviar lo que tengamos pendiente
+	if ( (value & 128)) {
+		enviar=1;
+		windows_midi_raw_multibyte=0;
+		//printf ("Es byte de status\n");
+	}	
+
+	///Enviar si hay al menos 3 bytes por enviar
+
+//z80_byte audio_midi_raw_parse_array[MAX_AUDIO_MIDI_RAW_PARSER_ARRAY];
+
+//Indice al array de bytes recibidos
+//int audio_midi_raw_parse_indice=0;
+	//printf ("windows midi raw: sending %d bytes of command\n",audio_midi_raw_parse_indice-windows_midi_raw_indice);
+
+	/*
+	  debug_printf (VERBOSE_PARANOID,"noteoff event channel %d note %d velocity %d",channel,note,velocity);
+
+
+
+  windows_mid_add_note(mensaje);
+	*/
+
+	// Si longitud es 4 o menos, enviarlo tal cual
+	//if (audio_midi_raw_parse_indice<=4) {
+	if (enviar) {
+			//primero inicializo todo a 0
+  		windows_midi_message mensaje;
+
+  		mensaje.data[0]=0;
+  		mensaje.data[1]=0;
+  		mensaje.data[2]=0;
+  		mensaje.data[3]=0;
+
+		  //Luego meto valores
+		  int i;
+		  int total=audio_midi_raw_parse_indice-windows_midi_raw_indice;
+
+		  //printf ("Posible enviar total %d bytes a midi\n",total);
+
+		  if (total>0) {
+			//printf ("---Enviando total %d bytes a midi\n",total);
+
+			int destino=0;
+			for (i=windows_midi_raw_indice;i<windows_midi_raw_indice+total;i++) {
+				mensaje.data[destino++]=audio_midi_raw_parse_array[i];
+			}
+
+				//Y envio a midi
+				windows_mid_add_note(mensaje);
+
+				windows_midi_raw_indice=audio_midi_raw_parse_indice;
+		  }
+	}
+
+	else {
+		//printf ("enviar=0\n");
+	}
+
+	/*else {
+		//Si son mas , trocear
+		//Ejemplo: Received status byte while receiving data. Starting a new command. Previous command lenght: 5
+		//Previous message was: [Note on channel 0] Data: [3B 00 40 17 ]
+		// noteon con 4 parámetros. Total 5 bytes
+		// El señor microsoft dice que se envien en packs de 4 bytes, el segundo pack y siguientes tienen solo 2 bytes, el resto vacios
+
+		//Enviamos primero 3
+		windows_midi_message mensaje;
+
+  		mensaje.data[0]=audio_midi_raw_parse_array[0];
+  		mensaje.data[1]=audio_midi_raw_parse_array[1];
+  		mensaje.data[2]=audio_midi_raw_parse_array[2];
+  		mensaje.data[3]=0;
+
+		//Y envio a midi
+		windows_mid_add_note(mensaje);
+
+		//Y ahora por cada dos
+
+		int i;
+		for (i=3;i<audio_midi_raw_parse_indice;i+=2) {
+		  		mensaje.data[0]=audio_midi_raw_parse_array[i];
+  				mensaje.data[1]=audio_midi_raw_parse_array[i+1];
+  				mensaje.data[2]=0;
+  				mensaje.data[3]=0;	
+
+				//Y envio a midi
+				windows_mid_add_note(mensaje);
+		}
+
+	}*/
+
+}
+
+void other_windows_midi_raw(z80_byte value)
+{
+
+MIDIHDR buffer;
+//LPMIDIHDR buffer;
+
+buffer.lpData=&value;
+buffer.dwBufferLength=1;
+buffer.dwFlags=0;
+midiOutPrepareHeader((HMIDIOUT)lphStream,&buffer,sizeof(MIDIHDR));
+
+midiStreamOut(lphStream,&buffer,sizeof(MIDIHDR));
+printf("Enviando windows_midi raw value %02XH\n",value);
+
+  /*windows_midi_message mensaje;
+
+  mensaje.data[0]=value;
+  mensaje.data[1]=0;
+  mensaje.data[2]=0;
+  mensaje.data[3]=0;
+
+
+  windows_mid_add_note(mensaje);
+
+  return ;*/
+
+  //midiStreamOut(hms,pmh,1)
+
+
 }
 
 

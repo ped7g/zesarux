@@ -87,6 +87,10 @@ z80_bit remote_calling_end_emulator={0};
 	#include <arpa/inet.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#endif
+
 #include <stdarg.h>
 
 struct sockaddr_in adr;
@@ -666,6 +670,7 @@ struct s_items_ayuda items_ayuda[]={
 	"opcode          yes|no: Enable opcode logging. Enabled by default\n"
 	"registers       yes|no: Enable registers logging\n"
 	},
+  {"debug-analize-command",NULL,"parameters","Just analize the command and print its parameters"},
 
   {"disable-breakpoint","|db","index","Disable specific breakpoint"},
   {"disable-breakpoints",NULL,NULL,"Disable all breakpoints"},
@@ -742,7 +747,7 @@ struct s_items_ayuda items_ayuda[]={
 							"Use with care, pointer address is a memory address on the emulator program (not the emulated memory)"},
 	{"ifrom-press-button",NULL,NULL,"Press button on the iFrom interface"},
 	{"kartusho-press-button",NULL,NULL,"Press button on the Kartusho interface"},
-	{"load-binary",NULL,"file addr len","Load binary file \"file\" at address \"addr\" with length \"len\". Set ln to 0 to load the entire file in memory"},
+	{"load-binary",NULL,"file addr len","Load binary file \"file\" at address \"addr\" with length \"len\", on the current memory zone. Set ln to 0 to load the entire file in memory"},
 	{"load-source-code","|lsc","file","Load source file to be used on disassemble opcode functions"},
 	{"ls",NULL,NULL,"Minimal command list"},
 	{"noop",NULL,NULL,"This command does nothing"},
@@ -763,9 +768,12 @@ struct s_items_ayuda items_ayuda[]={
 	"The parameters can be written in different order, for example:\nrun verbose\nor\nrun 100\nor\nrun verbose 100\n"
    "Notice this command does not run the usual cpu loop, instead it is controlled from ZRCP. If you close the connection, the run loop will die\n"
 	 },
+	{"save-binary",NULL,"file addr len","Save binary file \"file\" from address \"addr\" with length \"len\", from the current memory zone. Set ln to 0 to save the entire current memory zone"},
 	{"save-binary-internal",NULL,"pointer length file [offset]","Dumps internal memory to file for a given memory pointer. "
 				"Pointer can be any of the hexdump-internal command\n"
 				"Use with care, pointer address is a memory address on the emulator program (not the emulated memory)"},
+
+	{"save-screen",NULL,"file","Save screen to file. Currently bmp, scr and pbm file formats supported"},
 
 
 
@@ -2991,7 +2999,7 @@ int remote_command_argc;
 void remote_parse_commands_argvc(char *texto)
 {
 
-  remote_command_argc=util_parse_commands_argvc(texto, remote_command_argv, REMOTE_MAX_PARAMETERS_COMMAND);
+  remote_command_argc=util_parse_commands_argvc_comillas(texto, remote_command_argv, REMOTE_MAX_PARAMETERS_COMMAND);
 
 }
 
@@ -3901,8 +3909,13 @@ void interpreta_comando(char *comando,int misocket)
 
 			escribir_socket(misocket,"\nYou can get descriptive help for every command with: help command");
 
-			escribir_socket(misocket,"\nNote: When help shows an argument in brackets [], it means the argument is optional, and when written, "
-			                  	"you must not write these brackets\n");
+			escribir_socket(misocket,"\nNote 1: When help shows an argument in brackets [], it means the argument is optional, and when written, "
+			                  	"you must not write these brackets\n"
+
+								  "Note 2: Some commands allows to specify parameters in \"\" \n"
+								  
+								  
+							);
     }
 
 		else remote_help_command(misocket,parametros);
@@ -4046,6 +4059,19 @@ void interpreta_comando(char *comando,int misocket)
 
     remote_cpu_transaction_log(misocket,remote_command_argv[0],remote_command_argv[1]);
   }
+
+
+	else if (!strcmp(comando_sin_parametros,"debug-analize-command")) {
+		//Parseamos los parametros porque me sirven para debugar 
+		remote_parse_commands_argvc(parametros);
+
+		int i;
+
+		for (i=0;i<remote_command_argc;i++) {
+			//printf ("Parametro %d: [%s]\n",i,remote_command_argv[i]);
+			escribir_socket_format(misocket,"Parameter %d: [%s]\n",i,remote_command_argv[i]);
+		}
+	}  
 
   else if (!strcmp(comando_sin_parametros,"disable-breakpoint") || !strcmp(comando_sin_parametros,"db")) {
     if (debug_breakpoints_enabled.v==0) escribir_socket (misocket,"Error. You must enable breakpoints first");
@@ -4727,7 +4753,7 @@ void interpreta_comando(char *comando,int misocket)
 	}	
 
 
-        else if (!strcmp(comando_sin_parametros,"load-binary")) {
+	else if (!strcmp(comando_sin_parametros,"load-binary")) {
                 remote_parse_commands_argvc(parametros);
 
 
@@ -4912,6 +4938,31 @@ void interpreta_comando(char *comando,int misocket)
   }
 
 
+	else if (!strcmp(comando_sin_parametros,"save-binary")) {
+		remote_parse_commands_argvc(parametros);
+
+
+		if (remote_command_argc<3) {
+				escribir_socket(misocket,"ERROR. Needs three parameters");
+				return;
+		}
+
+
+		char *archivo;
+		archivo=remote_command_argv[0];
+
+		int valor_leido_direccion=parse_string_to_number(remote_command_argv[1]);
+
+		int valor_leido_longitud=parse_string_to_number(remote_command_argv[2]);
+
+		int retorno=save_binary_file(archivo,valor_leido_direccion,valor_leido_longitud);
+
+		if (retorno) escribir_socket(misocket,"ERROR loading file");
+
+
+	}
+
+
 	else if (!strcmp(comando_sin_parametros,"save-binary-internal")) {
 		remote_parse_commands_argvc(parametros);
 
@@ -4964,6 +5015,20 @@ void interpreta_comando(char *comando,int misocket)
 
 	}
 
+
+	else if (!strcmp(comando_sin_parametros,"save-screen") ) {
+
+		remote_parse_commands_argvc(parametros);
+		if (remote_command_argc<1) {
+			escribir_socket(misocket,"ERROR. No parameter set");
+			return;
+		}
+
+
+		save_screen(remote_command_argv[0]);
+
+
+  }	
 
 	else if (!strcmp(comando_sin_parametros,"send-keys-event")) {
 
@@ -5291,6 +5356,13 @@ else if (!strcmp(comando_sin_parametros,"set-memory-zone") || !strcmp(comando_si
 
 else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_parametros,"sl")) {
 
+	remote_parse_commands_argvc(parametros);
+	if (remote_command_argc<1) {
+		escribir_socket(misocket,"ERROR. No parameter set");
+		return;
+	}
+
+
 		//Si estamos en cpu-step-mode, cargar tal cual y volver sin tocar modo
 		//Si no, entrar cpu-step-mode y luego quitar cpu-step-mode
 
@@ -5300,21 +5372,25 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 
 
 		if (antes_menu_event_remote_protocol_enterstep.v==0) {
-    	//Asegurarnos que congelamos el emulador: abrir menu con mutitarea desactivada
-    	//Entramos en el mismo modo que cpu-step para poder congelar la emulacion
-    	remote_cpu_enter_step(misocket);
-    	if (menu_event_remote_protocol_enterstep.v==0) return;
+    		//Asegurarnos que congelamos el emulador: abrir menu con mutitarea desactivada
+    		//Entramos en el mismo modo que cpu-step para poder congelar la emulacion
+    		remote_cpu_enter_step(misocket);
+    		if (menu_event_remote_protocol_enterstep.v==0) return;
 		}
 
 
-    if (quickload(parametros)) {
+    //if (quickload(parametros)) {
+    //  escribir_socket (misocket,"Error. Unknown file format");
+    //}
+
+    if (quickload(remote_command_argv[0])) {
       escribir_socket (misocket,"Error. Unknown file format");
-    }
+    }		
 
-
-		if (antes_menu_event_remote_protocol_enterstep.v==0) {
+	if (antes_menu_event_remote_protocol_enterstep.v==0) {
     	remote_cpu_exit_step(misocket);
-		}
+	}
+
   }
 
 
@@ -5981,6 +6057,138 @@ struct sockaddr_in sockaddr_client;
 
 void *thread_remote_protocol_function(void *nada)
 {
+
+	if (remote_initialize_port()) return NULL;
+
+	fflush(stdout);
+
+	while (1)
+	{
+		long_adr=sizeof(adr);
+
+
+		if (!remote_protocol_ended.v) {
+			//printf ("ANTES accept\n");
+			sock_conectat=accept(sock_listen,(struct sockaddr *)&adr,&long_adr);
+		}
+
+		else {
+			//Si ha finalizado, volver
+			return NULL;
+		}
+
+
+		if (sock_conectat<0) {
+			debug_printf (VERBOSE_DEBUG,"Remote command. Error running accept");
+			//Esto se dispara cuando desactivamos el protocolo desde el menu, y no queremos que salte error
+			//Aunque tambien se puede dar en otros momentos por culpa de fallos de conexion, no queremos que moleste al usuario
+			//como mucho lo mostramos en verbose debug
+
+			remote_salir_conexion=1;
+			sleep(1);
+		}
+
+
+		else {
+
+			debug_printf (VERBOSE_DEBUG,"Received remote command connection petition");
+			
+			//debugar direccion ip origen
+			remote_show_client_ip(sock_conectat);
+
+			//Enviamos mensaje bienvenida
+			escribir_socket(sock_conectat,"Welcome to ZEsarUX remote command protocol (ZRCP)\nWrite help for available commands\n");
+
+
+			remote_salir_conexion=0;
+
+			while (!remote_salir_conexion) {
+
+				char prompt[1024];
+				if (menu_event_remote_protocol_enterstep.v) sprintf (prompt,"%s","\ncommand@cpu-step> ");
+				else if (remote_protocol_assembling.v) sprintf (prompt,"assemble at %XH> ",direccion_assembling);
+				else sprintf (prompt,"%s","\ncommand> ");
+				if (escribir_socket(sock_conectat,prompt)<0) remote_salir_conexion=1;
+
+				int indice_destino=0;
+
+				if (!remote_salir_conexion) {
+
+					//Leer socket
+					int leidos;
+					int salir_bucle=0;
+					do {
+						leidos=leer_socket(sock_conectat, &buffer_lectura_socket[indice_destino], MAX_LENGTH_PROTOCOL_COMMAND-1);
+						debug_printf (VERBOSE_DEBUG,"Read block %d bytes index: %d",leidos,indice_destino);
+
+						/*
+						RETURN VALUES
+						These calls return the number of bytes received, or -1 if an error occurred.
+
+						For TCP sockets, the return value 0 means the peer has closed its half side of the connection.
+						*/
+
+						if (leidos==0) remote_salir_conexion=1;
+
+						//Controlar tambien si da <0 bytes al leer. En ese caso salir tambien
+						//Nota: Esto lo he observado en Windows a veces (en un caso retornó -8)
+						if (leidos<0) remote_salir_conexion=1;
+
+						if (leidos>0) {
+
+							indice_destino +=leidos;
+							//Si acaba con final de string, salir
+
+							//printf ("%d %d %d %d\n",buffer_lectura_socket[0],buffer_lectura_socket[1],buffer_lectura_socket[2],buffer_lectura_socket[3]);
+
+							if (buffer_lectura_socket[indice_destino-1]=='\r' || buffer_lectura_socket[indice_destino-1]=='\n' || buffer_lectura_socket[indice_destino-1]==0) {
+								salir_bucle=1;
+							}
+						}
+
+
+					} while (leidos>0 && salir_bucle==0);
+
+
+					//No hacer nada de esto si es <=0
+					if (leidos>0) {
+						buffer_lectura_socket[indice_destino]=0;
+						debug_printf (VERBOSE_DEBUG,"Remote command. Length Read text: %d",indice_destino);
+
+						//Para que no pete el emulador si el verbose level esta al menos 3 y el comando recibido excede el maximo que puede mostrar debug_printf				
+						if (strlen(buffer_lectura_socket)<DEBUG_MAX_MESSAGE_LENGTH) {
+							debug_printf (VERBOSE_DEBUG,"Remote command. Read text: [%s]",buffer_lectura_socket);
+						}
+						
+
+						interpreta_comando(buffer_lectura_socket,sock_conectat);
+					}
+
+				} //Fin if (!remote_salir_conexion)
+
+			} //Fin while (!remote_salir_conexion) 
+
+		} //Fin else
+
+		debug_printf (VERBOSE_DEBUG,"Remote command. Exiting connection");
+
+		//Salir del modo step si estaba activado
+		if (menu_event_remote_protocol_enterstep.v) remote_cpu_exit_step_continue();
+
+	} //Fin while(1)
+
+
+	//para que no se queje el compilador de variable no usada
+	nada=0;
+	nada++;
+
+
+	return NULL;
+}
+
+
+void *old_delete_thread_remote_protocol_function(void *nada)
+{
         /*while (1) {
                 sleep(1);
 
@@ -6069,6 +6277,9 @@ void *thread_remote_protocol_function(void *nada)
 
 								if (leidos==0) remote_salir_conexion=1;
 
+								//Controlar tambien si da <0 bytes al leer. En ese caso salir tambien
+								if (leidos<0) remote_salir_conexion=1;
+
 								if (leidos>0) {
 
 									//temp debug
@@ -6096,7 +6307,8 @@ void *thread_remote_protocol_function(void *nada)
 							} while (leidos>0 && salir_bucle==0);
 
 
-							//if (leidos) {
+							//No hacer nada de esto si es <=0
+							if (leidos>0) {
 								buffer_lectura_socket[indice_destino]=0;
 								debug_printf (VERBOSE_DEBUG,"Remote command. Length Read text: %d",indice_destino);
 
@@ -6114,7 +6326,7 @@ void *thread_remote_protocol_function(void *nada)
 								
 
 								interpreta_comando(buffer_lectura_socket,sock_conectat);
-							//}
+							}
 
 						}
 

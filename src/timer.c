@@ -148,6 +148,7 @@ void timer_stats_current_time(struct timeval *tiempo)
 }
 
 
+//Diferencia de dos tiempos pero calculando el tiempo_despues segun tiempo actual
 long timer_stats_diference_time(struct timeval *tiempo_antes, struct timeval *tiempo_despues)
 {
 	timer_stats_current_time(tiempo_despues);
@@ -771,6 +772,9 @@ int timer_get_uptime_seconds(void)
 
 	//printf ("seconds: %ld\n",z80_uptime_total_seconds);
 
+	//Si por algo el valor es negativo (porque no haya segundos iniciales por ejemplo), retornar 0
+	if (z80_uptime_total_seconds<0) z80_uptime_total_seconds=0;
+
 	return z80_uptime_total_seconds;
 
 }
@@ -834,3 +838,9 @@ int timer_get_worked_time(void)
 	return total_tiempo_invertido;
 
 }
+
+void timer_toggle_top_speed_timer(void)
+{
+	top_speed_timer.v ^=1;
+}
+

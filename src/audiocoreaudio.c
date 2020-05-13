@@ -540,6 +540,13 @@ void coreaudio_mid_add_note(z80_byte *note,int messagesize)
     }
 }
 
+void coreaudio_mid_raw_send(z80_byte value)
+{
+    z80_byte rawpacket[] = {value}; 
+
+  coreaudio_mid_add_note(rawpacket,1);
+}
+
 void coreaudio_mid_initialize_queue(void)
 {
    coreaudio_midi_packetlist = (MIDIPacketList*)coreaudio_midi_buffer;
@@ -557,7 +564,45 @@ void coreaudio_midi_output_flush_output(void)
 
 }
 
+void coreaudio_midi_output_reset(void)
+{
 
+//printf ("reset\n");
+
+//TODO: Esto no parece hacer nada. El reset de midi solo parece funcionar en windows
+		
+
+
+    z80_byte resetcommand[] = {0xFF,0,0,0};
+     coreaudio_mid_add_note(resetcommand,4);
+/*
+
+    int channel;
+
+    for (channel=0;channel<16;channel++) {
+
+  printf ("Sending reset\n");
+
+  //All Sound Off=120
+  //z80_byte resetcommand[] = {176, 121, 0}; 
+  z80_byte resetcommand[] = {176, 120, 0}; 
+
+  resetcommand[0] &=0xF0;
+  resetcommand[0] |=channel;
+
+  coreaudio_mid_add_note(resetcommand,3);
+
+  z80_byte notesoffcommand[] = {176, 123, 0}; 
+
+  notesoffcommand[0] &=0xF0;
+  notesoffcommand[0] |=channel;
+
+  coreaudio_mid_add_note(notesoffcommand,3);
+
+    }
+    */
+
+}
 
 int coreaudio_mid_initialize_all(void)
 {

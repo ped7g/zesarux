@@ -1697,15 +1697,17 @@ char vochead[0x20] = {'C', 'r', 'e', 'a', 't', 'i', 'v', 'e', ' ', 'V', 'o', 'i'
 										if (!sb_pulse)
 											sb_pulse = 1;		/* In case sample frequency > 44100 */
 											
-											tzx_pause = Get2(&data[2]);	/* (Should work for frequencies upto 48000) */
-											lastbyte = (int) data[4];
+										tzx_pause = Get2(&data[2]);	/* (Should work for frequencies upto 48000) */
+										lastbyte = (int) data[4];
 										datalen = Get3(&data[5]);
 										
 										if (tzx_info!= 1) {
-											if (draw)
+											if (draw) {
 												debug_printf
 												(VERBOSE_INFO,"    Direct Recording      Length:%6d  Original Freq.: %5d Hz",
 												 datalen, (int) (0.5 + (3500000.0 / (double) Get2(&data[0]))));
+
+											}
 												
 												if (tzx_info!= 2) {
 													data = &data[8];
@@ -1916,9 +1918,10 @@ char vochead[0x20] = {'C', 'r', 'e', 'a', 't', 'i', 'v', 'e', ' ', 'V', 'o', 'i'
 													
 													if (tzx_pause) {
 														if (tzx_info!= 1) {
-															if (draw)
+															if (draw) {
 																debug_printf(VERBOSE_INFO,"    Pause                 Length: %2.3fs",
 																	     ((float) tzx_pause) / 1000.0);
+															}
 																
 																if (tzx_info!= 2) {
 																	PauseSB(amp, tzx_pause);
@@ -2083,9 +2086,11 @@ char vochead[0x20] = {'C', 'r', 'e', 'a', 't', 'i', 'v', 'e', ' ', 'V', 'o', 'i'
 																				} else {
 																					jump = (signed short) (data[2] + data[3] * 256);
 																					
-																					if (draw)
+																					if (draw) {
 																						debug_printf(VERBOSE_INFO,"    Call Sequence, Number of Calls : %d, First: %d (To Block %d)",
 																							     call_num, jump, curr + jump + 1);
+
+																					}
 																						
 																						curr += jump;
 																					curr--;
@@ -2117,10 +2122,11 @@ char vochead[0x20] = {'C', 'r', 'e', 'a', 't', 'i', 'v', 'e', ' ', 'V', 'o', 'i'
 																							data = &mem[block[curr] + 1];
 																							jump = (signed short) (data[call_cur * 2 + 2] + data[call_cur * 2 + 3] * 256);
 																							
-																							if (draw)
+																							if (draw) {
 																								debug_printf
 																								(VERBOSE_INFO,"    Return from Call, Calls Left: %d, Next: %d (To Block %d)",
 																								 call_num - call_cur, jump, curr + jump + 1);
+																							}
 																								
 																								curr += jump;
 																							curr--;
@@ -2714,7 +2720,9 @@ char vochead[0x20] = {'C', 'r', 'e', 'a', 't', 'i', 'v', 'e', ' ', 'V', 'o', 'i'
 					}			/* Play PILOT TONE */
 					if (sb_sync1)
 						PlayC64SB(sb_sync1);	/* Play SYNC PULSES */
-						if (sb_sync2)
+
+
+					if (sb_sync2)
 							PlayC64SB(sb_sync2);
 						datapos = 0;
 					while (datalen) {	/* Play actual DATA */

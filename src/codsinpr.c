@@ -710,12 +710,39 @@ void instruccion_54()
 
 }
 
+
+void aux_scf_ccf_undoc_flags(void)
+{
+   /*
+https://www.worldofspectrum.org/forums/discussion/comment/669314
+In other words, the content of A is copied to flags 5+3 after SCF/CCF if the previous operation did set the flags, 
+whereas it is ORed in there if it didn't set the flags. 
+
+Try it with z80flags.tap
+*/
+#ifdef EMULATE_SCF_CCF_UNDOC_FLAGS	
+        //printf ("Flags changed before: %d\n",scf_ccf_undoc_flags_after_changed);
+        if (scf_ccf_undoc_flags_after_changed) {
+                set_undocumented_flags_bits(reg_a);
+        }
+        else {
+                z80_byte temp_value=Z80_FLAGS | reg_a;
+                set_undocumented_flags_bits(temp_value);
+        }
+
+        //Y en este caso cambiar la variable before a lo contrario que Z80_FLAGS para indicar que ha cambiado el contenido
+        scf_ccf_undoc_flags_before=~Z80_FLAGS;
+#else
+		set_undocumented_flags_bits(reg_a);
+#endif	                 
+}
+
 void instruccion_55()
 {
 //SCF
 		Z80_FLAGS=(Z80_FLAGS & (255-FLAG_H-FLAG_N)) | FLAG_C;
 
-		set_undocumented_flags_bits(reg_a);
+                aux_scf_ccf_undoc_flags();
 
 }
 
@@ -811,8 +838,8 @@ void instruccion_63()
 
 	Z80_FLAGS=(Z80_FLAGS & (255-FLAG_H-FLAG_N))  ^ ( FLAG_C);
 	Z80_FLAGS |= temp;
-
-        set_undocumented_flags_bits(reg_a);
+   
+        aux_scf_ccf_undoc_flags();        
 
 }
 

@@ -1,0 +1,178 @@
+diff --git a/src/operaciones.c b/src/operaciones.c
+index 9af95055..0b9c50b6 100644
+--- a/src/operaciones.c
++++ b/src/operaciones.c
+@@ -1914,6 +1914,36 @@ z80_byte *tbblue_return_segment_memory(z80_int dir)
+ 
+ }
+ 
++z80_byte *tbblue_get_altrom_dir(z80_int dir)
++{
++	/*
++	   -- 0x018000 - 0x01BFFF (16K)  => Alt ROM0 128k           A20:A16 = 00001,10
++   -- 0x01c000 - 0x01FFFF (16K)  => Alt ROM1 48k            A20:A16 = 00001,11
++	*/
++
++/*
++0x8C (140) => Alternate ROM
++(R/W) (hard reset = 0)
++IMMEDIATE
++  bit 7 = 1 to enable alt rom
++  bit 6 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
++  bit 5 = 1 to lock ROM1 (48K rom)
++  bit 4 = 1 to lock ROM0 (128K rom)
++*/
++
++	//48k rom
++	if ( (tbblue_registers[0x8c] & 32) == 32) return &memoria_spectrum[0x01c000+(dir&16383)];
++	//128k rom
++	else if ( (tbblue_registers[0x8c] & 16) == 16) return &memoria_spectrum[0x018000+(dir&16383)];
++
++	//a 0 los dos . paginado +3.
++	else {
++		z80_byte rom_entra=((puerto_32765>>4)&1) + ((puerto_8189>>1)&2);
++		return &memoria_spectrum[rom_entra*16384+(dir&16383)];
++	}
++
++
++}
+ 
+ void poke_byte_no_time_tbblue(z80_int dir,z80_byte valor)
+ {
+@@ -1924,6 +1954,31 @@ set_visualmembuffer(dir);
+ 
+ #endif
+ 
++	//Altrom.
++	if (dir<16384 && (  (tbblue_registers[0x8c] & 192) ==192)   ) {
++		/*
++		0x8C (140) => Alternate ROM
++(R/W) (hard reset = 0)
++IMMEDIATE
++  bit 7 = 1 to enable alt rom
++  bit 6 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
++
++  //bit 6 =0 , only for read. bit 6=1, only for write
++  */
++
++ 		//solo un poco de debug
++		if (dir<1024) printf ("Escribiendo en altrom %04XH : %02XH\n",dir,valor);
++
++		//Y escribimos
++		z80_byte *altrompointer;
++
++		altrompointer=tbblue_get_altrom_dir(dir);
++		*altrompointer=valor;
++	}
++
++
++
++
+ 		//Si se escribe en memoria layer2
+ 		if (dir<16384 && tbblue_write_on_layer2() ) {
+ 
+diff --git a/src/tbblue.c b/src/tbblue.c
+index 08e06671..e240ef57 100644
+--- a/src/tbblue.c
++++ b/src/tbblue.c
+@@ -2205,7 +2205,36 @@ void tbblue_set_rom_page(z80_byte segment,z80_byte page)
+ 
+ 	if (reg_value==255) {
+ 		page=tbblue_get_limit_sram_page(page);
+-		tbblue_memory_paged[segment]=tbblue_rom_memory_pages[page];
++
++		//Si esta altrom en read
++		//Altrom.
++		//bit 6 =0 , only for read. bit 6=1, only for write
++		if (  (tbblue_registers[0x8c] & 192) ==128)    {
++			
++
++			printf ("Enabling alt rom on read\n");
++
++			//48k rom
++			if ( (tbblue_registers[0x8c] & 32) == 32) {
++				tbblue_memory_paged[segment]=&memoria_spectrum[0x01c000+8192*segment];
++			}
++			//128k rom
++			else if ( (tbblue_registers[0x8c] & 16) == 16) {
++				tbblue_memory_paged[segment]=&memoria_spectrum[0x018000+8192*segment];
++			}
++
++			//a 0 los dos . paginado +3.
++			else {
++				tbblue_memory_paged[segment]=tbblue_rom_memory_pages[page];
++			}
++
++
++
++		}
++
++		else tbblue_memory_paged[segment]=tbblue_rom_memory_pages[page];
++
++
+ 		debug_paginas_memoria_mapeadas[segment]=DEBUG_PAGINA_MAP_ES_ROM+page;
+ 	}
+ 	else {
+@@ -2936,6 +2965,39 @@ void tbblue_reset(void)
+   bit 0 = (R/W) Reading 1 indicates a Soft-reset. If written 1 causes a Soft Reset.
+ 	*/
+ 	tbblue_registers[2]=1;
++
++
++/*
++0x8C (140) => Alternate ROM
++(R/W) (hard reset = 0)
++IMMEDIATE
++  bit 7 = 1 to enable alt rom
++  bit 6 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
++  bit 5 = 1 to lock ROM1 (48K rom)
++  bit 4 = 1 to lock ROM0 (128K rom)
++AFTER SOFT RESET (copied into bits 7-4)
++  bit 3 = 1 to enable alt rom
++  bit 2 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
++  bit 1 = 1 to lock ROM1 (48K rom)
++  bit 0 = 1 to lock ROM0 (128K rom)
++The locking mechanism also applies if the alt rom is not enabled. For the +3 and zx next, if the two lock bits are not
++zero, then the corresponding rom page is locked in place. Other models use the bits to preferentially lock the corresponding
++48K rom or the 128K rom.
++	
++*/
++
++	z80_byte reg8c_low=tbblue_registers[0x8c];
++
++	//Moverlo a bits altos
++	reg8c_low = reg8c_low << 4;
++
++	//Quitar de origen los bits altos
++
++	tbblue_registers[0x8c] &=0xF;
++
++	//Y meterle los altos
++
++	tbblue_registers[0x8c] |=reg8c_low;
+ 	
+ 
+ 	tbblue_reset_common();
+@@ -2967,6 +3029,9 @@ void tbblue_hard_reset(void)
+ 	tbblue_registers[8]=16;
+ 	tbblue_registers[9]=0;
+ 
++
++	tbblue_registers[0x8c]=0;
++
+ 	tbblue_reset_common();
+ 
+ 
+@@ -3707,6 +3772,12 @@ Bit	Function
+ 		break;	
+ 
+ 
++		case 140:
++			printf ("Write to 140 (8c) register value: %02XH\n",value);
++			tbblue_set_memory_pages();
++		break;
++
++
+ 		default:
+ 			/*if 
+ 			(

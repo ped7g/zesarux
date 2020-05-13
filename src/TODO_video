@@ -24,8 +24,6 @@ Opcion desactivar colores que solo va en realvideo off:
 -Quizá simplemente una paleta grayscale y cuando haga render final, que convierta valores rgb a gris
 
 
--opción nueva para curses, stout y simpletext para forzar render gráfico tipo tsconf
-
 -sdl2 peta con easter-egg en linux
 
 - Vídeo que muestre text to speech con aventura conversacional

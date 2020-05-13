@@ -1059,7 +1059,7 @@ void codetests_https()
 	char redirect_url[NETWORK_MAX_URL];
 
 	int retorno=zsock_http("archive.org","/download/World_of_Spectrum_June_2017_Mirror/World%20of%20Spectrum%20June%202017%20Mirror.zip/World%20of%20Spectrum%20June%202017%20Mirror/sinclair/games/m/Mandroid.tzx.zip",
-				&http_code,&mem,&total_leidos,&mem_after_headers,0,"",1,redirect_url);
+				&http_code,&mem,&total_leidos,&mem_after_headers,0,"",1,redirect_url,0);
 
 	if (retorno<0) {
 		printf ("Error zsock_http\n");
@@ -1127,7 +1127,7 @@ void codetests_http()
 	char *mem_after_headers;
 	int total_leidos;
 	char redirect_url[NETWORK_MAX_URL];
-	int retorno=zsock_http("www.zx81.nl","/files.html",&http_code,&mem,&total_leidos,&mem_after_headers,0,"",0,redirect_url);
+	int retorno=zsock_http("www.zx81.nl","/files.html",&http_code,&mem,&total_leidos,&mem_after_headers,0,"",0,redirect_url,0);
 	orig_mem=mem;
 	
 	if (retorno==0 && mem!=NULL) printf ("Response\n%s\n",mem);
@@ -1173,7 +1173,7 @@ void codetests_http()
 	//peticion saltando cabeceras
 	printf ("Request skipping headers\n");
 
-	retorno=zsock_http("www.zx81.nl","/files.html",&http_code,&mem,&total_leidos,&mem_after_headers,1,"",0,redirect_url);
+	retorno=zsock_http("www.zx81.nl","/files.html",&http_code,&mem,&total_leidos,&mem_after_headers,1,"",0,redirect_url,0);
 	if (mem_after_headers!=NULL) printf ("Answer after headers:\n%s\n",mem_after_headers);
 	
 	if (mem!=NULL) free (mem);
@@ -1341,6 +1341,41 @@ void codetests_open_sockets_infinite(void)
 
 #endif
 
+
+/*
+void codetests_get_background_f_key(void)
+{
+
+  
+	int i;
+
+	for (i=1;i<=10;i++) {
+
+
+		z80_byte *puntero;
+		int mascara;
+
+		puntero=menu_get_port_puerto_especial(i);
+		mascara=menu_get_mask_puerto_especial(i);
+
+
+		printf ("puerto: %p mascara: %d\n",puntero,mascara);
+	}
+}
+*/
+
+void codetests_tbblue_set_ram_blocks(void)
+{
+
+	int i;
+
+	for (i=0;i<3000;i++) {
+		tbblue_set_ram_blocks(i);
+		printf ("ram: %04dKB blocks: %d\n",i,tbblue_extra_512kb_blocks);
+	}
+
+}
+
 void codetests_main(int main_argc,char *main_argv[])
 {
 
@@ -1354,8 +1389,8 @@ void codetests_main(int main_argc,char *main_argv[])
 	verbose_level=VERBOSE_PARANOID;
 	scr_driver_name="";	
 
-	//printf ("\nRunning expression parser tests\n");
-	//codetests_expression_parser();
+	printf ("\nRunning expression parser tests\n");
+	codetests_expression_parser();
 
 
 	//printf ("\nRunning mid tests\n");
@@ -1371,20 +1406,20 @@ void codetests_main(int main_argc,char *main_argv[])
 	printf ("Note: %d\n",get_mid_number_note("KK"));
 	printf ("Note: %d\n",get_mid_number_note(""));*/
 
-	//printf ("\nRunning assembler tests\n");
-	//codetests_assembler();
+	printf ("\nRunning assembler tests\n");
+	codetests_assembler();
 
-	//printf ("\nRunning zeng tests\n");
-	//init_network_tables();
-	//codetests_zeng();
+	printf ("\nRunning zeng tests\n");
+	init_network_tables();
+	codetests_zeng();
 	
 	//printf ("error: %s\n",z_sock_get_error(Z_ERR_NUM_READ_SOCKET));
 
 	//codetests_open_sockets_infinite();
 	
-	//printf ("\nRunning zsock http tests\n");
-	//init_network_tables();
-	//codetests_http();
+	printf ("\nRunning zsock http tests\n");
+	init_network_tables();
+	codetests_http();
 
 	//printf ("\nRunning zsock https tests\n");
 	//init_network_tables();
@@ -1406,17 +1441,25 @@ void codetests_main(int main_argc,char *main_argv[])
 //	codetests_network_atomic();
 //#endif
 
-	//printf ("\nRunning tbblue layers strings\n");
-	//codetests_tbblue_layers();
+	printf ("\nRunning tbblue layers strings\n");
+	codetests_tbblue_layers();
 
-	//printf ("\nRunning repetitions code\n");
-	//codetests_repetitions();
+	printf ("\nRunning repetitions code\n");
+	codetests_repetitions();
 
-	//printf ("\nRunning compress repetitions code\n");
-	//coretests_compress_repetitions();
+	printf ("\nRunning compress repetitions code\n");
+	coretests_compress_repetitions();
 
-	//printf ("\nRunning get raster tbblue horizontal\n");
-	//codetests_tbblue_get_horizontal_raster();
+	printf ("\nRunning get raster tbblue horizontal\n");
+	codetests_tbblue_get_horizontal_raster();
+
+
+	printf ("\nRunning code tests tbblue_set_ram_blocks\n");
+	codetests_tbblue_set_ram_blocks();
+
+
+	//printf ("\nRunning getting background F-key\n");
+	//codetests_get_background_f_key();
 
 	exit(0);
 }

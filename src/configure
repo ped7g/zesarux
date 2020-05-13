@@ -49,15 +49,14 @@ show_help()
 	echo "--disable-coreaudio          Disable Coreaudio Mac OS X audio"
 	echo "--disable-sndfile            Disable sndfile functions"
         echo "--disable-pthreads           Disable using posix threads"
-	echo "--disable-realtime           Disable realtime priority"
 	echo "--disable-cocoa              Disable Cocoa Mac OS X native GUI"
 	echo "--disable-linuxrealjoystick  Disable linux real joystick support"
 	echo "--enable-memptr              Enable MEMPTR emulation"
+	echo "--enable-undoc-scfccf        Enable SCF/CCF undocumented flags emulation"
 	echo "--enable-visualmem           Enable visual memory option on menu"
 	echo "--enable-cpustats            Enable CPU statistics option on menu"
 	echo "--enable-raspberry           Enable Raspberry extensions"
 	echo "--enable-sdl2                Enable SDL2 libraries. Experimental"
-	echo "--disable-cocoa-opengl       Disable OpenGL rendering on Mac OS X cocoa driver (enabled by default)"
 	echo "--enable-ssl                 Enable ssl functions"
 	echo "--disable-contend            Disable Contended Memory emulation"
 	echo "--disable-putpixel-cache     Disable putpixel cache. Test feature"
@@ -117,11 +116,11 @@ OPTIONLINUXREALJOYSTICK="realjoystick_linux.o"
 OPTIONOBJSSL=""
 OPTIONPTHREADS="enabled"
 OPTIONSNDFILE="enabled"
-OPTIONREALTIME="enabled"
 OPTIONXEXT="enabled"
 OPTIONXVIDMODE="enabled"
 INSTALLPREFIX="/usr/local"
 OPTIONEMULATE_MEMPTR=""
+OPTIONEMULATE_UNDOC_SCF_CCF=""
 OPTIONEMULATE_VISUALMEM=""
 OPTIONEMULATE_CPU_STATS=""
 OPTIONEMULATE_RASPBERRY=""
@@ -129,7 +128,6 @@ OPTIONEMULATE_CONTEND="yes"
 OPTIONPUTPIXELCACHE="yes"
 OPTION_WORDS_BIGENDIAN=""
 OPTIONCOCOA="enabled"
-OPTIONCOCOA_OPENGL="enabled"
 OPTIONREDUCED_CORE_SPECTRUM=""
 
 
@@ -212,16 +210,6 @@ while [ $# -gt 0 ]; do
 	;;
 
 
-	#for backwards compatibility
-	--enable-cocoa-opengl)
-	OPTIONCOCOA_OPENGL="enabled"
-	;;
-
-	--disable-cocoa-opengl)
-	OPTIONCOCOA_OPENGL=""
-	;;
-
-
 	--disable-dsp)
 	OPTIONOBJDSP=""
 	;;
@@ -253,11 +241,6 @@ while [ $# -gt 0 ]; do
 	OPTIONSNDFILE=""
 	;;
 
-        --disable-realtime)
-        OPTIONREALTIME=""
-        ;;
-
-
 	--disable-xext)
         OPTIONXEXT=""
 	;;
@@ -276,6 +259,10 @@ while [ $# -gt 0 ]; do
 
 	--enable-memptr)
 	OPTIONEMULATE_MEMPTR="yes"
+	;;
+
+	--enable-undoc-scfccf)
+	OPTIONEMULATE_UNDOC_SCF_CCF="yes"
 	;;
 
 	--enable-visualmem)
@@ -850,48 +837,6 @@ fi
 
 
 
-
-
-
-
-
-
-echo -n "Checking for realtime schedulling ... "
-if [ "$OPTIONREALTIME" != "" ]; then
-#en principio activo, probemos a compilar
-
-        TEMPFILE="configure.compile.c"
-
-        cat > $TEMPFILE << _EOF
-#include <sched.h>
-int main () {
-struct sched_param sparam;
-
-        sparam.sched_priority = sched_get_priority_max(SCHED_RR);
-        sched_setscheduler(0, SCHED_RR, &sparam);
-
-return 0;
-}
-_EOF
-
-        gcc $CFLAGS $TEMPFILE -o $TEMPFILE.o >> $LOGFILE 2>&1
-        RESULTCODE=$?
-        if [ $RESULTCODE != 0 ]; then
-                echo "not found"
-                OPTIONREALTIME=""
-        else
-                echo "found"
-        fi
-        rm -f $TEMPFILE $TEMPFILE.o
-
-
-else
-        echo "disabled"
-fi
-
-
-
-
 echo -n "Checking for audio dsp ... "
 if [ "$OPTIONOBJDSP" != "" ]; then
 #en principio activo, probemos a compilar
@@ -1041,11 +986,7 @@ _EOF
 			echo
 
 			MAINSOURCE="scrcocoa"
-        	        LDFLAGS="$LDFLAGS -framework Foundation -framework AppKit"
-
-			if [ "$OPTIONCOCOA_OPENGL" == "enabled" ]; then
-				LDFLAGS="$LDFLAGS -framework OpenGL"
-			fi
+        	        LDFLAGS="$LDFLAGS -framework Foundation -framework AppKit -framework OpenGL"
 
 		fi
         fi
@@ -1209,7 +1150,7 @@ echo Final LDFLAGS=$LDFLAGS >>$LOGFILE
 
 echo "Creating Makefile"
 cat > Makefile << _EOF
-EMULATOR_VERSION=8.1
+EMULATOR_VERSION=8.2
 CFLAGS=$CFLAGS
 LDFLAGS=$LDFLAGS
 CC=gcc
@@ -1366,7 +1307,7 @@ stats.o: stats.c stats.h cpu.h menu.h compileoptions.h debug.h network.h screen.
 esxdos_handler.o: esxdos_handler.c esxdos_handler.h cpu.h operaciones.h debug.h menu.h utils.h diviface.h screen.h
 	\$(CC) \$(CFLAGS) -c esxdos_handler.c
 
-tbblue.o: tbblue.c tbblue.h cpu.h mem128.h debug.h contend.h utils.h menu.h divmmc.h diviface.h screen.h timex.h audio.h datagear.h ay38912.h multiface.h uartbridge.h
+tbblue.o: tbblue.c tbblue.h cpu.h mem128.h debug.h contend.h utils.h menu.h divmmc.h diviface.h screen.h timex.h audio.h datagear.h ay38912.h multiface.h uartbridge.h settings.h
 	\$(CC) \$(CFLAGS) -c tbblue.c
 
 zx8081.o: zx8081.c zx8081.h cpu.h screen.h debug.h audio.h core_zx8081.h operaciones.h menu.h ula.h
@@ -1420,7 +1361,7 @@ m68kopnz.o: m68kopnz.c
 snap.o: snap.c snap.h cpu.h debug.h operaciones.h zx8081.h mem128.h ay38912.h compileoptions.h autoselectoptions.h ay38912.h tape_smp.h audio.h screen.h menu.h tape.h snap_z81.h snap_zx8081.h snap_rzx.h utils.h ula.h joystick.h realjoystick.h z88.h chardetect.h jupiterace.h cpc.h timex.h zxuno.h ulaplus.h chloe.h prism.h diviface.h snap_rzx.h chrome.h zxevo.h tsconf.h baseconf.h snap_spg.h settings.h tbblue.h esxdos_handler.h
 	\$(CC) \$(CFLAGS) -c snap.c
 
-snap_zsf.o: snap_zsf.c snap_zsf.h cpu.h debug.h operaciones.h zx8081.h mem128.h ay38912.h compileoptions.h autoselectoptions.h ay38912.h tape_smp.h audio.h screen.h menu.h tape.h snap_z81.h snap_zx8081.h snap_rzx.h utils.h ula.h joystick.h realjoystick.h z88.h chardetect.h jupiterace.h cpc.h timex.h zxuno.h ulaplus.h chloe.h prism.h diviface.h snap_rzx.h chrome.h zxevo.h tsconf.h baseconf.h divmmc.h divide.h
+snap_zsf.o: snap_zsf.c snap_zsf.h cpu.h debug.h operaciones.h zx8081.h mem128.h ay38912.h compileoptions.h autoselectoptions.h ay38912.h tape_smp.h audio.h screen.h menu.h tape.h snap_z81.h snap_zx8081.h snap_rzx.h utils.h ula.h joystick.h realjoystick.h z88.h chardetect.h jupiterace.h cpc.h timex.h zxuno.h ulaplus.h chloe.h prism.h diviface.h snap_rzx.h chrome.h zxevo.h tsconf.h baseconf.h divmmc.h divide.h tbblue.h
 	\$(CC) \$(CFLAGS) -c snap_zsf.c
 
 snap_z81.o: snap_z81.c snap_z81.h cpu.h debug.h operaciones.h snap.h
@@ -1468,7 +1409,7 @@ joystick.o: joystick.c joystick.h cpu.h debug.h screen.h menu.h zeng.h
 ula.o: ula.c ula.h cpu.h debug.h screen.h contend.h menu.h multiface.h betadisk.h settings.h divmmc.c hilow.h
 	\$(CC) \$(CFLAGS) -c ula.c
 
-mmc.o: mmc.c mmc.h cpu.h debug.h utils.h menu.h screen.h divmmc.h
+mmc.o: mmc.c mmc.h cpu.h debug.h utils.h menu.h screen.h divmmc.h compileoptions.h operaciones.h
 	\$(CC) \$(CFLAGS) -c mmc.c
 
 ide.o: ide.c ide.h cpu.h debug.h utils.h menu.h screen.h divide.h
@@ -1564,17 +1505,17 @@ textspeech.o: textspeech.c textspeech.h cpu.h operaciones.h debug.h screen.h cha
 
 clean:
 	rm -f *.o zeseruse zeseruse.exe smpatap sp_z80 tapabin bin_sprite_to_c leezx81 file_to_eprom bmp_to_prism_4_planar bmp_to_sprite spedtotxt install.sh 
-	rm -fR bintargztemp/ sourcetargztemp/ zeseruse_win-\$(EMULATOR_VERSION)/
+	rm -fR bintargztemp/ sourcetargztemp/ zeseruse-\$(EMULATOR_VERSION)-windows/
 	rm -fR macos/zeseruse.app
+	rm -fR macos/zeseruse-noncompressed.dmg
+	rm -fR macos/zeseruse-noncompressed.dmg.gz
 	rm -fR macos/zeseruse.dmg
-	rm -fR macos/zeseruse.dmg.gz
-	rm -fR macos/zeseruse_macos*gz
-	rm -f zeseruse_bin-*tar.gz
-	rm -f zeseruse_src-*tar.gz
-	rm -f zeseruse_win-*.zip
-	rm -f zeseruse_extras-*.zip
+	rm -f zeseruse-\$(EMULATOR_VERSION)-bin.tar.gz
+	rm -f zeseruse-\$(EMULATOR_VERSION)-src.tar.gz
+	rm -f zeseruse-\$(EMULATOR_VERSION)-windows.zip
+	rm -f zeseruse-\$(EMULATOR_VERSION)-extras.zip
 
-COMMONFILES=ACKNOWLEDGEMENTS LICENSE LICENSES_info licenses Changelog TODO* README HISTORY FEATURES INSTALL INSTALLWINDOWS ALTERNATEROMS INCLUDEDTAPES DONATE FAQ zesarux.odt mantransfev3.bin *.rom zxuno.flash tbblue.mmc speech_filters my_soft zesarux.mp3 zesarux.xcf editionnamegame.tap editionnamegame.tap.config bin_sprite_to_c.sh
+COMMONFILES=ACKNOWLEDGEMENTS LICENSE LICENSES_info licenses Changelog TODO* README HISTORY FEATURES INSTALL INSTALLWINDOWS ALTERNATEROMS INCLUDEDTAPES DONATE FAQ *.odt mantransfev3.bin *.rom zxuno.flash tbblue.mmc speech_filters my_soft zesarux.mp3 zesarux.xcf editionnamegame.tap editionnamegame.tap.config bin_sprite_to_c.sh
 
 ONLYSOURCEFILES=macos *.c *.m *.h *.tpl DEVELOPMENT CHECKLIST configure generate_install_sh.sh join_tzx.sh testsound.sh txt_to_basic_lines.sh automatic_tests.sh zxuno_roms_bin_a_flash.sh *.asm benchmark_*.txt current_checklist.txt patches prism_change_boot.txt 
 
@@ -1586,44 +1527,48 @@ sourcetargz:
 	rm -fR sourcetargztemp
 	mkdir -p sourcetargztemp/zeseruse-\$(EMULATOR_VERSION)
 	cp -a \$(COMMONFILES) \$(ONLYSOURCEFILES) sourcetargztemp/zeseruse-\$(EMULATOR_VERSION)/
-	tar -C sourcetargztemp -cvzf zeseruse_src-\$(EMULATOR_VERSION).tar.gz zeseruse-\$(EMULATOR_VERSION)
+	tar -C sourcetargztemp -cvzf zeseruse-\$(EMULATOR_VERSION)-src.tar.gz zeseruse-\$(EMULATOR_VERSION)
 	echo
-	echo "Generated file is : zeseruse_src-\$(EMULATOR_VERSION).tar.gz"
+	echo "Generated file is : zeseruse-\$(EMULATOR_VERSION)-src.tar.gz"
 
 bintargz: all
 	./generate_install_sh.sh
 	rm -fR bintargztemp
 	mkdir -p bintargztemp/zeseruse-\$(EMULATOR_VERSION)
 	cp -a \$(COMMONFILES) \$(ONLYUNIXBINARIES) bintargztemp/zeseruse-\$(EMULATOR_VERSION)/
-	tar -C bintargztemp -cvzf zeseruse_bin-\$(EMULATOR_VERSION).tar.gz zeseruse-\$(EMULATOR_VERSION)
+	tar -C bintargztemp -cvzf zeseruse-\$(EMULATOR_VERSION)-bin.tar.gz zeseruse-\$(EMULATOR_VERSION)
 	echo
-	echo "Generated file is : zeseruse_bin-\$(EMULATOR_VERSION).tar.gz"
+	echo "Generated file is : zeseruse-\$(EMULATOR_VERSION)-bin.tar.gz"
 
 extra_files:
-	zip -r zeseruse_extras-\$(EMULATOR_VERSION).zip extras
-	echo "Generated file is: zeseruse_extras-\$(EMULATOR_VERSION).zip"
+	echo "Run the following: cd ../../zesarux-extras/ && zip -r /tmp/zeseruse-\$(EMULATOR_VERSION)-extras.zip *"
+	echo "Generated file will be: /tmp/zeseruse-\$(EMULATOR_VERSION)-extras.zip"
 
 windows:
-	mkdir -p zeseruse_win-\$(EMULATOR_VERSION)
-	cp -a \$(COMMONFILES) \$(ONLYWINBINARIES) zeseruse_win-\$(EMULATOR_VERSION)/
-	zip -r zeseruse_win-\$(EMULATOR_VERSION).zip zeseruse_win-\$(EMULATOR_VERSION)/
+	mkdir -p zeseruse-\$(EMULATOR_VERSION)-windows
+	cp -a \$(COMMONFILES) \$(ONLYWINBINARIES) zeseruse-\$(EMULATOR_VERSION)-windows/
+	zip -r zeseruse-\$(EMULATOR_VERSION)-windows.zip zeseruse-\$(EMULATOR_VERSION)-windows/
 	echo
-	echo "Generated file is: zeseruse_win-\$(EMULATOR_VERSION).zip"
+	echo "Generated file is: zeseruse-\$(EMULATOR_VERSION)-windows.zip"
 
 macapp: all
 	mkdir -p macos/zeseruse.app
 	cp -r macos/apptemplate/* macos/zeseruse.app/
 	cp zeseruse macos/zeseruse.app/Contents/MacOS/zeseruse
 	cp -a \$(COMMONFILES) macos/zeseruse.app/Contents/Resources/
+	rm -f macos/zeseruse-noncompressed.dmg
+	rm -f macos/zeseruse-noncompressed.dmg.gz
 	rm -f macos/zeseruse.dmg
-	rm -f macos/zeseruse.dmg.gz
-	hdiutil create -megabytes 100 -fs HFS+ -volname zeseruse macos/zeseruse.dmg
-	hdiutil attach -mountpoint macos/tempmount macos/zeseruse.dmg
+	hdiutil create -megabytes 128 -fs HFS+ -volname zeseruse macos/zeseruse-noncompressed.dmg
+	hdiutil attach -mountpoint macos/tempmount macos/zeseruse-noncompressed.dmg
 	cp -R macos/zeseruse.app macos/tempmount
 	ln -s /Applications/ macos/tempmount/Applications
 	sleep 5
 	hdiutil detach macos/tempmount
-	gzip macos/zeseruse.dmg
+	#gzip macos/zeseruse-noncompressed.dmg
+	#UDBZ - UDIF bzip2-compressed image (Mac OS X 10.4+ only)
+	hdiutil convert macos/zeseruse-noncompressed.dmg -format UDBZ -o macos/zeseruse.dmg
+	rm -f macos/zeseruse-noncompressed.dmg
 
 
 #CC32=gcc \$(CFLAGS) -m32
@@ -2020,12 +1965,6 @@ _EOF
 COMPILE_VARIABLES="$COMPILE_VARIABLES USE_COCOA"
 fi
 
-if [ "$OPTIONCOCOA_OPENGL" != "" ]; then
-cat >> compileoptions.h << _EOF
-#define COCOA_OPENGL
-_EOF
-COMPILE_VARIABLES="$COMPILE_VARIABLES COCOA_OPENGL"
-fi
 
 
 
@@ -2034,14 +1973,6 @@ cat >> compileoptions.h << _EOF
 #define USE_SNDFILE
 _EOF
 COMPILE_VARIABLES="$COMPILE_VARIABLES USE_SNDFILE"
-fi
-
-
-if [ "$OPTIONREALTIME" != "" ]; then
-cat >> compileoptions.h << _EOF
-#define USE_REALTIME
-_EOF
-COMPILE_VARIABLES="$COMPILE_VARIABLES USE_REALTIME"
 fi
 
 
@@ -2082,6 +2013,15 @@ cat >> compileoptions.h << _EOF
 _EOF
 COMPILE_VARIABLES="$COMPILE_VARIABLES EMULATE_MEMPTR"
 fi
+
+
+if [ "$OPTIONEMULATE_UNDOC_SCF_CCF" != "" ]; then
+cat >> compileoptions.h << _EOF
+#define EMULATE_SCF_CCF_UNDOC_FLAGS
+_EOF
+COMPILE_VARIABLES="$COMPILE_VARIABLES EMULATE_SCF_CCF_UNDOC_FLAGS"
+fi
+
 
 if [ "$OPTIONEMULATE_VISUALMEM" != "" ]; then
 cat >> compileoptions.h << _EOF
@@ -2205,14 +2145,7 @@ fi
 
 
 if [ "$OPTIONCOCOA" != "" ]; then
-        echo -n "cocoa"
-
-	if [ "$OPTIONCOCOA_OPENGL" != "" ]; then
-		echo -n "(GL)"
-	fi
-
-	echo -n " "
-
+        echo -n "cocoa "
 fi
 
 if [ "$OPTIONOBJXWINDOWS" != "" ]; then

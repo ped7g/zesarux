@@ -1,3 +1,0 @@
-Load and run the program by entering:
-
-    load centipede go 

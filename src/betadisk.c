@@ -252,6 +252,57 @@ l1e67h:
   call sub_1e36h
   
 			*/
+
+/*
+			if (reg_pc==15635) {
+				if (reg_c==5) {
+
+// #05 ³Read sectors. HL=memory address, DE=start sector/trackº
+//      ³B=number of sectors  
+
+	z80_byte numero_sectores=reg_b;
+	z80_byte pista=reg_d;
+	z80_byte sector=reg_e;
+
+	z80_int destino=reg_hl;
+
+	 debug_printf (VERBOSE_DEBUG,"From 15635 Reading %d sectors from track %d sector %d to address %04XH",numero_sectores,pista,sector,destino);
+
+
+
+				}
+
+				if (reg_c!=5 && reg_c!=6) {
+					debug_printf (VERBOSE_DEBUG,"From 15635  entry point not read nor write: %d",reg_c);
+				}
+
+			}
+
+
+// 			read_sectors:                                    equ 0x1E3D
+// write_sectors:                                           equ 0x1E4D
+
+// B = número de sectores
+// D = pista del primer sector a usar (0..159)
+// E = primer sector a usar de la pista (0..15)
+// HL = dirección de memoria para carga o lectura de los sectores
+// 
+
+			if (reg_pc==0x1e3d || reg_pc==0x1e4d) {
+	z80_byte numero_sectores=reg_b;
+	z80_byte pista=reg_d;
+	z80_byte sector=reg_e;
+
+	z80_int destino=reg_hl;
+
+	 debug_printf (VERBOSE_DEBUG,"From %04XH %s %d sectors from track %d sector %d  address %04XH",
+	 reg_pc,
+	 (reg_pc==0x1e3d ? "Reading" : "Writing" ),
+	 
+	 numero_sectores,pista,sector,destino);
+
+			}
+*/
 			if (reg_pc==0x1e67) {
 				if (reg_a==0 || reg_a==255) {
 					//char buffer_registros[8192];

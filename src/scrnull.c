@@ -46,7 +46,7 @@ void scrnull_putpixel_final(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int color
 
 
 //Rutina de putchar para menu
-void scrnull_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrnull_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
         //Para evitar warnings al compilar de "unused parameter"
@@ -58,7 +58,7 @@ void scrnull_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte
 
 }
 
-void scrnull_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrnull_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 
         //Para evitar warnings al compilar de "unused parameter"

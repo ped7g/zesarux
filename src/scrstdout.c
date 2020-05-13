@@ -132,7 +132,7 @@ void scrstdout_putpixel_final(int x GCC_UNUSED,int y GCC_UNUSED,unsigned int col
 
 
 //Rutina de putchar para menu
-void scrstdout_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrstdout_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 	
 	//Para evitar warnings al compilar de "unused parameter"
@@ -143,7 +143,7 @@ void scrstdout_putchar_menu(int x,int y, z80_byte caracter,z80_byte tinta,z80_by
 	
 }
 
-void scrstdout_putchar_footer(int x,int y, z80_byte caracter,z80_byte tinta,z80_byte papel)
+void scrstdout_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
 	
 	//Para evitar warnings al compilar de "unused parameter"
@@ -597,7 +597,15 @@ void scrstdout_repinta_pantalla(void)
 	//enviar Ansi inicio pantalla
 	screen_text_send_ansi_go_home();
 	
-	if (MACHINE_IS_ZX8081) {
+	
+	 //si todo de pixel a ascii art
+     if (rainbow_enabled.v && screen_text_all_refresh_pixel.v) {
+     
+scr_refresca_pantalla_tsconf_text(stdout_common_fun_color,stdout_common_fun_caracter,stdout_common_fun_saltolinea,screen_text_all_refresh_pixel_scale);
+     
+     }
+	
+	else if (MACHINE_IS_ZX8081) {
 		screen_text_repinta_pantalla_zx81();
 	}
 	
@@ -652,6 +660,7 @@ void scrstdout_repinta_pantalla(void)
 		}
 
 	}
+	
 	
 	
 	else {
