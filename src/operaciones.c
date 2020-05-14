@@ -6273,7 +6273,8 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
 	}
 
 	if (zxndma.emulate.v && (puerto_l==DATAGEAR_DMA_FIRST_PORT || puerto_l==DATAGEAR_DMA_SECOND_PORT) ) {
-		//TODO the port should be only 0x6B in "zxnDMA" mode, both ports in "Zilog" mode
+		// select ZilogDMA vs zxnDMA mode based on the port number (0x0B is ZilogDMA, 0x6B is zxnDMA)
+		zxndma.emulate_Zilog.v = (DATAGEAR_DMA_FIRST_PORT == puerto_l);
 		if (zxndma.menu_enabled.v) return zxndma_read_value(&zxndma);
 		return 0;
 	}
@@ -7714,7 +7715,8 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 	}
 
 	if (zxndma.emulate.v && (puerto_l==DATAGEAR_DMA_FIRST_PORT || puerto_l==DATAGEAR_DMA_SECOND_PORT) ) {
-		//TODO the port should be only 0x6B in "zxnDMA" mode, both ports in "Zilog" mode
+		// select ZilogDMA vs zxnDMA mode based on the port number (0x0B is ZilogDMA, 0x6B is zxnDMA)
+		zxndma.emulate_Zilog.v = (DATAGEAR_DMA_FIRST_PORT == puerto_l);
 		if (zxndma.menu_enabled.v) zxndma_write_value(&zxndma, value);
 	}
 

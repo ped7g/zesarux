@@ -3787,8 +3787,6 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 					*/
 			if ( (last_register_6&16) != (value&16)) tbblue_set_emulator_setting_divmmc();
 			//if ( (last_register_6&8) != (value&8)) tbblue_set_emulator_setting_multiface();
-			zxndma.emulate_Zilog.v = 0 != (value&0x40);
-			//zxndma.emulate_UA858D.v = zxndma.emulate_Zilog.v;	// FIXME DEBUG test
 		break;
 
 
