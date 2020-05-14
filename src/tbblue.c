@@ -3174,6 +3174,7 @@ void tbblue_hard_reset(void)
 
 	tbblue_registers[138]=0;
 	tbblue_registers[140]=0;
+	tbblue_registers[142]=8;
 	tbblue_registers[143]=0;
 
 	tbblue_reset_common();
@@ -3814,9 +3815,16 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 		break;
 
 
-		//case 9:
-		//	printf ("out reg 9: %02XH\n",value);
-		//break;
+		case 9:
+			if (0x08 & value) {
+
+				//TODO Reset divmmc mapram bit (port 0xe3 bit 6)
+				// not implemented
+
+				// read returns 0 (clear the bit here already)
+				tbblue_registers[9]^=0x08;
+			}
+		break;
 
 
 		case 17:
