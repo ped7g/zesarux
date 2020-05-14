@@ -1254,13 +1254,18 @@ int tbblue_if_ula_is_enabled(void)
 {
 	/*
 (R/W) 0x68 (104) => ULA Control
-  bit 7    = 1 to disable ULA output
-  bit 6    = 0 to select the ULA colour for blending in SLU modes 6 & 7
-           = 1 to select the ULA/tilemap mix for blending in SLU modes 6 & 7
-  bits 5-1 = Reserved must be 0
-  bit 0    = 1 to enable stencil mode when both the ULA and tilemap are enabled
-            (if either are transparent the result is transparent otherwise the
-             result is a logical AND of both colours)
+  bit 7 = Disable ULA output (soft reset = 0)
+  bits 6:5 = Blending in SLU modes 6 & 7 (soft reset = 0)
+           = 00 for ula as blend colour
+           = 10 for ula/tilemap mix result as blend colour
+           = 11 for tilemap as blend colour
+           = 01 for no blending
+  bit 4 = Cancel entries in 8x5 matrix for extended keys
+  bit 3 = ULA+ enable (soft reset = 0)
+  bit 2 = ULA half pixel scroll (may change) (soft reset = 0)
+  bit 1 = Reserved, must be 0
+  bit 0 = Enable stencil mode when both the ULA and tilemap are enabled (soft reset = 0)
+  (if either are transparent the result is transparent otherwise the result is a logical AND of both colours)
 						 */
 
 	if (tbblue_registers[104]&128) return 0;
@@ -5262,6 +5267,7 @@ void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int final_bor
 		// ula_color should be only ULA or ULA+tile, depending on 0x68 (104) => ULA Control bit 6
 		// but at this point I have only ULA+tile in the layer buffer, no idea how to get ULA-only
 		// (as the tilemap may be drawn above blended pixel, this probably requires fourth buffer!)
+		//TODO since core 3.1.3 there are more blending modes with tile/ULA separation possible
 
 		// if L2 priority bit is set, ignore sprites pixel (priority bit should win)
 		z80_int color = priority ? TBBLUE_SPRITE_TRANS_FICT : tbblue_layer_sprites[i];
@@ -5378,9 +5384,8 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	if (6 <= tbblue_get_layers_priorities()) {
 		if (!estamos_borde_supinf) {
 			tbblue_render_blended_rainbow(puntero_final_rainbow, final_borde_izquierdo, inicio_borde_derecho, ancho_rainbow, fallbackcolour);
-			if (!capasprites) {		// inside paper area, or no sprites -> enough was done
-				return;
-			}
+			// inside paper area -> enough was done
+			return;
 		}
 	}
 
