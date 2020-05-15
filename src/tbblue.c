@@ -5950,7 +5950,7 @@ void tbblue_do_ula_lores_overlay()
 
 }
 
-//Guardar en buffer rainbow la linea actual. Para Spectrum. solo display
+//Guardar en buffer rainbow la linea actual. 
 //Tener en cuenta que si border esta desactivado, la primera linea del buffer sera de display,
 //en cambio, si border esta activado, la primera linea del buffer sera de border
 void screen_store_scanline_rainbow_solo_display_tbblue(void)

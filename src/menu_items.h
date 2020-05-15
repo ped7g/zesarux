@@ -91,7 +91,7 @@ extern void menu_ide_divide(MENU_ITEM_PARAMETERS);
 
 extern int menu_zeng_send_message_cond(void);
 extern int menu_zsock_http(char *host, char *url,int *http_code,char **mem,int *t_leidos, char **mem_after_headers,int skip_headers,char *add_headers,int use_ssl,char *redirect_url);
-extern int menu_download_wos(char *host,char *url,char *archivo_temp,int ssl_use,int estimated_maximum_size);
+extern int menu_download_file(char *host,char *url,char *archivo_temp,int ssl_use,int estimated_maximum_size);
 
 extern void menu_display_settings(MENU_ITEM_PARAMETERS);
 

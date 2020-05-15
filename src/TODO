@@ -254,7 +254,7 @@ TODO: algunos valores de xor 255 no son realmente xor 255. Quizá son letras con
 
 -Text keyboard editable desde menu?
 
--Joystick en Mac,Win
+-Joystick en Mac
 -quiza redibujar archivo logo tal cual con el boot logo
 -Posible ocr con traducción de cirílico?
 
@@ -378,7 +378,7 @@ E indicar valor por defecto
 
 -Juegos fallan
 -powerup. al cargar. hay que reinsertar cinta, y hay que cargarlo en modo usr0 . no me preocupa mucho porque es una demo de pentagon...
-comparacion con zxspectr
+comparacion con zxspectr. 
 powerup: ok
 
 

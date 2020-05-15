@@ -155,10 +155,6 @@ porque?
 
 
 
--Texto de “connecting” en ventana de progreso que se pueda cambiar
-En ZENG queda bien pero en descargas no 
-
-
 
 -Windows no es capaz de usar imagen mmc de 2 GB. Quiza porque es un compilado para 32 bits?
 
@@ -221,10 +217,6 @@ Si es beta, actualizar solo el archivo de snapshot
 
 
 -ROM zx85 de Daniel incluir   Y zx82?
-
--Que sentido tiene conservar EPROMs de esxmmc086 de zxuno y tbblue?
-
-
 
 
 -Cinta de juegos y programas zx81 pasar a digital
@@ -309,3 +301,21 @@ https://spectrumcomputing.co.uk/forums/viewtopic.php?t=2553
 -Dandanator nueva versión
 
 
+-A veces en Mac, si lanzado con ao null, al perder el foco de la ventana se para la emulacion
+probado con:
+
+./zesarux --noconfigfile --ao null --zoom 1 --realvideo extras/media/spectrum/rainbow/over128.z80 &
+Parece que no sucede en la 8.1
+
+
+-Salvapantallas Next
+
+Ver si salvapantallas usa algún opcode extendido de next o a saber...
+
+In v2.06I it is at $0b17 in ROM0.
+
+
+-CP/M con imagen reciente de Next no funciona
+
+
+-debug cpu vista 7 deberia redimensionar pantalla. Ver si pasa lo mismo con vista 8 paws etc

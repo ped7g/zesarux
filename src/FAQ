@@ -154,7 +154,8 @@ Q: What is esxdos handler?
 A: Just a little info about divmmc, mmc and the esxdos handler on ZEsarUX :
 You can emulate a real sd/mmc card, with esxdos, by going to the storage menu-mmc. There you can select an image file (.mmc or .img), and enable divmmc. By doing that, you can have a esxdos system like a real one. All disk access will be made to this .img/.mmc file
 However, if you want to use esxdos but accessing the files from your hard drive, you can enable the esxdos handler. You can have esxdos enabled, as well as divmmc/mmc settings, or just esxdos handler alone
-If you enable both divmmc, mmc and esxdos handler, file access will use your files from your hard drive. And you’ll have all the esxdos boot process, nmi etc
+If you enable both divmmc, mmc and esxdos handler, file access will use your files from your hard drive. And you’ll have all the esxdos boot process, nmi etc.
+Note: is not recommended to enable both divmmc and esxdos handler on TBBlue, as many system calls may fail.
 If you only enable esxdos handler (and not divmmc), if you call any esxdos function (by rst 8 ), that will use the files from your computer. But, logically, you don’t have esxdos boot, nmi etc. If you are a developer and just use esxdos calls for, for example, open a file, esxdos handler is just fine (no need to enable divmmc)
 
 

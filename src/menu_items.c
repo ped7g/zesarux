@@ -17658,25 +17658,10 @@ int menu_network_uartbridge_cond(void)
 
 
 int contador_menu_zeng_connect_print=0;
-/*void menu_zeng_connect_print(zxvision_window *w)
-{
-	char *mensaje="Connecting...";
 
-	int max=strlen(mensaje);
-	char mensaje_dest[32];
-	strcpy(mensaje_dest,mensaje);
 
-	mensaje_dest[contador_menu_zeng_connect_print]=0;
 
-	zxvision_print_string_defaults_fillspc(w,1,0,mensaje_dest);	
-	zxvision_draw_window_contents(w);
-
-	contador_menu_zeng_connect_print++;
-	if (contador_menu_zeng_connect_print>max) contador_menu_zeng_connect_print=0;
-}
-*/
-
-void menu_zeng_connect_print(zxvision_window *w)
+void menu_common_connect_print(zxvision_window *w,char *texto)
 {
 	char *mensaje="|/-\\";
 
@@ -17685,7 +17670,7 @@ void menu_zeng_connect_print(zxvision_window *w)
 
 	int pos=contador_menu_zeng_connect_print % max;
 
-	sprintf(mensaje_dest,"Connecting %c",mensaje[pos]);
+	sprintf(mensaje_dest,"%s %c",texto,mensaje[pos]);
 	//printf ("pos: %d\n",pos);
 
 	zxvision_print_string_defaults_fillspc(w,1,0,mensaje_dest);	
@@ -17693,6 +17678,17 @@ void menu_zeng_connect_print(zxvision_window *w)
 
 	contador_menu_zeng_connect_print++;
 
+}
+
+void menu_zeng_connect_print(zxvision_window *w)
+{
+	menu_common_connect_print(w,"Connecting");
+}
+
+
+void menu_download_file_connect_print(zxvision_window *w)
+{
+	menu_common_connect_print(w,"Downloading");
 }
 
 int menu_zeng_connect_cond(zxvision_window *w GCC_UNUSED)
@@ -17710,9 +17706,7 @@ void menu_zeng_enable_disable(MENU_ITEM_PARAMETERS)
 		//Activamos ZRCP, que es lo logico, si es que no esta habilitado ya
 		if (remote_protocol_enabled.v==0) enable_and_init_remote_protocol();		
 
-		//menu_footer_clear_bottom_line();
-		//menu_putstring_footer(0,2,"Connecting to remote...",WINDOW_FOOTER_PAPER,WINDOW_FOOTER_INK);
-		//all_interlace_scr_refresca_pantalla();
+
 
 		//Lanzar el thread de activacion
 		zeng_enable();
@@ -18172,8 +18166,8 @@ void menu_online_browse_zx81(MENU_ITEM_PARAMETERS)
 					sprintf (archivo_temp,"%s/%s",get_tmpdir_base(),juego);
 		
                 	
-					//usamos misma funcion thread de download wos
-					int ret=menu_download_wos("www.zx81.nl",url_juego,archivo_temp,0,1024*1024);  //1 MB mas que suficiente
+					//usamos misma funcion thread que usa download wos y otros
+					int ret=menu_download_file("www.zx81.nl",url_juego,archivo_temp,0,1024*1024);  //1 MB mas que suficiente
 
 					if (ret==200) {
                                 
@@ -18377,14 +18371,14 @@ struct download_wos_struct
 
 int download_wos_thread_running=0;
 
-int menu_download_wos_cond(zxvision_window *w GCC_UNUSED)
+int menu_download_file_cond(zxvision_window *w GCC_UNUSED)
 {
 	return !download_wos_thread_running;
 }
 
 
 
-void *menu_download_wos_thread_function(void *entrada)
+void *menu_download_file_thread_function(void *entrada)
 {
 
 	//download_wos_thread_running=1; 
@@ -18418,8 +18412,8 @@ pthread_t download_wos_thread;
 
 
 
-
-int menu_download_wos(char *host,char *url,char *archivo_temp,int ssl_use,int estimated_maximum_size)
+//antes llamado menu_download_wos
+int menu_download_file(char *host,char *url,char *archivo_temp,int ssl_use,int estimated_maximum_size)
 {
 	
 	
@@ -18443,7 +18437,7 @@ int menu_download_wos(char *host,char *url,char *archivo_temp,int ssl_use,int es
 	//Antes de lanzarlo, decir que se ejecuta, por si el usuario le da enter rapido a la ventana de progreso y el thread aun no se ha lanzado
 	download_wos_thread_running=1;	
 	
-	if (pthread_create( &download_wos_thread, NULL, &menu_download_wos_thread_function, (void *)&parametros) ) {
+	if (pthread_create( &download_wos_thread, NULL, &menu_download_file_thread_function, (void *)&parametros) ) {
 		debug_printf(VERBOSE_ERR,"Can not create download wos thread");
 		return -1;
 	}
@@ -18454,7 +18448,7 @@ int menu_download_wos(char *host,char *url,char *archivo_temp,int ssl_use,int es
 	contador_menu_zeng_connect_print=0;
 
 	//Usamos misma ventana de progreso que zeng. TODO: si se lanzan los dos a la vez (cosa poco probable) se moverian uno con el otro
-	zxvision_simple_progress_window("Downloading software", menu_download_wos_cond,menu_zeng_connect_print );
+	zxvision_simple_progress_window("Downloading software", menu_download_file_cond,menu_download_file_connect_print );
 
 	//TODO Si antes de finalizar la descarga se vuelve atras y se vuelve a realizar otra busqueda, puede dar problemas
 	//ya que la variable download_wos_thread_running es global y única
@@ -18487,7 +18481,7 @@ void menu_online_browse_zxinfowos_query(char *query_result,char *hostname,char *
 
 		menu_add_item_menu_inicial(&array_menu_common,"",MENU_OPCION_UNASSIGNED,NULL,NULL);
 
-		//http://www.zx81.nl/files.html
+		
 		int http_code;
 		char *mem;
 		char *orig_mem;
@@ -18899,7 +18893,7 @@ void menu_online_browse_zxinfowos(MENU_ITEM_PARAMETERS)
 
 			debug_printf (VERBOSE_DEBUG,"Downloading file from host %s (SSL=%d) url %s",host_final,ssl_use,url_juego_final);
 
-			int ret=menu_download_wos(host_final,url_juego_final,archivo_temp,ssl_use,1024*1024);  //1 MB mas que suficiente
+			int ret=menu_download_file(host_final,url_juego_final,archivo_temp,ssl_use,1024*1024);  //1 MB mas que suficiente
 
 			if (ret==200) {                    
 				//y habrimos menu de smartload
@@ -19509,7 +19503,7 @@ void menu_storage_mmc_download_tbblue(void)
 	int ssl_use=0;
 
 
-	int ret=menu_download_wos(host_final,url,archivo_zip,ssl_use,estimated_size);  
+	int ret=menu_download_file(host_final,url,archivo_zip,ssl_use,estimated_size);  
 
 	if (ret==200) {       
 		//descomprimimos zip

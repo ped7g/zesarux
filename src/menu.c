@@ -24331,7 +24331,7 @@ void menu_window_settings(MENU_ITEM_PARAMETERS)
 			"- Rearrange and Reduce windows: go to menu Display"	
 		);
 
-		if (menu_allow_background_windows && menu_multitarea) {
+		if (menu_allow_background_windows && menu_multitarea && save_configuration_file_on_exit.v) {
 			menu_add_item_menu_format(array_menu_window_settings,MENU_OPCION_NORMAL,menu_interface_reopen_background_windows_on_start,NULL,"[%c] Reopen windows on start",(menu_reopen_background_windows_on_start.v ? 'X' : ' ') );
 		}
 

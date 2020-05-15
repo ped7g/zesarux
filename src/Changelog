@@ -45,7 +45,7 @@ Improved Chloe emulation:
 -Load unodos3.rom as the default divmmc firmware
 -Added chloehd.mmc in the extras package
 
-
+Improved emulation: use a slightly less cpu on every scanline
 
 Fixed ZRCP bugs:
 -Fix possible crash when disconnecting socket

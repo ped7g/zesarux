@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <time.h>
 #include <sys/time.h>
@@ -131,7 +132,9 @@ void t_scanline_next_fullborder(void)
 		if (MACHINE_IS_TBBLUE && tbblue_store_scanlines_border.v==0) return;
 
         //a 255
-        for (i=0;i<CURRENT_FULLBORDER_ARRAY_LENGTH;i++) fullbuffer_border[i]=255;
+        //for (i=0;i<CURRENT_FULLBORDER_ARRAY_LENGTH;i++) fullbuffer_border[i]=255;
+		//mas rapido con memset
+		memset(fullbuffer_border,255,CURRENT_FULLBORDER_ARRAY_LENGTH);
 
 	//Resetear buffer border para prism
 	if (MACHINE_IS_PRISM) {
