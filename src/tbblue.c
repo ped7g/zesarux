@@ -517,7 +517,7 @@ void tbblue_copper_run_opcodes(void)
 			//z80_int linea, horiz;
 			//tbblue_copper_get_wait_opcode_parameters(&linea,&horiz);
 			if (tbblue_copper_wait_cond_fired () ) {
-                                                        //printf ("Wait condition positive at copper_pc %02XH scanline %d raster %d\n",tbblue_copper_pc,t_scanline,tbblue_get_current_raster_position() );
+                                                        //printf ("Wait condition positive at copper_pc %02XH scanline %d raster %d\n",tbblue_copper_pc,t_scanline,tbblue_get_raster_line() );
                                                         tbblue_copper_next_opcode();
                                                         //printf ("Wait condition positive, after incrementing copper_pc %02XH\n",tbblue_copper_pc);
 			}
@@ -555,7 +555,7 @@ z80_byte tbblue_copper_get_control_bits(void)
 int tbblue_copper_wait_cond_fired(void)
 {
 
-	int current_raster=tbblue_get_current_raster_position();
+	int current_raster=tbblue_get_raster_line();
 	int current_horizontal=tbblue_get_current_raster_horiz_position();
 
 	//Obtener parametros de instruccion wait
@@ -765,55 +765,35 @@ zona inferior: screen_indice_fin_pant .. screen_indice_fin_pant+screen_total_bor
 
 */
 
-int tbblue_get_current_raster_position(void)
+// NextReg 0x64 value which is currently active - it does reinit when FPGA does reach first PAPER line
+int tbblue_active_scanline_offset = 0;
+
+void tbblue_ula_line_0_init(void) {
+	tbblue_active_scanline_offset = tbblue_registers[0x64];
+}
+
+int tbblue_get_raster_line(void)
 {
-	int raster;
+	/*
+	Line 0 is first video line. In truth the line is the Y counter, Video is from 0 to 191, borders and hsync is >192
+Same this page: http://www.zxdesign.info/vertcontrol.shtml
 
-	if (t_scanline<screen_invisible_borde_superior) {
-		//En zona borde superior invisible (vsync)
-		//Ajustamos primero a desplazamiento entre 0 y esa zona
-		raster=t_scanline;
 
-		//Sumamos offset de la zona raster
-		
-		raster +=192+screen_total_borde_inferior;
-		//printf ("scanline: %d raster: %d\n",t_scanline,raster);
-		return raster;
+Row	Start	Row End	Length	Description
+0		191	192	Video Display
+192	247	56	Bottom Border
+248	255	8	Vertical Sync
+256	312	56	Top Border
+
+*/
+	int scanline = t_scanline - screen_indice_inicio_pant + tbblue_active_scanline_offset;
+	if (scanline < 0) {
+		return scanline + screen_scanlines;
 	}
-
-	if (t_scanline<screen_indice_inicio_pant) {
-		//En zona borde superior visible
-		//Ajustamos primero a desplazamiento entre 0 y esa zona
-		raster=t_scanline-screen_invisible_borde_superior;
-
-		//Sumamos offset de la zona raster
-		raster +=192+screen_total_borde_inferior+screen_invisible_borde_superior;
-
-		//printf ("scanline: %d raster: %d\n",t_scanline,raster);
-		return raster;
+	if (screen_scanlines <= scanline) {
+		return scanline - screen_scanlines;
 	}
-
-	if (t_scanline<screen_indice_fin_pant) {
-		//En zona visible pantalla
-		//Ajustamos primero a desplazamiento entre 0 y esa zona
-		raster=t_scanline-screen_indice_inicio_pant;
-
-		//Sumamos offset de la zona raster
-                raster +=0  ; //solo para que quede mas claro
-
-		//printf ("scanline: %d raster: %d\n",t_scanline,raster);
-                return raster;
-        }
-
-	//Caso final. Zona borde inferior
-		//Ajustamos primero a desplazamiento entre 0 y esa zona
-                raster=t_scanline-screen_indice_fin_pant;
-
-		//Sumamos offset de la zona raster
-                raster +=192;
-		//printf ("scanline: %d raster: %d\n",t_scanline,raster);
-                return raster;
-
+	return scanline;
 }
 
 
@@ -4081,27 +4061,6 @@ void tbblue_set_value_port(z80_byte value)
 {
 	tbblue_set_value_port_position(tbblue_last_register,value);
 }
-
-int tbblue_get_raster_line(void)
-{
-	/*
-	Line 0 is first video line. In truth the line is the Y counter, Video is from 0 to 191, borders and hsync is >192
-Same this page: http://www.zxdesign.info/vertcontrol.shtml
-
-
-Row	Start	Row End	Length	Description
-0		191	192	Video Display
-192	247	56	Bottom Border
-248	255	8	Vertical Sync
-256	312	56	Top Border
-
-*/
-	if (t_scanline>=screen_indice_inicio_pant) return t_scanline-screen_indice_inicio_pant;
-	else return t_scanline+192+screen_total_borde_inferior;
-
-
-}
-
 
 z80_byte tbblue_get_value_port_register(z80_byte registro)
 {

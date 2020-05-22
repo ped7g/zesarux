@@ -268,8 +268,9 @@ extern z80_bit tbblue_reveal_layer_layer2;
 extern z80_bit tbblue_reveal_layer_sprites;
 
 
+extern void tbblue_ula_line_0_init(void);
 extern int tbblue_get_current_raster_horiz_position(void);
-extern int tbblue_get_current_raster_position(void);
+extern int tbblue_get_raster_line(void);
 extern int tbblue_copper_wait_cond_fired(void);
 extern void tbblue_copper_handle_next_opcode(void);
 extern void tbblue_copper_handle_vsync(void);

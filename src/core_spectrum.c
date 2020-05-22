@@ -281,13 +281,6 @@ void core_spectrum_fin_frame_pantalla(void)
 				core_cpu_timer_frame_media=(core_cpu_timer_frame_media+core_cpu_timer_frame_difftime)/2;
 				//printf ("tiempo medio transcurrido: %ld microsec\n",core_cpu_timer_frame_media);
 
-
-
-				if (MACHINE_IS_TBBLUE) {
-					tbblue_copper_handle_vsync();			
-				}
-
-
 				//tsconf_last_frame_y=-1;
 
 				if (rainbow_enabled.v==1) t_scanline_next_fullborder();
@@ -521,6 +514,16 @@ void core_spectrum_fin_scanline(void)
 			t_scanline_next_line();
 			TIMESENSOR_ENTRY_POST(TIMESENSOR_ID_core_spectrum_t_scanline_next_line);
 
+			if (MACHINE_IS_TBBLUE) {
+				// some things happen in TBBlue core when scanline "0" (first ULA PAPER line) is reached)
+				if (t_scanline==screen_indice_inicio_pant) {
+					tbblue_ula_line_0_init();
+				}
+				// reset copper running PC at scanline 0 (after applying NextReg 0x64 offset)
+				if (0 == tbblue_get_raster_line()) {
+					tbblue_copper_handle_vsync();
+				}
+			}
 
 			//se supone que hemos ejecutado todas las instrucciones posibles de toda la pantalla. refrescar pantalla y
 			//esperar para ver si se ha generado una interrupcion 1/50
