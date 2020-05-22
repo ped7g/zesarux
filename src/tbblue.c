@@ -4181,6 +4181,19 @@ hardware numbers
 			}
 		break;
 
+		case 65:	//0x41 - read palette 8bit
+			return (tbblue_get_value_palette_rw(tbblue_registers[64]) >>1) & 0xFF;
+
+		case 68:	//0x44 - read palette 9th bit + priorities
+		{
+			z80_int color9b = tbblue_get_value_palette_rw(tbblue_registers[64]);
+			if (color9b & TBBLUE_LAYER2_PRIORITY) {
+				return 0x80 | (color9b&1);
+			}
+			return color9b&1;
+		}
+		break;
+
 		case 105:
 /*
 (R/W) 0x69 (105) => Display Control 1
