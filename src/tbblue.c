@@ -813,8 +813,7 @@ int tbblue_get_current_raster_horiz_position(void)
 # 40-51  320-415  HBlank        40-51  320-415  HBlank
 # 52-55  416-447  Left Border   52-56  416-455  Left Border
 */
-	int estados_en_linea=t_estados % screen_testados_linea;
-	int horizontal_actual=estados_en_linea;
+	int horizontal_actual=t_estados % screen_testados_linea;
 
 	//Dividir por la velocidad turbo
 	horizontal_actual /=cpu_turbo_speed;

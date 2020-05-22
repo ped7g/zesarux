@@ -14099,44 +14099,22 @@ TBBLUE:
 						//interrupciones raster habilitadas
 						//printf ("interrupciones raster habilitadas en %d\n",zxuno_ports[0x0c] + (256 * (zxuno_ports[0x0d]&1) ));
 
-
 						//Ver si estamos entre estado 128 y 128+32
-						int estados_en_linea=t_estados % screen_testados_linea;
+						const int horizontal_start = 128 * cpu_turbo_speed;
+						const int horizontal_end = (128+32) * cpu_turbo_speed;
+						const int estados_en_linea = t_estados % screen_testados_linea;
 
-						if (estados_en_linea>=128 && estados_en_linea<128+32) {
+						if (horizontal_start <= estados_en_linea && estados_en_linea < horizontal_end) {
 							//Si no se ha disparado la interrupcion
 							if (zxuno_tbblue_disparada_raster.v==0) {
 								//Comprobar la linea definida
 								//El contador de lineas considera que la línea 0 es la primera línea de paper, la linea 192 por tanto es la primera línea de borde inferior.
 								// El último valor del contador es 311 si estamos en un 48K, 310 si estamos en 128K, o 319 si estamos en Pentagon, y coincidiría con la última línea del borde superior.
 								//se dispara justo al comenzar el borde derecho de la línea anterior a aquella que has seleccionado
-								int linea_raster=get_zxuno_tbblue_rasterline() + (256 * (get_zxuno_tbblue_rasterctrl()&1) );
+								const int linea_raster=get_zxuno_tbblue_rasterline() + (256 * (get_zxuno_tbblue_rasterctrl()&1) );
+								const int current_line = tbblue_get_raster_line();
 
-								int disparada_raster=0;
-
-
-								//se dispara en linea antes... ?
-								/*if (linea_raster>0) linea_raster--;
-								else {
-									linea_raster=screen_scanlines-1;
-								}*/
-
-
-								//es zona de vsync y borde superior
-								//Aqui el contador raster tiene valor (192+56 en adelante)
-								//contador de scanlines del core, entre 0 y screen_indice_inicio_pant ,
-								if (t_scanline<screen_indice_inicio_pant) {
-									if (t_scanline==linea_raster-192-screen_total_borde_inferior) disparada_raster=1;
-								}
-
-								//Esto es zona de paper o borde inferior
-								//Aqui el contador raster tiene valor 0 .. <(192+56)
-								//contador de scanlines del core, entre screen_indice_inicio_pant y screen_testados_total
-								else {
-									if (t_scanline-screen_indice_inicio_pant==linea_raster) disparada_raster=1;
-								}
-
-								if (disparada_raster) {
+								if (linea_raster == current_line) {
 									//Disparar interrupcion
 									zxuno_tbblue_disparada_raster.v=1;
 									interrupcion_maskable_generada.v=1;
@@ -14149,14 +14127,8 @@ TBBLUE:
 									valor |=128;
 									set_zxuno_tbblue_rasterctrl(valor);
 								}
-
-								else {
-									//Resetear bit INT
-									//zxuno_ports[0x0d] &=(255-128);
-								}
 							}
 						}
-
 						//Cualquier otra zona de t_estados, meter a 0
 						else {
 							zxuno_tbblue_disparada_raster.v=0;
