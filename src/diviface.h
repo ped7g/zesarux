@@ -37,7 +37,7 @@ extern void diviface_disable(void);
 extern z80_bit diviface_paginacion_automatica_activa;
 extern z80_byte diviface_control_register;
 
-extern void diviface_write_control_register(z80_byte value);
+extern void diviface_write_control_register(z80_byte value, int forceRawValue);
 
 extern void diviface_set_peek_poke_functions(void);
 extern void diviface_restore_peek_poke_functions(void);

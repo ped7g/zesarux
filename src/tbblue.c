@@ -2790,11 +2790,14 @@ void tbblue_set_emulator_setting_divmmc(void)
 {
 
 /*
-(W)		06 => Peripheral 2 setting, only in bootrom or config mode:
-			bit 7 = Enable turbo mode key (0 = disabled, 1 = enabled)
-			bit 6 = DAC chip mode (0 = I2S, 1 = JAP)
-			bit 5 = Enable Lightpen  (1 = enabled)
-			bit 4 = Enable DivMMC (1 = enabled) -> divmmc automatic paging. divmmc memory is supported using manual
+(R/W) 0x06 (06) => Peripheral 2 Setting
+  bit 7 = Enable F8 cpu speed hotkey (soft reset = 1)
+  bit 6 = Divert BEEP only to internal speaker (hard reset = 0)
+  bit 5 = Enable F3 50/60 Hz hotkey (soft reset = 1)
+  bit 4 = Enable divmmc automap and divmmc nmi by DRIVE button (hard reset = 0)
+  bit 3 = Enable multiface nmi by M1 button (hard reset = 0)
+  bit 2 = PS/2 mode (0 = keyboard primary, 1 = mouse primary; config mode only)
+  bits 1-0 = Audio chip mode (00 = YM, 01 = AY, 11 = Hold all AY in reset)
 		*/
         //z80_byte diven=tbblue_config2&4;
 				z80_byte diven=tbblue_registers[6]&16;
@@ -3799,9 +3802,10 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 
 		case 9:
 			if (0x08 & value) {
-
-				//TODO Reset divmmc mapram bit (port 0xe3 bit 6)
-				// not implemented
+				// Reset divmmc mapram bit (port 0xe3 bit 6)
+				z80_byte div_ctrl_value = diviface_read_control_register();
+				div_ctrl_value &= ~(1<<6);					// clear bit 6
+				diviface_write_control_register(value, 1);	// override current value
 
 				// read returns 0 (clear the bit here already)
 				tbblue_registers[9]^=0x08;

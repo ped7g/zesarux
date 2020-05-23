@@ -7844,7 +7844,7 @@ Allowed to read / write port # xx57 teams INIR and OTIR. Example of reading the 
 
 			//printf ("Puerto control paginacion DIVMMC Write: 0x%02x valor: 0x%02X\n",puerto_l,value);
 			//printf ("antes control register: %02XH paginacion automatica: %d\n",diviface_control_register,diviface_paginacion_automatica_activa.v);
-			diviface_write_control_register(value);
+			diviface_write_control_register(value, 0);
 			//printf ("despues control register: %02XH paginacion automatica: %d\n",diviface_control_register,diviface_paginacion_automatica_activa.v);
 		}
 	}

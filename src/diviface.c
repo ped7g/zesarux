@@ -209,7 +209,7 @@ void diviface_post_opcode_fetch(void)
 
 
 //Escritura de puerto de control divide/divmmc. Activar o desactivar paginacion solamente
-void diviface_write_control_register(z80_byte value)
+void diviface_write_control_register(z80_byte value, int forceRawValue)
 {
 
 	//printf ("Escribiendo registro de control diviface valor: 0x%02X (antes: %02XH)\n",value,diviface_control_register);
@@ -223,7 +223,13 @@ void diviface_write_control_register(z80_byte value)
 		//diviface_paginacion_manual_activa.v=0;
 	}
 
-	diviface_control_register=value;
+	if (forceRawValue) {		// for TBBlue to reset bit6 from NextReg 0x09
+		diviface_control_register = value;
+	} else {
+		// bit 6 "mapram" can only be set - preserve it
+		diviface_control_register &= (1<<6);	// clear everything except bit6
+		diviface_control_register |= value;
+	}
 }
 
 
