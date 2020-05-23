@@ -259,24 +259,24 @@ z80_byte *diviface_return_memory_paged_pointer(z80_int dir)
 /*
 
 
-    7        6     5  4  3  2   1       0
-[ CONMEM , MAPRAM, X, X, X, X, BANK1, BANK0 ]
+    7        6     5  4    3      2      1      0
+[ CONMEM , MAPRAM, X, X, BANK3, BANK2, BANK1, BANK0 ]
 
 So, when CONMEM is set, there is:
 0000-1fffh - EEPROM/EPROM/NOTHING(if empty socket), and this area is
 	     flash-writable if EPROM jumper is open.
-2000-3fffh - 8k bank, selected by BANK 0..1 bits, always writable.
+2000-3fffh - 8k bank, selected by BANK 0..3 bits, always writable.
 
 When MAPRAM is set, but CONMEM is zero, and entrypoint was reached:
 0000-1fffh - Bank No.3, read-only
-2000-3fffh - 8k bank, selected by BANK 0..1. If it's different from Bank No.3,
+2000-3fffh - 8k bank, selected by BANK 0..3. If it's different from Bank No.3,
 	     it's writable.
 
 When MAPRAM is zero, CONMEM is zero, EPROM jumper is closed and entrypoint was
 reached:
 0000-1fffh - EEPROM/EPROM/NOTHING(if empty socket, so open jumper in this case),
 	     read-only.
-2000-3fffh - 8k bank, selected by BANK 0..1, always writable.
+2000-3fffh - 8k bank, selected by BANK 0..3, always writable.
 */
 
 
@@ -295,9 +295,8 @@ reached:
 				//pagina ram 3.
 				int pagina=3;
 				//int offset=DIVIFACE_FIRMWARE_ALLOCATED_KB*1024;
-				int offset=0;
+				int offset = pagina*8192;
 				offset +=dir;
-				offset +=pagina*8192;
 				return &diviface_ram_memory_pointer[offset];
 			}
 
@@ -313,13 +312,11 @@ reached:
 		//Devolver pagina de memoria ram
 		int pagina=diviface_control_register&get_diviface_ram_mask();
 
-		int offset=0;
-
 		//Nos ubicamos en la pagina
-		offset +=pagina*8192;
+		int offset = pagina*8192;
 
 		//Nos ubicamos en la direccion
-		offset +=(dir-0x2000);
+		offset += (dir - 0x2000);
 		return &diviface_ram_memory_pointer[offset];
 	}
 
@@ -334,50 +331,42 @@ reached:
 //pues desde chloe mete memoria RAM dock en el segmento 0000-3fffh y provocaria escritura ahí, cuando no debe hacerlo si esta encima la divmmc
 int diviface_poke_byte_to_internal_memory(z80_int dir,z80_byte valor)
 {
+    if (16384<=dir) return 0;
 
-	//Si en tbblue y escribiendo en memoria layer2, ignorar, dado que esa memoria layer2 en escritura se mapea en 0-3fffh
-	if (MACHINE_IS_TBBLUE && tbblue_write_on_layer2() ) return 0;
+	// Ped7g: removed TBBlue Layer2 write mapping check, the "divmmc" mapping has higher priority
 
-	if ((diviface_control_register&128)==0 && diviface_paginacion_automatica_activa.v==0) {
-  	return 0;
-  }
-
-  else {
-
-	//Si la mmu del tbblue esta alterando esta zona de memoria
-	if (MACHINE_IS_TBBLUE && dir<16384) {
-		//Despues de salir de esta funcion siempre llama a escritura de memoria de la capa que haya por debajo
-		//Por tanto solo hay que determinar si la memoria divmmc se debe escribir (valor en MMU 255),
-		//Y si no se debe, simplemente hacer return de aqui
-	        z80_byte reg_mmu_value=return_tbblue_mmu_segment(dir);
-                if (reg_mmu_value!=255) return 0;
+	if ((diviface_control_register&(128+64))==0 && diviface_paginacion_automatica_activa.v==0) {
+		return 0;
 	}
 
-		//Si poke a eprom o ram 3 read only.
+	// Ped7g: removed TBBlue MMU0/MMU1 check, the "divmmc" mapping has higher priority than MMU0/MMU1
 
-  	if (dir<8192) {
+	//Si poke a eprom o ram 3 read only.
+	if (dir<8192) {
 
-			//Si poke a eprom cuando conmem=1
-			if (diviface_control_register&128 && diviface_eprom_write_jumper.v) {
-				debug_printf (VERBOSE_DEBUG,"Diviface eprom writing address: %04XH value: %02XH",dir,valor);
-				//Escribir en eprom siempre que jumper eprom está permitiendolo
-				z80_byte *puntero=diviface_return_memory_paged_pointer(dir);
-				*puntero=valor;
-				return 1;
-			}
-
-			//No escribir
-			return 0;
-		}
-
-    if (dir<16384) {
-    	z80_byte *puntero=diviface_return_memory_paged_pointer(dir);
+		//Si poke a eprom cuando conmem=1
+		if (diviface_control_register&128 && diviface_eprom_write_jumper.v) {
+			debug_printf (VERBOSE_DEBUG,"Diviface eprom writing address: %04XH value: %02XH",dir,valor);
+			//Escribir en eprom siempre que jumper eprom está permitiendolo
+			z80_byte *puntero=diviface_return_memory_paged_pointer(dir);
 			*puntero=valor;
 			return 1;
-    }
-		return 0;
+		}
 
-  }
+		//No escribir
+		return 0;
+	}
+
+	int pagina=diviface_control_register&get_diviface_ram_mask();
+	if (diviface_control_register&64 && 3 == pagina) {
+		// the bank 3 is read-only also in 0x2000..3FFF range when MAPRAM is used
+		// (according to the Cesar's comment in diviface_return_memory_paged_pointer)
+		return 0;
+	}
+
+	z80_byte *puntero=diviface_return_memory_paged_pointer(dir);
+	*puntero=valor;
+	return 1;
 }
 
 z80_byte diviface_poke_byte_no_time(z80_int dir,z80_byte valor)
@@ -424,43 +413,11 @@ z80_byte diviface_chloe_poke_byte(z80_int dir,z80_byte valor)
 	return 0;
 }
 
-z80_byte *diviface_return_tbblue_memory_pointer(z80_int dir)
-{
-	z80_byte *puntero;
-	puntero=tbblue_return_segment_memory(dir);
-
-        dir = dir & 8191;
-        puntero=puntero+dir;
-
-	return puntero;
-}
-
 z80_byte diviface_peek_byte_to_internal_memory(z80_int dir)
 {
 	//printf ("returning diviface internal memory address from diviface_peek_byte_no_time %XH\n",dir);
 	z80_byte *puntero=diviface_return_memory_paged_pointer(dir);
-	if (MACHINE_IS_TBBLUE) {
-		//Ver si hay mapeo de MMU diferente a la de por defecto
-		/*
-		
-(R/W) 0x50 (80) => MMU slot 0
-  bits 7-0 = Set a Spectrum RAM page at position 0x0000 to 0x1fff
-  (Reset to 255 after a reset)
-  Pages can be from 0 to 223 on a full expanded Next. 
-  A 255 value remove the RAM page and map the current ROM
-
-(R/W) 0x51 (81) => MMU slot 1
-  bits 7-0 = Set a Spectrum RAM page at position 0x2000 to 0x3fff
-  (Reset to 255 after a reset)
-  Pages can be from 0 to 223 on a full expanded Next. 
-  A 255 value remove the RAM page and map the current ROM
-		*/
-		z80_byte reg_mmu_value=return_tbblue_mmu_segment(dir);
-		if (reg_mmu_value!=255) {
-			//Mapeo diferente
-            puntero=diviface_return_tbblue_memory_pointer(dir);
-		}
-	}
+	// Ped7g: removed TBBlue MMU0/MMU1 check, the "divmmc" mapping has higher priority than MMU0/MMU1
 	return *puntero;
 }
 
@@ -468,7 +425,7 @@ z80_byte diviface_peek_byte_no_time(z80_int dir,z80_byte value GCC_UNUSED)
 {
 	z80_byte valor_leido=debug_nested_peek_byte_no_time_call_previous(diviface_nested_id_peek_byte_no_time,dir);
 
-	if ((diviface_control_register&128)==0 && diviface_paginacion_automatica_activa.v==0) {
+	if ((diviface_control_register&(128+64))==0 && diviface_paginacion_automatica_activa.v==0) {
 		//printf ("returning NON diviface internal memory address from diviface_peek_byte_no_time %XH\n",dir);
 		return valor_leido;
 	}
@@ -490,7 +447,7 @@ z80_byte diviface_peek_byte(z80_int dir,z80_byte value GCC_UNUSED)
 {
 	z80_byte valor_leido=debug_nested_peek_byte_call_previous(diviface_nested_id_peek_byte,dir);
 
-  if ((diviface_control_register&128)==0 && diviface_paginacion_automatica_activa.v==0) {
+  if ((diviface_control_register&(128+64))==0 && diviface_paginacion_automatica_activa.v==0) {
 	  //printf ("returning NON diviface internal memory address from diviface_peek_byte %XH\n",dir);
     return valor_leido;
   }
