@@ -1,0 +1,28 @@
+The altrom behaviour is slightly different depending on the machine type (48k, 128k, +3) which is connected to the personalities.  The Next is a +3 type. If the Next hardware is chosen to be a 48K machine then the Next hardware becomes 48k type and the altrom is a little different.  It has to be because a 48k type machine only gets a 48k rom loaded compared to the +3 which has 64k of rom loaded.
+
+The hardware makes a decision about which rom will be seen in the bottom 16k and it makes a decision for both cases (altrom on or altrom off) because the altrom's enable status can't be known until a memory read or write is seen.
+
+For a +3 type machine, ie the Next, if both lock rom bits are zero (bits 5:4 of nr 0x8c), then the rom selection is determined by ports 0x7ffd and 0x1ffd like normal:
+
+sram_active_rom <= bit 2 of port 1ffd & bit 4 of port 7ffd
+This is the two-bit rom number 0-3 selected if the altrom is disabled
+
+sram_alt_128 <= not bit 4 of port 7ffd
+If 1, this selects the 128k altrom else the 48k altrom when altrom is enabled.
+
+If either of the lock rom bits are non-zero (bits 5:4 of nr 0x8c) then the rom locking feature takes effect.  The rom selected by ports 7ffd and 1ffd is ignored.
+
+sram_active_rom <= nr_8c_altrom_lock_rom1 & nr_8c_altrom_lock_rom0;
+This is the two-bit rom number 1-3 selected if the altrom is disabled.  Note you can't lock rom 0.
+
+sram_alt_128 <= not nr_8c_altrom_lock_rom1;
+If 1 this selects the 128k altorm else the 48k altrom when altrom is enabled.
+
+The decision about whether the altrom is paged into the bottom 16k (sram_alt_128) or if it's the regular rom paged in (sram_active_rom) is made when the cpu read/write signal is seen:
+
+altrom is disabled if:
+- bit 7 of nr 0x8c is 0
+OR
+- it's a memory read and bit 6 of nr 0x8c is 1
+OR
+- it's a memory write and bit 6 of nr 0x8c is 0
