@@ -5934,27 +5934,16 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
 	//si linea no coincide con entrelazado, volvemos
 	if (if_store_scanline_interlace(t_scanline_draw)==0) return;
 
-	
+	//Alternativa con memfill. Esto solo se puede hacer dado que TBBLUE_SPRITE_TRANS_FICT=65535=0xFFFF y por tanto escribe
+	//dos bytes iguales
+	//46% cpu en welcome screen
 
-	int i;
-
-	z80_int *clear_p_ula=tbblue_layer_ula;
-	z80_int *clear_p_layer2=tbblue_layer_layer2;
-	z80_int *clear_p_sprites=tbblue_layer_sprites;
-
-	for (i=0;i<TBBLUE_LAYERS_PIXEL_WIDTH;i++) {
-
-		//Esto es un pelin mas rapido hacerlo asi, con punteros e incrementarlos, en vez de indices a array
-		*clear_p_ula=TBBLUE_SPRITE_TRANS_FICT;
-		//*clear_p_layer2=TBBLUE_TRANSPARENT_REGISTER_9;
-		*clear_p_layer2=TBBLUE_SPRITE_TRANS_FICT;
-		*clear_p_sprites=TBBLUE_SPRITE_TRANS_FICT;
-
-		clear_p_ula++;
-		clear_p_layer2++;
-		clear_p_sprites++;
-
-	}
+	_Static_assert(2 == sizeof(z80_int), "z80_int type is not 16bit?");
+	_Static_assert(0xFFFF == TBBLUE_SPRITE_TRANS_FICT, "Transparent value must be 65535 for memset clear");
+	int tamanyo_clear=TBBLUE_LAYERS_PIXEL_WIDTH*sizeof(z80_int);
+	memset(tbblue_layer_ula,0xFF,tamanyo_clear);
+	memset(tbblue_layer_layer2,0xFF,tamanyo_clear);
+	memset(tbblue_layer_sprites,0xFF,tamanyo_clear);
 
 	const int paperY = t_scanline_draw - screen_indice_inicio_pant;
 	// fullY is 0..255 (for 320x256 like Tiles, Sprites, Layer 2, ...), PAPER area starts at fullY==32
