@@ -5247,15 +5247,12 @@ void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int final_bor
 		if (tbblue_si_sprite_transp_ficticio(color)) {
 			// check if blending is possible (no transparent color allowed)
 			if (tbblue_si_sprite_transp_ficticio(l2_color)) {
-				if (tbblue_si_sprite_transp_ficticio(ula_color)) {
-					// all layers transparent
-					if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
-						color = fallbackcolour;
-					}
-					// else color is still transparent, do not modify the buffer
-				} else {
-					color = ula_color;	// only ULA color
+				// Layer2 is transparent, throw the ULA pixel away and treat it as transparent too
+				// (core3.1.5 change, making the Layer2 to drive the "mask" of the blending hard way)
+				if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
+					color = fallbackcolour;
 				}
+				// else color is still transparent, do not modify the buffer
 			} else {
 				if (tbblue_si_sprite_transp_ficticio(ula_color)) {
 					color = l2_color&0x1FF;	// only L2 color (remove priority bit)
