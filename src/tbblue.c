@@ -1806,8 +1806,11 @@ int tbsprite_do_overlay(void)
 					sprite_y <<= scaleY;
 				}
 				// update final relative coordinates
-				sprite_x+=anchor.x;
-				sprite_y+=anchor.y;
+				sprite_x += anchor.x;
+				sprite_y += anchor.y;
+				// wrap around too large coordinates to 0..511 (-127 .. +384 to cover 8x scale)
+				sprite_x = ((sprite_x + 128) & 0x1FF) - 128;
+				sprite_y = ((sprite_y + 128) & 0x1FF) - 128;
 			}
 
 			//Si coordenada y esta en margen y sprite activo
