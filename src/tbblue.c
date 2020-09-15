@@ -5226,16 +5226,14 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 
 }
 
-void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int final_borde_izquierdo,
-	int inicio_borde_derecho, int ancho_rainbow, z80_int fallbackcolour)
+void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int ancho_rainbow, z80_int fallbackcolour)
 {
 	const int sub = (6 == tbblue_get_layers_priorities()) ? 0 : -5;	// subtract to blend value
 	int i;
 	for (i=0;i<ancho_rainbow;i++) {
 
-		z80_int l2_color = tbblue_layer_layer2[i];
+		const z80_int l2_color = tbblue_layer_layer2[i];
 		int priority = (l2_color&TBBLUE_LAYER2_PRIORITY) && !tbblue_si_sprite_transp_ficticio(l2_color);
-		z80_int ula_color = tbblue_layer_ula[i];
 		//TODO
 		// ula_color should be only ULA or ULA+tile, depending on 0x68 (104) => ULA Control bit 6
 		// but at this point I have only ULA+tile in the layer buffer, no idea how to get ULA-only
@@ -5249,11 +5247,11 @@ void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int final_bor
 			if (tbblue_si_sprite_transp_ficticio(l2_color)) {
 				// Layer2 is transparent, throw the ULA pixel away and treat it as transparent too
 				// (core3.1.5 change, making the Layer2 to drive the "mask" of the blending hard way)
-				if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
-					color = fallbackcolour;
-				}
-				// else color is still transparent, do not modify the buffer
+				// (also the outside area of Layer2 like border is treated as if Layer2 pixel is transparent)
+				// (if it ever gets modified, check git history for border checks implemented)
+				color = fallbackcolour;
 			} else {
+				const z80_int ula_color = tbblue_layer_ula[i];
 				if (tbblue_si_sprite_transp_ficticio(ula_color)) {
 					color = l2_color&0x1FF;	// only L2 color (remove priority bit)
 				} else {
@@ -5352,8 +5350,8 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 
 	// resolve blending modes by specialized routine
 	if (6 <= tbblue_get_layers_priorities()) {
-		if (!estamos_borde_supinf) {
-			tbblue_render_blended_rainbow(puntero_final_rainbow, final_borde_izquierdo, inicio_borde_derecho, ancho_rainbow, fallbackcolour);
+		if (!estamos_borde_supinf || tbblue_is_layer2_256height()) {
+			tbblue_render_blended_rainbow(puntero_final_rainbow, ancho_rainbow, fallbackcolour);
 			// inside paper area -> enough was done
 			return;
 		}
