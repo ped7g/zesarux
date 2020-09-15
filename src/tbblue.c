@@ -5190,8 +5190,6 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 		color=tbblue_layer_ula[i];
 		if (!tbblue_si_sprite_transp_ficticio(color) ) {
 			*puntero_final_rainbow=RGB9_INDEX_FIRST_COLOR+color;
-			//doble de alto
-			puntero_final_rainbow[ancho_rainbow]=RGB9_INDEX_FIRST_COLOR+color; 
 		}
 
 	
@@ -5206,8 +5204,6 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 						if (i>=final_borde_izquierdo && i<inicio_borde_derecho) {
 							//Poner color indicado por "Transparency colour fallback" registro
 							*puntero_final_rainbow=fallbackcolour;
-							//doble de alto
-							puntero_final_rainbow[ancho_rainbow]=fallbackcolour;								
 						}
 						else {
 							//Es borde. dejar ese color
@@ -5223,6 +5219,8 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 
 		
 	}
+	//doble de alto
+	memcpy(puntero_final_rainbow, puntero_final_rainbow - ancho_rainbow, ancho_rainbow * sizeof(z80_int));
 
 }
 
@@ -5286,10 +5284,7 @@ void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int ancho_rai
 
 	}
 	//doble de alto
-	for (i=0;i<ancho_rainbow;i++) {		// just copy the previous line
-		*puntero_final_rainbow = puntero_final_rainbow[-ancho_rainbow];
-		puntero_final_rainbow++;
-	}
+	memcpy(puntero_final_rainbow, puntero_final_rainbow - ancho_rainbow, ancho_rainbow * sizeof(z80_int));
 }
 
 //int tempconta;
@@ -5421,11 +5416,9 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 			}
 		}
 
-		//doble de alto
-		for (i=0;i<ancho_rainbow;i++) {		// just copy the previous line
-			*puntero_final_rainbow = puntero_final_rainbow[-ancho_rainbow];
-			puntero_final_rainbow++;
-		}
+		//doble de alto //just copy the previous line
+		memcpy(puntero_final_rainbow, puntero_final_rainbow - ancho_rainbow, ancho_rainbow * sizeof(z80_int));
+		puntero_final_rainbow += ancho_rainbow;
 
 	}
 
