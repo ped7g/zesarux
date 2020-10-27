@@ -1314,14 +1314,10 @@ void tbblue_reset_palettes(void)
 	//Paletas layer2 & sprites son los mismos valores del indice*2 y metiendo bit 0 como el bit1 inicial
 	//(cosa absurda pues no sigue la logica de mezclar bit 0 y bit 1 usado en registro 41H)
 	for (i=0;i<256;i++) {
-		z80_int color;
-		color=i*2;
-		if (i&2) color |=1;
-
- 		tbblue_palette_layer2_first[i]=color;
- 		tbblue_palette_layer2_second[i]=color;
- 		tbblue_palette_sprite_first[i]=color;
- 		tbblue_palette_sprite_second[i]=color;
+		tbblue_palette_layer2_first[i]=tbblue_get_9bit_colour(i);
+		tbblue_palette_layer2_second[i]=tbblue_get_9bit_colour(i);
+		tbblue_palette_sprite_first[i]=tbblue_get_9bit_colour(i);
+		tbblue_palette_sprite_second[i]=tbblue_get_9bit_colour(i);
 	}
 
 
