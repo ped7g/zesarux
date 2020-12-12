@@ -725,10 +725,7 @@ int textspeech_enviar_speech_da_ancho(void)
 {
 	if (MACHINE_IS_SPECTRUM) return 32;
 	if (MACHINE_IS_Z88) return 106;
-	if (MACHINE_IS_ZX8081) {
-		if (rainbow_enabled.v) return 36;
-		return 32;
-	}
+	if (MACHINE_IS_ZX8081) return 36;
 
 	//cualquier otra cosa??
 	return 32;
@@ -1029,8 +1026,6 @@ void ocr_get_text(char *s)
     else if (MACHINE_IS_CPC) ocr_enviar_speech_pantalla_cpc();
 
     else if (MACHINE_IS_TSCONF) {
-		if (rainbow_enabled.v) {
-		}
 	}
 
     ocr_text_buffer[ocr_index_position++]=0;

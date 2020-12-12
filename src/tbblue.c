@@ -70,9 +70,6 @@ void tbblue_set_ram_blocks(int memoria_kb)
 	//printf ("tbblue_extra_512kb_blocks: %d\n",tbblue_extra_512kb_blocks);
 }
 
-//Autoactivar real video solo la primera vez que se entra en set_machine con maquina tbblue
-int tbblue_already_autoenabled_rainbow=0;
-
 z80_byte tbblue_return_max_extra_blocks(void)
 {
 	return 32+tbblue_extra_512kb_blocks*64;
@@ -6249,26 +6246,6 @@ void screen_tbblue_refresca_rainbow(void)
 
 
 
-
-
-void screen_tbblue_refresca_no_rainbow(void)
-{
-                //modo clasico. sin rainbow
-                if (rainbow_enabled.v==0) {
-                        if (border_enabled.v) {
-                                //ver si hay que refrescar border
-                                if (modificado_border.v)
-                                {
-                                        //scr_refresca_border();
-																				screen_tbblue_refresca_no_rainbow_border();
-                                        modificado_border.v=0;
-                                }
-
-                        }
-
-                        screen_tbblue_refresca_pantalla_comun();
-                }
-}
 
 
 void tbblue_out_port_8189(z80_byte value)

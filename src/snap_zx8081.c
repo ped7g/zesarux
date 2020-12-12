@@ -577,7 +577,6 @@ void new_snap_load_zx80_zx81_simulate_loading(z80_byte *puntero_inicio,z80_byte 
                                 z80_bit antes_zx8081_vsync_sound,antes_rainbow_enabled,antes_interrupts,antes_nmi_generator_active;
                                 //z80_bit antes_video_zx8081_shows_vsync_on_display;
                                 antes_zx8081_vsync_sound.v=zx8081_vsync_sound.v;
-                                antes_rainbow_enabled.v=rainbow_enabled.v;
                                 antes_interrupts.v=iff1.v;
                                 antes_nmi_generator_active.v=nmi_generator_active.v;
                                 //antes_video_zx8081_shows_vsync_on_display.v=video_zx8081_shows_vsync_on_display.v;
@@ -626,7 +625,6 @@ void new_snap_load_zx80_zx81_simulate_loading(z80_byte *puntero_inicio,z80_byte 
 
                                 //restauramos valores anteriores
                                 zx8081_vsync_sound.v=antes_zx8081_vsync_sound.v;
-                                rainbow_enabled.v=antes_rainbow_enabled.v;
                                 iff1.v=antes_interrupts.v;
                                 nmi_generator_active.v=antes_nmi_generator_active.v;
                                 //video_zx8081_shows_vsync_on_display.v=antes_video_zx8081_shows_vsync_on_display.v;

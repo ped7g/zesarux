@@ -419,9 +419,8 @@ void load_spectrum_simulate_loading(z80_byte *buffer_lectura,z80_int destino,int
 	//printf ("simular carga. buffer_lectura %p destino: %d leidos: %d flag: %d\n",buffer_lectura,destino,leidos,flag);
 
   //guardamos valores anteriores
-                                z80_bit antes_rainbow_enabled,antes_interrupts,antes_diviface_enabled;
+                                z80_bit antes_interrupts,antes_diviface_enabled;
 
-                                antes_rainbow_enabled.v=rainbow_enabled.v;
                                 antes_interrupts.v=iff1.v;
 				antes_diviface_enabled.v=diviface_enabled.v;
 
@@ -519,7 +518,6 @@ void load_spectrum_simulate_loading(z80_byte *buffer_lectura,z80_int destino,int
 
                                 //restauramos valores anteriores
 
-                                rainbow_enabled.v=antes_rainbow_enabled.v;
                                 iff1.v=antes_interrupts.v;
 				diviface_enabled.v=antes_diviface_enabled.v;
 
@@ -1108,16 +1106,7 @@ void load_zx_snapshot(char *archivo)
 			//TODO. pruebas. mostrar fecha del snapshot en second overlay
 			//util_print_second_overlay(buffer_fecha,0,1);
 
-			//Realvideo
-			if ( (bits_estado2 &4) ) {
-				debug_printf(VERBOSE_DEBUG,"Realvideo enabled on zx snapshot");
-				enable_rainbow();
-			}
-
-			else {
-				debug_printf(VERBOSE_DEBUG,"Realvideo disabled on zx snapshot");
-				disable_rainbow();
-			}
+			enable_rainbow();
 
 			//WRX
                         if ( (bits_estado2 &8) ) {
@@ -3977,7 +3966,7 @@ void save_zx_snapshot(char *filename)
 		//bits_estado2=(nmi_generator_active.v) + (2*hsync_generator_active.v) + (4*rainbow_enabled.v) + (8*wrx_present.v) + (16*ram_in_8192.v);
 
 		//z80_byte pruebas=(nmi_generator_active.v) + (2*hsync_generator_active.v) + (4*rainbow_enabled.v) + (8*wrx_present.v) + (16*ram_in_8192.v) + (32*ram_in_32768.v)+ (64*ram_in_49152.v) + (128*ay_chip_present.v);
-		bits_estado2=(nmi_generator_active.v) | (hsync_generator_active.v<<1) | (rainbow_enabled.v<<2) | (wrx_present.v<<3) | (ram_in_8192.v<<4) | (ram_in_32768.v<<5) | (ram_in_49152.v<<6) | (ay_chip_present.v<<7);
+		bits_estado2=(nmi_generator_active.v) | (hsync_generator_active.v<<1) | (1<<2) | (wrx_present.v<<3) | (ram_in_8192.v<<4) | (ram_in_32768.v<<5) | (ram_in_49152.v<<6) | (ay_chip_present.v<<7);
 
 
 		//printf ("bits_estado2: %d pruebas: %d\n",bits_estado2,pruebas);

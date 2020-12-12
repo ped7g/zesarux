@@ -391,9 +391,7 @@ void cpu_core_loop_zx8081(void)
 			
 			//Inicializar siguiente linea. Esto es importante que este aqui despues de 
 			//una posible actualizacion de pantalla, para que no se vea la linea blanca inicializada
-			if (rainbow_enabled.v==1) {
-                                init_zx8081_scanline();
-                        }
+			init_zx8081_scanline();
 		}		
 
 		if (esperando_tiempo_final_t_estados.v) {

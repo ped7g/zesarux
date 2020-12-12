@@ -299,32 +299,14 @@ void scrsdl_refresca_pantalla(void)
 
         else if (MACHINE_IS_SPECTRUM) {
 
-		if (MACHINE_IS_TSCONF)	screen_tsconf_refresca_pantalla();
+			if (MACHINE_IS_TSCONF)	screen_tsconf_refresca_pantalla();
 
 
-		  else { //Spectrum no TSConf
+			else { //Spectrum no TSConf
 
-
-                //modo clasico. sin rainbow
-                if (rainbow_enabled.v==0) {
-                        if (border_enabled.v) {
-                                //ver si hay que refrescar border
-                                if (modificado_border.v)
-                                {
-                                        scrsdl_refresca_border();
-                                        modificado_border.v=0;
-                                }
-
-                        }
-
-                        scr_refresca_pantalla_comun();
-                }
-
-                else {
-                //modo rainbow - real video
-                        scr_refresca_pantalla_rainbow_comun();
-                }
-		}
+				//modo rainbow - real video
+				scr_refresca_pantalla_rainbow_comun();
+			}
         }
 
         else if (MACHINE_IS_Z88) {

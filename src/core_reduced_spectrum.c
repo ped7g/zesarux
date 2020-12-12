@@ -213,7 +213,6 @@ void cpu_core_loop_reduced_spectrum(void)
 			//final de linea
 
 			//copiamos contenido linea y border a buffer rainbow
-			if (rainbow_enabled.v==1) {
 				if (!screen_if_refresh()) {
 					//if ((t_estados/screen_testados_linea)>319) printf ("-Not storing rainbow buffer as framescreen_saltar is %d or manual frameskip\n",framescreen_saltar);
 				}
@@ -226,8 +225,6 @@ void cpu_core_loop_reduced_spectrum(void)
 
 				//t_scanline_next_border();
 
-			}
-
 			t_scanline_next_line();
 
 			//se supone que hemos ejecutado todas las instrucciones posibles de toda la pantalla. refrescar pantalla y
@@ -237,7 +234,7 @@ void cpu_core_loop_reduced_spectrum(void)
 
 				//tsconf_last_frame_y=-1;
 
-				if (rainbow_enabled.v==1) t_scanline_next_fullborder();
+				t_scanline_next_fullborder();
 
 				t_scanline=0;
 

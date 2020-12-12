@@ -3531,10 +3531,7 @@ int util_write_configfile(void)
   if (screen_machine_bw_no_multitask.v)      ADD_STRING_CONFIG,"--menu-bw-multitask");
 
 
-
-  if (rainbow_enabled.v)                      ADD_STRING_CONFIG,"--realvideo");
-
-  if (autodetect_rainbow.v==0)                ADD_STRING_CONFIG,"--no-detect-realvideo");
+  ADD_STRING_CONFIG,"--realvideo");		// enforced in ZESERUse (not even needed in config, but for ZEsarUX vanilla)
 
   if (tbblue_store_scanlines.v)               ADD_STRING_CONFIG,"--tbblue-legacy-hicolor");
   if (tbblue_store_scanlines_border.v)        ADD_STRING_CONFIG,"--tbblue-legacy-border");
@@ -9236,13 +9233,14 @@ void parse_customfile_options(void)
 	int leido_config_joystick_a_key=0;
 
 	z80_bit added_some_osd_text_keyboard={0};
+	enable_rainbow();	// force real video in ZESERUse
 
         while (!siguiente_parametro()) {
 
 		debug_printf (VERBOSE_DEBUG,"Parsing setting %s",argv[puntero_parametro]);
 
                 if (!strcmp(argv[puntero_parametro],"--realvideo")) {
-                                enable_rainbow();
+					// just ignore, already enabled
                 }
 
 		else if (!strcmp(argv[puntero_parametro],"--snoweffect")) {
@@ -9603,7 +9601,6 @@ void customconfig_help(void)
 	"--zx8081ram16K8000\n"
 	"--zx8081ram16KC000\n"
 	"--zx8081vsyncsound\n"
-	"--realvideo\n"
 	"--snoweffect\n"
 	"--enableinterlace           Enable interlace video mode\n"
 	"--disableinterlace          Disable interlace video mode\n"
@@ -14480,7 +14477,7 @@ void util_save_game_config(char *filename)
   }
 
 
-  if (rainbow_enabled.v)                      ADD_STRING_CONFIG,"--realvideo");
+  ADD_STRING_CONFIG,"--realvideo");
   if (video_interlaced_mode.v)                ADD_STRING_CONFIG,"--enableinterlaced");
 
   

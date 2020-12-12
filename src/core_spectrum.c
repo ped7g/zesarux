@@ -207,7 +207,6 @@ tiempo de proceso en 10 segundos: user	0m1.239s
 				//Esto no es exactamente perfecto,
 				//lo ideal es que cada vez que avanzase el contador de t_estados se guardase el atributo que se va a leer
 				//como esto es muy costoso, hacemos que se guardan los atributos leidos desde el opcode anterior hasta este
-				if (rainbow_enabled.v) {
 					if (t_scanline_draw>=screen_indice_inicio_pant && t_scanline_draw<screen_indice_fin_pant) {
 						int atributo_pos=(t_estados % screen_testados_linea)/4;
 							z80_byte *screen_atributo=get_base_mem_pantalla_attributes();
@@ -267,7 +266,6 @@ tiempo de proceso en 10 segundos: user	0m1.239s
 						last_ula_attribute=255;
 						last_ula_pixel=255;
 					}
-				}
 }
 
 
@@ -283,7 +281,7 @@ void core_spectrum_fin_frame_pantalla(void)
 
 				//tsconf_last_frame_y=-1;
 
-				if (rainbow_enabled.v==1) t_scanline_next_fullborder();
+				t_scanline_next_fullborder();
 
 		        t_scanline=0;
 
@@ -493,7 +491,6 @@ void core_spectrum_fin_scanline(void)
 			//final de linea
 
 			//copiamos contenido linea y border a buffer rainbow
-			if (rainbow_enabled.v==1) {
 				if (!screen_if_refresh()) {
 					//if ((t_estados/screen_testados_linea)>319) printf ("-Not storing rainbow buffer as framescreen_saltar is %d or manual frameskip\n",framescreen_saltar);
 				}
@@ -507,8 +504,6 @@ void core_spectrum_fin_scanline(void)
 				}
 
 				//t_scanline_next_border();
-
-			}
 
 			TIMESENSOR_ENTRY_PRE(TIMESENSOR_ID_core_spectrum_t_scanline_next_line);
 			t_scanline_next_line();

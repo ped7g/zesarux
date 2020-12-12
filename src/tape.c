@@ -2050,11 +2050,6 @@ void realtape_insert(void)
 	//En Spectrum, se vean las franjas de carga en el borde
 	//En ZX80,81, se vean las franjas de carga en toda la pantalla
 
-	//Aun asi esto solo es un motivo estetico, se puede desactivar realvideo y la carga funcionara igualmente
-	//Solo si autodetect real video esta activo
-	if (autodetect_rainbow.v) enable_rainbow();
-
-
         //if (noautoload.v==0 && !MACHINE_IS_TBBLUE) { //TODO: desactivamos autoload en TBBLUE
         if (noautoload.v==0) { 
                 debug_printf (VERBOSE_INFO,"Restarting autoload");

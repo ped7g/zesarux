@@ -11294,18 +11294,13 @@ int menu_cond_zx81(void)
 int menu_cond_zx81_realvideo(void)
 {
         if (menu_cond_zx81()==0) return 0;
-        return rainbow_enabled.v;
-
+        return 1;
 }
 
 int menu_cond_realvideo(void)
 {
-	return rainbow_enabled.v;
-
+	return 1;
 }
-
-
-
 
 int menu_cond_zx8081(void)
 {
@@ -11316,7 +11311,7 @@ int menu_cond_zx8081(void)
 int menu_cond_zx8081_realvideo(void)
 {
 	if (menu_cond_zx8081()==0) return 0;
-	return rainbow_enabled.v;
+	return 1;
 }
 
 int menu_cond_zx8081_wrx(void)
@@ -11329,12 +11324,6 @@ int menu_cond_zx8081_wrx_no_stabilization(void)
 {
 	if (menu_cond_zx8081_wrx()==0) return 0;
 	return !video_zx8081_estabilizador_imagen.v;
-}
-
-int menu_cond_zx8081_no_realvideo(void)
-{
-        if (menu_cond_zx8081()==0) return 0;
-        return !rainbow_enabled.v;
 }
 
 int menu_cond_curses(void)
@@ -13491,13 +13480,6 @@ int menu_inves_cond(void)
 {
         if (MACHINE_IS_INVES) return 1;
         else return 0;
-}
-
-int menu_inves_cond_realvideo(void)
-{
-	if (!menu_inves_cond()) return 0;
-	return rainbow_enabled.v;
-
 }
 
 
@@ -18089,9 +18071,6 @@ void menu_tape_open(MENU_ITEM_PARAMETERS)
 void menu_tape_simulate_real_load(MENU_ITEM_PARAMETERS)
 {
 	tape_loading_simulate.v ^=1;
-
-	//Al activar carga real, tambien activamos realvideo
-	if (tape_loading_simulate.v==1) rainbow_enabled.v=1;
 }
 
 void menu_tape_simulate_real_load_fast(MENU_ITEM_PARAMETERS)
@@ -24400,13 +24379,7 @@ void menu_window_settings(MENU_ITEM_PARAMETERS)
 
 void menu_osd_settings_watermark(MENU_ITEM_PARAMETERS)
 {
-	if (screen_watermark_enabled.v==0) {
-		//Ya se permite watermark con o sin realvideo
-		//enable_rainbow();
-		screen_watermark_enabled.v=1;
-	}
-
-	else screen_watermark_enabled.v=0;
+	screen_watermark_enabled.v=!screen_watermark_enabled.v;
 }
 
 void menu_osd_settings_watermark_position(MENU_ITEM_PARAMETERS)

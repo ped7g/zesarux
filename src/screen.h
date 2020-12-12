@@ -248,11 +248,6 @@ extern void disable_16c_mode(void);
 #define SCREEN_SPECTRUM_WIDTH (ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM+RIGHT_BORDER_NO_ZOOM)
 #define SCREEN_SPECTRUM_HEIGHT (ALTO_PANTALLA+TOP_BORDER_NO_ZOOM+BOTTOM_BORDER_NO_ZOOM)
 
-//Valores usados en real video
-
-extern z80_bit rainbow_enabled;
-extern z80_bit autodetect_rainbow;
-
 extern z80_int *new_scalled_rainbow_buffer;
 
 extern void screen_scale_075_function(int ancho,int alto);
@@ -395,7 +390,6 @@ extern int screen_print_y;
 extern void set_putpixel_zoom(void);
 
 extern void enable_rainbow(void);
-extern void disable_rainbow(void);
 
 extern void recalcular_get_total_ancho_rainbow(void);
 extern void recalcular_get_total_alto_rainbow(void);

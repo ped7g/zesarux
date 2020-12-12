@@ -1119,11 +1119,6 @@ z80_byte fetch_opcode_zx81(void)
 
 		}
 
-
-		//Si no esta el modo real zx8081, no hacer esto
-		if (rainbow_enabled.v==1) {
-
-
 			z80_byte sprite;
 			int x;
 
@@ -1286,30 +1281,7 @@ z80_byte fetch_opcode_zx81(void)
 
 
 			video_zx8081_caracter_en_linea_actual++;
-		}
 
-
-		//Si no modo real video
-		else {
-			//Intentar autodetectar si hay que activar realvideo
-			if (autodetect_rainbow.v) {
-				if (MACHINE_IS_ZX80) {
-					//ZX80
-					if (reg_i!=0x0e) {
-						debug_printf(VERBOSE_INFO,"Autoenabling realvideo so the program seems to need it (I register on ZX80 != 0x0e)");
-						enable_rainbow();
-					}
-				}
-				if (MACHINE_IS_ZX81) {
-					//ZX81
-					if (reg_i!=0x1e) {
-						debug_printf(VERBOSE_INFO,"Autoenabling realvideo so the program seems to need it (I register on ZX81 != 0x1e)");
-						enable_rainbow();
-					}
-				}
-			}
-
-		}
 	}
 
 	return op;
@@ -5269,17 +5241,6 @@ z80_byte idle_bus_port_atribute(void)
 		}
 	}
 
-	//Si no esta habilitado rainbow y hay que detectar rainbow, habilitar rainbow, siempre que no este en ROM
-	if (rainbow_enabled.v==0) {
-		if (autodetect_rainbow.v) {
-			if (reg_pc>=16384) {
-				debug_printf(VERBOSE_INFO,"Autoenabling realvideo so the program seems to need it (Idle bus port reading on Spectrum)");
-				enable_rainbow();
-			}
-		}
-
-	}
-
 //printf ("last ula attribute: %d t_states: %d\n",last_ula_attribute,t_estados);
 	//Si estamos en zona de border, retornar 255
 	/*
@@ -7026,11 +6987,8 @@ void out_port_spectrum_border(z80_int puerto,z80_byte value)
                 }
 
 
-                if (rainbow_enabled.v) {
                         //printf ("%d\n",t_estados);
-                        int i;
-
-			i=t_estados;
+                        int i=t_estados;
                         //printf ("t_estados %d screen_testados_linea %d bord: %d\n",t_estados,screen_testados_linea,i);
 
 						//Con esto se ve la ukflag, la confusio y la rage se ven perfectas
@@ -7080,21 +7038,6 @@ void out_port_spectrum_border(z80_int puerto,z80_byte value)
 				//printf ("cambio border i=%d color: %d\n",i,out_254 & 7);
 			}
                         //else printf ("Valor de border scanline fuera de rango: %d\n",i);
-                }
-
-
-		else {
-			//Realvideo desactivado. Si esta autodeteccion de realvideo, hacer lo siguiente
-			if (autodetect_rainbow.v) {
-				//if (reg_pc>=16384) {
-					//Ver si hay cambio de border
-					if ( (anterior_out_254&7) != (out_254&7) ) {
-						//printf ("cambio de border\n");
-						detect_rainbow_border_changes_in_frame++;
-					}
-				//}
-			}
-		}
 
 		set_value_beeper_on_array(value_beeper);
 

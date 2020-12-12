@@ -1603,9 +1603,6 @@ printf (
 		"----------------\n"
 		"\n"
 
-		"--realvideo                Enable real video display - for Spectrum (rainbow and other advanced effects) and ZX80/81 (non standard & hi-res modes)\n"
-		"--no-detect-realvideo      Disable real video autodetection\n"
-
 		"--tbblue-legacy-hicolor    Allow legacy hi-color effects on pixel/attribute display zone\n"
 		"--tbblue-legacy-border     Allow legacy border effects on tbblue machine\n"
 
@@ -3551,16 +3548,9 @@ You don't need timings for H/V sync =)
                 lee_puerto=lee_puerto_spectrum;
                 ay_chip_present.v=1;
 
-				//Solo forzar real video una vez al entrar aquí. Para poder dejar real video desactivado si el usuario lo quiere,
-				//pues aqui se entra siempre al cambiar velocidad cpu (y eso pasa en la rom cada vez que te mueves por el menu del 128k por ejemplo)
-				//TODO: siempre que el usuario entre al emulador se activara la primera vez
-				if (!tbblue_already_autoenabled_rainbow) {
 					enable_rainbow();
 					//lo mismo para timex video
 					enable_timex_video();
-				}
-
-				tbblue_already_autoenabled_rainbow=1;
 
 				multiface_type=MULTIFACE_TYPE_THREE;
 
@@ -3603,11 +3593,7 @@ You don't need timings for H/V sync =)
 								poke_byte_no_time=poke_byte_no_time_tsconf;
 								lee_puerto=lee_puerto_spectrum;
 								ay_chip_present.v=1;
-
-								//TSConf hacemos que active siempre realvideo (siempre que setting de autoactivar este yes)
-								//por conveniencia, dado que se verá todo mejor asi que no con real video off
-								if (autodetect_rainbow.v) enable_rainbow();
-
+								enable_rainbow();
 								break;
 
 									case MACHINE_ID_BASECONF:
@@ -3717,8 +3703,6 @@ You don't need timings for H/V sync =)
 		out_port=out_port_z88;
 
 		init_z88_memory_slots();
-
-		disable_rainbow();
 
 		//zx81
 		//screen_testados_linea=207;
@@ -4878,6 +4862,9 @@ int joystickkey_definidas=0;
 //void parse_cmdline_options(int argc,char *argv[]) {
 int parse_cmdline_options(void) {
 
+		// realvideo is enforced in ZESERUse
+		enable_rainbow();
+
 		while (!siguiente_parametro()) {
 			if (!strcmp(argv[puntero_parametro],"--help")) {
 				cpu_help();
@@ -4899,8 +4886,6 @@ int parse_cmdline_options(void) {
                                 show_compile_info();
                                 exit(1);
                         }
-
-
 
 			if (!strcmp(argv[puntero_parametro],"--debugconfigfile")) {
 				//Este parametro aqui se ignora, solo se lee antes del parseo del archivo de configuracion
@@ -6497,11 +6482,7 @@ int parse_cmdline_options(void) {
 			}
 
 			else if (!strcmp(argv[puntero_parametro],"--realvideo")) {
-				enable_rainbow();
-			}
-
-			else if (!strcmp(argv[puntero_parametro],"--no-detect-realvideo")) {
-				autodetect_rainbow.v=0;
+				// just ignore, already enabled
 			}
 
 			else if (!strcmp(argv[puntero_parametro],"--tbblue-legacy-hicolor")) {
@@ -7702,8 +7683,6 @@ debug_printf_sem_init();
 texto_artistico.v=1;
 
 
-rainbow_enabled.v=0;
-autodetect_rainbow.v=1;
 autodetect_wrx.v=0;
 
 contend_enabled.v=1;

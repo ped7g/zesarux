@@ -3013,29 +3013,8 @@ void screen_tsconf_refresca_rainbow(void) {
 void screen_tsconf_refresca_pantalla(void)
 {
 
-	
 	//Como spectrum clasico
-
-	//modo clasico. sin rainbow
-	if (rainbow_enabled.v==0) {
-        screen_tsconf_refresca_border();
-        z80_byte modo_video=tsconf_get_video_mode_display();
-
-
-        //printf ("modo video: %d\n",modo_video );
-        if (modo_video==0) scr_tsconf_refresca_pantalla_zxmode_no_rainbow();
-        if (modo_video==1) scr_tsconf_refresca_pantalla_16c_256c_no_rainbow(1);
-        if (modo_video==2) scr_tsconf_refresca_pantalla_16c_256c_no_rainbow(2);
-        if (modo_video==3) screen_tsconf_refresca_text_mode();
-
-	}
-
-	else {
-	//modo rainbow - real video
-       
-
-        screen_tsconf_refresca_rainbow();
-	}
+	screen_tsconf_refresca_rainbow();
 
 }
 

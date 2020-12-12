@@ -413,25 +413,8 @@ void scrfbdev_refresca_pantalla(void)
 
 		  else { //Spectrum no TSConf
 
-		//modo clasico. sin rainbow
-		if (rainbow_enabled.v==0) {
-			if (border_enabled.v) {
-				//ver si hay que refrescar border
-				if (modificado_border.v)
-				{
-					scrfbdev_refresca_border();
-					modificado_border.v=0;
-				}
-
-			}
-
-			scr_refresca_pantalla_comun();
-		}
-
-		else {
 			//modo rainbow - real video
 			scr_refresca_pantalla_rainbow_comun();
-		}
 		}
 	}
 

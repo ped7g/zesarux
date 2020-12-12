@@ -8831,9 +8831,7 @@ int menu_display_settings_disp_zx8081_spectrum(void)
 
 	//esto solo en spectrum y si el driver no es curses y si no hay rainbow
 	if (!strcmp(scr_driver_name,"curses")) return 0;
-	if (rainbow_enabled.v==1) return 0;
-
-	return !menu_cond_zx8081();
+	return 0;
 }
 
 
@@ -8884,11 +8882,6 @@ int menu_display_emulate_zx8081_cond(void)
 }
 
 
-void menu_display_autodetect_rainbow(MENU_ITEM_PARAMETERS)
-{
-	autodetect_rainbow.v ^=1;
-}
-
 void menu_display_autodetect_wrx(MENU_ITEM_PARAMETERS)
 {
         autodetect_wrx.v ^=1;
@@ -8915,14 +8908,6 @@ void menu_display_tsconf_pal_depth(MENU_ITEM_PARAMETERS)
 	if (tsconf_palette_depth<2) tsconf_palette_depth=5;
 
 	menu_interface_rgb_inverse_common();
-
-}
-
-void menu_display_rainbow(MENU_ITEM_PARAMETERS)
-{
-	if (rainbow_enabled.v==0) enable_rainbow();
-	else disable_rainbow();
-
 
 }
 
@@ -9264,35 +9249,16 @@ void menu_textdrivers_settings(MENU_ITEM_PARAMETERS)
 
 
 
-                        if (rainbow_enabled.v) {
-                                menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_brightness,NULL,"[%3d] Text brightness",screen_text_brightness);
-                                menu_add_item_menu_tooltip(array_menu_textdrivers_settings,"Text brightness used on some machines and text drivers, like tsconf");
-                                menu_add_item_menu_ayuda(array_menu_textdrivers_settings,"Text brightness used on some machines and text drivers, like tsconf");
-                                
-                                menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_all_refresh_pixel,NULL,"[%c] All pixel to text",(screen_text_all_refresh_pixel.v ? 'X' : ' ' ));
-                                
-                                if (screen_text_all_refresh_pixel.v) {
-                                
-                                menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_all_refresh_pixel_scale,NULL,"[1:%d] Scale",screen_text_all_refresh_pixel_scale );
-                                
-                                menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_all_refresh_pixel_invert,NULL,"[%c] Invert text",(screen_text_all_refresh_pixel_invert.v ? 'X' : ' ' ));
-                                
-                                
-                                
-                                }
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                        }
-                        
-                        
-                        
-                        
+						menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_brightness,NULL,"[%3d] Text brightness",screen_text_brightness);
+						menu_add_item_menu_tooltip(array_menu_textdrivers_settings,"Text brightness used on some machines and text drivers, like tsconf");
+						menu_add_item_menu_ayuda(array_menu_textdrivers_settings,"Text brightness used on some machines and text drivers, like tsconf");
+						
+						menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_all_refresh_pixel,NULL,"[%c] All pixel to text",(screen_text_all_refresh_pixel.v ? 'X' : ' ' ));
+						
+						if (screen_text_all_refresh_pixel.v) {
+							menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_all_refresh_pixel_scale,NULL,"[1:%d] Scale",screen_text_all_refresh_pixel_scale );
+							menu_add_item_menu_format(array_menu_textdrivers_settings,MENU_OPCION_NORMAL,menu_display_text_all_refresh_pixel_invert,NULL,"[%c] Invert text",(screen_text_all_refresh_pixel_invert.v ? 'X' : ' ' ));
+						}
 
                 }
 
@@ -9395,42 +9361,7 @@ void menu_settings_display(MENU_ITEM_PARAMETERS)
 					menu_add_item_menu(array_menu_settings_display,"",MENU_OPCION_SEPARADOR,NULL,NULL);
 		}
 
-
-
-		if (!MACHINE_IS_Z88) {
-
-
-				menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_autodetect_rainbow,NULL,"[%c] Autodetect Real Video",(autodetect_rainbow.v==1 ? 'X' : ' '));
-				menu_add_item_menu_tooltip(array_menu_settings_display,"Autodetect the need to enable Real Video");
-				menu_add_item_menu_ayuda(array_menu_settings_display,"This option detects whenever is needed to enable Real Video. "
-								"On Spectrum, it detects the reading of idle bus or repeated border changes. "
-								"On ZX80/81, it detects the I register on a non-normal value when executing video display. "
-			"On all machines, it also detects when loading a real tape. "
-								);
-		}
-
-
-
-
-		menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_rainbow,menu_display_rainbow_cond,"[%c] ~~Real Video",(rainbow_enabled.v==1 ? 'X' : ' '));
-		menu_add_item_menu_shortcut(array_menu_settings_display,'r');
-
-		menu_add_item_menu_tooltip(array_menu_settings_display,"Enable Real Video. Enabling it makes display as a real machine");
-		menu_add_item_menu_ayuda(array_menu_settings_display,"Real Video makes display works as in the real machine. It uses a bit more CPU than disabling it.\n\n"
-				"On Spectrum, display is drawn every scanline. "
-				"It enables hi-res colour (rainbow) on the screen and on the border, Gigascreen, Interlaced, ULAplus, Spectra, Timex Video, snow effect, idle bus reading and some other advanced features. "
-				"Also enables all the Inves effects.\n"
-				"Disabling it, the screen is drawn once per frame (1/50) and the previous effects "
-				"are not supported.\n\n"
-				"On ZX80/ZX81, enables hi-res display and loading/saving stripes on the screen, and the screen is drawn every scanline.\n"
-				"By disabling it, the screen is drawn once per frame, no hi-res display, and only text mode is supported.\n\n"
-				"On Z88, display is drawn the same way as disabling it; it is only used when enabling Video out to file.\n\n"
-				"Real Video can be enabled on all the video drivers, but on curses, stdout and simpletext (in Spectrum and Z88 machines), the display drawn is the same "
-				"as on non-Real Video, but you can have idle bus support on these drivers. "
-				"Curses, stdout and simpletext drivers on ZX80/81 machines do have Real Video display."
-				);
-
-		if (MACHINE_IS_TBBLUE && rainbow_enabled.v) {
+		if (MACHINE_IS_TBBLUE) {	//FIXME review
 			menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_tbblue_store_scanlines,NULL,"[%c] Legacy hi-color effects",(tbblue_store_scanlines.v ? 'X' : ' '));	
 			menu_add_item_menu_tooltip(array_menu_settings_display,"Allow legacy hi-color effects on pixel/attribute display zone on TBBlue");
 			menu_add_item_menu_ayuda(array_menu_settings_display,"Allows you to make hi-res effects on pixel/attribute display zone on TBBlue, like overscan demo for example. "
@@ -9624,16 +9555,6 @@ void menu_settings_display(MENU_ITEM_PARAMETERS)
 
 		}
 
-		else {
-
-			if (menu_cond_zx8081() ) {
-				menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_emulate_fast_zx8081,menu_cond_zx8081_no_realvideo,"[%c] ZX80/81 detect fast mode", (video_fast_mode_emulation.v==1 ? 'X' : ' '));
-				menu_add_item_menu_tooltip(array_menu_settings_display,"Detect fast mode and simulate it, on non-realvideo mode");
-				menu_add_item_menu_ayuda(array_menu_settings_display,"Detect fast mode and simulate it, on non-realvideo mode");
-			}
-
-		}
-
 		if (MACHINE_IS_ZX8081) {
 
 			menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_autodetect_chroma81,NULL,"[%c] Autodetect Chroma81",(autodetect_chroma81.v ? 'X' : ' '));
@@ -9723,35 +9644,6 @@ void menu_settings_display(MENU_ITEM_PARAMETERS)
 
 		}
 
-
-
-
-		if (MACHINE_IS_SPECTRUM && rainbow_enabled.v==0) {
-			menu_add_item_menu(array_menu_settings_display,"",MENU_OPCION_SEPARADOR,NULL,NULL);
-
-
-			menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_emulate_zx8081display_spec,menu_display_settings_disp_zx8081_spectrum,"[%c] ZX80/81 Display on Speccy", (simulate_screen_zx8081.v==1 ? 'X' : ' '));
-			menu_add_item_menu_tooltip(array_menu_settings_display,"Simulates the resolution of ZX80/81 on the Spectrum");
-			menu_add_item_menu_ayuda(array_menu_settings_display,"It makes the resolution of display on Spectrum like a ZX80/81, with no colour. "
-					"This mode is not supported with real video enabled");
-
-
-			if (menu_display_emulate_zx8081_cond() ){
-				menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_emulate_zx8081_thres,menu_display_emulate_zx8081_cond,"[%d] Pixel threshold",umbral_simulate_screen_zx8081);
-				menu_add_item_menu_tooltip(array_menu_settings_display,"Pixel Threshold to draw black or white in a 4x4 rectangle, "
-						"when ZX80/81 Display on Speccy enabled");
-				menu_add_item_menu_ayuda(array_menu_settings_display,"Pixel Threshold to draw black or white in a 4x4 rectangle, "
-						"when ZX80/81 Display on Speccy enabled");
-			}
-
-
-			menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_refresca_sin_colores,NULL,"[%c] Colours enabled",(scr_refresca_sin_colores.v==0 ? 'X' : ' '));
-			menu_add_item_menu_tooltip(array_menu_settings_display,"Disables colours for Spectrum display");
-			menu_add_item_menu_ayuda(array_menu_settings_display,"Disables colours for Spectrum display");
-
-
-
-		}
 
 
 
@@ -13117,14 +13009,6 @@ int menu_debug_registers_subview_type=0;
     	    // ULA
 			//
 
-			//no hacer autodeteccion de idle bus port, para que no se active por si solo
-			z80_bit copia_autodetect_rainbow;
-			copia_autodetect_rainbow.v=autodetect_rainbow.v;
-
-			autodetect_rainbow.v=0;
-
-
-
 			//
 			//Puerto FE, Idle port y flash. cada uno para la maquina que lo soporte
 			//Solo para Spectrum O Z88
@@ -13157,7 +13041,6 @@ int menu_debug_registers_subview_type=0;
 
 	            sprintf (textoregistros,"%s%s%s",feporttext,flashtext,idleporttext );
 
-				autodetect_rainbow.v=copia_autodetect_rainbow.v;
     	        //menu_escribe_linea_opcion(linea++,-1,1,textoregistros);
 				zxvision_print_string_defaults_fillspc(w,1,linea++,textoregistros);
 
@@ -14578,7 +14461,6 @@ void menu_debug_registers_show_scan_position(void)
 
 	if (menu_debug_registers_if_showscan.v==0) return;
 
-	if (rainbow_enabled.v) {
 		//copiamos contenido linea y border a buffer rainbow
 /*
 //temp mostrar contenido buffer pixeles y atributos
@@ -14607,10 +14489,6 @@ printf ("\n");
 
 		menu_debug_registers_show_scan_pos_putcursor(x,y+si_salta_linea);
 
-				
-
-	}
-                                
 }
 
 

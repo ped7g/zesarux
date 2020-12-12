@@ -427,13 +427,6 @@ z80_bit screen_watermark_enabled={0};
 int screen_refresh_menu=0;
 
 
-//si esta activado real video
-z80_bit rainbow_enabled;
-
-//Si hay autodetecccion de modo rainbow
-z80_bit autodetect_rainbow;
-
-
 //Valores usados en real video
 //normalmente a 8
 int screen_invisible_borde_superior;
@@ -1579,39 +1572,13 @@ void screen_prism_refresca_rainbow(void) {
 
 
 void screen_prism_refresca_pantalla(void) {
-
-                //modo clasico. sin rainbow
-                if (rainbow_enabled.v==0) {
-                        screen_prism_refresca_no_rainbow();
-                }
-
-                else {
-                        //modo rainbow - real video
-                        //en spectrum normal era: scr_refresca_pantalla_rainbow_comun();
-
-
-			screen_prism_refresca_rainbow();
-                }
-
+	screen_prism_refresca_rainbow();
 }
 
 
 void screen_tbblue_refresca_pantalla(void)
 {
-
-                //modo clasico. sin rainbow
-                if (rainbow_enabled.v==0) {
-                        screen_tbblue_refresca_no_rainbow();
-                }
-
-                else {
-                        //modo rainbow - real video
-                        //en spectrum normal era: scr_refresca_pantalla_rainbow_comun();
-//scr_refresca_pantalla_rainbow_comun(); //Se puede usar esta funcion comun a todos
-
-			screen_tbblue_refresca_rainbow();
-                }
-
+	screen_tbblue_refresca_rainbow();
 }
 
 void clear_putpixel_cache(void)
@@ -2675,20 +2642,12 @@ void scr_putchar_footer_comun_zoom(z80_byte caracter,int x,int y,z80_bit inverse
 
                 int xfinal,yfinal;
 
-                if (rainbow_enabled.v==1) {
-                        //xfinal=(((x*8)+bit)*zoom_level);
-                        xfinal=(((x*8)+bit)*zoom_level);
-                        xfinal +=margenx_izq;
+				//xfinal=(((x*8)+bit)*zoom_level);
+				xfinal=(((x*8)+bit)*zoom_level);
+				xfinal +=margenx_izq;
 
-                        yfinal=y*zoom_level;
-                        yfinal +=margeny_arr;
-                }
-
-                else {
-                        //xfinal=((x*8)+bit)*zoom_level;
-                        xfinal=((x*8)+bit)*zoom_level;
-                        yfinal=y*zoom_level;
-                }
+				yfinal=y*zoom_level;
+				yfinal +=margeny_arr;
 
 
  //Hacer zoom de ese pixel si conviene
@@ -2712,9 +2671,7 @@ void scr_putchar_footer_comun_zoom(z80_byte caracter,int x,int y,z80_bit inverse
                         if (bit!=0 && bit!=6 && bit!=7) scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
                 }*/
 
-	                                if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(xfinal,yfinal,color);
-
-                                else scr_putpixel_zoom(xfinal,yfinal,color);							
+								scr_putpixel_zoom_rainbow(xfinal,yfinal,color);
 
                 /*int incx,incy;
                 for (incy=0;incy<zoom_level;incy++) {
@@ -2858,11 +2815,9 @@ void scr_putsprite_comun_zoom(z80_byte *puntero,int x,int y,z80_bit inverse,int 
 		xfinal=(((x*8)+bit)*zoom_level);
 		yfinal=y*zoom_level;
 
-		if (rainbow_enabled.v==1) {
-			xfinal +=margenx_izq;
+		xfinal +=margenx_izq;
 
-			yfinal +=margeny_arr;
-		}
+		yfinal +=margeny_arr;
 
 
 
@@ -2871,15 +2826,7 @@ void scr_putsprite_comun_zoom(z80_byte *puntero,int x,int y,z80_bit inverse,int 
 		//scr_putpixel_gui_zoom(xfinal,yfinal,color,zoom_level);
 
 
-                                if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(xfinal,yfinal,color);
-
-                                else scr_putpixel_zoom(xfinal,yfinal,color);		
-
-
-	
-
-
-
+		scr_putpixel_zoom_rainbow(xfinal,yfinal,color);
            }
         }
 }
@@ -4481,51 +4428,8 @@ void scr_putchar_zx8081_comun(int x,int y, z80_byte caracter)
 
 void scr_refresca_pantalla_y_border_zx8081(void)
 {
-
-
-        //modo caracteres alta resolucion- rainbow - metodo nuevo
-        if (rainbow_enabled.v==1) {
-		scr_refresca_pantalla_rainbow_comun();
-		return;
-	}
-
-
-
-
-        //simulacion pantalla negra fast
-        if (hsync_generator_active.v==0) {
-
-                if (video_fast_mode_next_frame_black!=LIMIT_FAST_FRAME_BLACK) {
-			video_fast_mode_next_frame_black++;
-		}
-
-		if (video_fast_mode_next_frame_black==LIMIT_FAST_FRAME_BLACK) {
-                        debug_printf(VERBOSE_DEBUG,"Detected fast mode");
-			//forzar refresco de border
-                        modificado_border.v=1;
-
-                }
-        }
-
-
-
-
-                if (border_enabled.v) {
-                        //ver si hay que refrescar border
-                        if (modificado_border.v)
-                        {
-				//printf ("refrescamos border\n");
-                                scr_refresca_border_zx8081();
-                                modificado_border.v=0;
-				//sleep (1);
-                        }
-
-                }
-
-	//modo caracteres normal
-        if (rainbow_enabled.v==0) scr_refresca_pantalla_zx8081();
-
-
+	scr_refresca_pantalla_rainbow_comun();
+	return;
 }
 
 
@@ -7741,37 +7645,6 @@ void siguiente_frame_pantalla(void)
                                 frames_total=0;
         }
 
-
-	//Gestion de autoactivado de realvideo cuando hay cambios de border
-	if (MACHINE_IS_SPECTRUM && rainbow_enabled.v==0 && autodetect_rainbow.v) {
-		//Si el numero de cambios de border en un frame pasa el minimo
-		//printf ("numero de cambios: %d\n",detect_rainbow_border_changes_in_frame);
-		if (detect_rainbow_border_changes_in_frame>=DETECT_RAINBOW_BORDER_MAX_IN_FRAMES) {
-
-			//printf ("total frames: %d\n",detect_rainbow_border_total_frames);
-			//Conteo de frames, incrementar
-			if (detect_rainbow_border_total_frames==DETECT_RAINBOW_BORDER_TOTAL_FRAMES) {
-				//Activar realvideo
-				debug_printf (VERBOSE_INFO,"Enabling realvideo due to repeated border changes. Minimum border changes in frame: %d. Total frames repeated: %d",DETECT_RAINBOW_BORDER_MAX_IN_FRAMES,detect_rainbow_border_total_frames);
-				enable_rainbow();
-				//Reseteamos contadores, por si se desactiva y vuelve a activar posteriormente
-				detect_rainbow_border_changes_in_frame=0;
-				detect_rainbow_border_total_frames=0;
-			}
-			else detect_rainbow_border_total_frames++;
-		}
-
-		else {
-			//Si no, resetear total frames
-			//printf ("no pasa el minimo de cambios. resetear\n");
-			detect_rainbow_border_total_frames=0;
-		}
-
-
-		//Nuevo frame. Numero de cambios en frame a 0
-		detect_rainbow_border_changes_in_frame=0;
-	}
-
 }
 
 char last_message_helper_aofile_vofile_file_format[1024]="";
@@ -8911,8 +8784,7 @@ void cpu_loop_refresca_pantalla(void)
 
 
 
-	if (rainbow_enabled.v) screen_add_watermark_rainbow();
-	else screen_add_watermark_no_rainbow();
+	screen_add_watermark_rainbow();
 
 	//Si esta en top speed, solo 1 frame
 	if (timer_condicion_top_speed() ) {
@@ -9027,11 +8899,7 @@ void enable_rainbow(void) {
 
 	debug_printf (VERBOSE_INFO,"Enabling RealVideo");
 
-	//si hay un cambio
-	if (rainbow_enabled.v==0) {
-        	rainbow_enabled.v=1;
-		screen_set_parameters_slow_machines();
-	}
+	screen_set_parameters_slow_machines();
 
         video_zx8081_estabilizador_imagen.v=1;
 
@@ -9048,33 +8916,6 @@ void enable_rainbow(void) {
 		clear_putpixel_cache();
 
 }
-
-//Desactivar rainbow
-void disable_rainbow(void) {
-	debug_printf (VERBOSE_INFO,"Disabling RealVideo");
-
-	//Vofile necesita de rainbow para funcionar. no dejar desactivarlo si esta esto activo
-	if (vofile_inserted.v==1) {
-		debug_printf (VERBOSE_ERR,"Video out to file needs realvideo to work. You can not disable realvideo with video out enabled");
-		return;
-	}
-
-	//si hay un cambio
-	if (rainbow_enabled.v==1) {
-	        rainbow_enabled.v=0;
-		screen_set_parameters_slow_machines();
-        }
-
-        modificado_border.v=1;
-
-	//Desactivar estos cuatro. Asi siempre que realvideo sea 0, ninguno de estos tres estara activo
-	disable_interlace();
-	disable_gigascreen();
-	disable_ulaplus();
-	spectra_disable();
-}
-
-
 
 void enable_border(void)
 {
@@ -9132,23 +8973,11 @@ void t_scanline_next_line(void)
 
 int scr_ver_si_refrescar_por_menu_activo_z88(int x,int fila)
 {
-
 	//Usado en refresco de z88
 	//sin rainbow se llama a la funcion normal
 	//con rainbow, siempre debe hacer putpixel, que esto va al buffer rainbow. importante luego para que en video out no
 	//aparezcan rectangulos negros al abrir el menu
-	if (rainbow_enabled.v) return 1;
-
-	else {
-		/* Curiosidad:
-		primero esto estaba mal y en vez del return y la funcion estaba solo la funcion, asi:
-		scr_ver_si_refrescar_por_menu_activo(x,fila);
-		Esto curiosamente deberia retornar un valor indefinido, pero en dos maquinas Linux, retornan el valor correcto de la funcion
-		En cambio en mac os x, no retornaba valor correcto
-		*/
-
-		return scr_ver_si_refrescar_por_menu_activo(x,fila);
-	}
+	return 1;
 }
 
 void screen_z88_return_sbr(z88_dir *dir)
@@ -9391,16 +9220,7 @@ void screen_z88_putpixel_zoom_rainbow (int x,int y,unsigned int color)
 
 void set_z88_putpixel_zoom_function(void)
 {
-
-                if (rainbow_enabled.v==0) {
-                        scr_putpixel_zoom_z88=scr_putpixel_zoom;
-                }
-
-                else {
-                        //modo realvideo
-                        scr_putpixel_zoom_z88=screen_z88_putpixel_zoom_rainbow;
-                }
-
+	scr_putpixel_zoom_z88=screen_z88_putpixel_zoom_rainbow;
 }
 
 void screen_z88_refresca_pantalla(void)
@@ -9416,16 +9236,9 @@ void screen_z88_refresca_pantalla(void)
 
 	set_z88_putpixel_zoom_function();
 
-                if (rainbow_enabled.v==0) {
-			screen_z88_refresca_pantalla_comun();
-		}
+	screen_z88_refresca_pantalla_comun();
 
-                else {
-                        //modo realvideo
-			screen_z88_refresca_pantalla_comun();
-
-			scr_refresca_pantalla_rainbow_comun();
-                }
+	scr_refresca_pantalla_rainbow_comun();
 
 }
 
@@ -12548,14 +12361,7 @@ void screen_text_repinta_pantalla_z88(void)
 
 void screen_text_repinta_pantalla_zx81_comun(int si_border,void (*puntero_printchar_caracter) (z80_byte),int solo_texto )
 {
-        if (rainbow_enabled.v==0) {
-                        //modo clasico. sin rainbow
-                screen_text_repinta_pantalla_zx81_no_rainbow_comun(si_border,puntero_printchar_caracter,solo_texto);
-        }
-
-        else {
-                screen_text_repinta_pantalla_zx81_rainbow_comun(puntero_printchar_caracter,solo_texto);
-        }
+	screen_text_repinta_pantalla_zx81_rainbow_comun(puntero_printchar_caracter,solo_texto);
 }
 
 void screen_text_repinta_pantalla_zx81(void)
@@ -14375,12 +14181,6 @@ void screen_convert_rainbow_to_text(z80_int *source_bitmap,int source_width,int 
 
 void scr_refresca_pantalla_tsconf_text(void (*fun_color) (z80_byte color,int *brillo, int *parpadeo), void (*fun_caracter) (int x,int y,int brillo, unsigned char inv,z80_byte caracter ) , void (*fun_saltolinea) (void) , int factor_division)
 {
-
-	//Si no esta realvideo, salir
-	if (rainbow_enabled.v==0) return;
-
-
-
 			        int ancho,alto;
 
 			        ancho=get_total_ancho_rainbow();

@@ -165,7 +165,6 @@ extern void menu_about_read_file(char *title,char *aboutfile);
 
 extern int menu_cond_zx8081(void);
 extern int menu_cond_zx8081_realvideo(void);
-extern int menu_cond_zx8081_no_realvideo(void);
 extern int menu_cond_realvideo(void);
 extern int menu_display_rainbow_cond(void);
 extern int menu_cond_stdout(void);
