@@ -1391,6 +1391,7 @@ void cpu_help_expert(void)
 		"Debugging\n"
 		"---------\n"
 		"\n"
+		"--nologo                   Show only version on text console during start\n"
 		"--verbose n                Verbose level n (0=only errors, 1=warning and errors, 2=info, warning and errors, 3=debug, 4=lots of messages)\n"
 		"--verbose-always-console   Always show messages in console (using simple printf) additionally to the default video driver, interesting in some cases as curses, aa or caca video drivers\n"
 		"--debugregisters           Debug CPU Registers on text console\n"
@@ -4918,6 +4919,10 @@ int parse_cmdline_options(void) {
 				save_configuration_file_on_exit.v=1;
 			}
 
+			else if (!strcmp(argv[puntero_parametro],"--nologo")) {
+				//nothing to do here, already processed by main
+                        }
+
 			else if (!strcmp(argv[puntero_parametro],"--zoomx")) {
 				siguiente_parametro_argumento();
 				zoom_x=atoi(argv[puntero_parametro]);
@@ -7475,6 +7480,9 @@ char macos_path_to_executable[PATH_MAX];
 //Proceso inicial
 int zesarux_main (int main_argc,char *main_argv[]) {
 
+	int showLogo = 1;
+	for (int argi = 1; argi < main_argc; ++argi) showLogo = showLogo && strcmp("--nologo", main_argv[argi]);
+
 	if (main_argc>1) {
 		if (!strcmp(main_argv[1],"--version")) {
 		//	printf ("ZEsarUX Version: " EMULATOR_VERSION " Date: " EMULATOR_DATE " - " EMULATOR_EDITION_NAME "\n");
@@ -7536,34 +7544,35 @@ Also, you should keep the following copyright message, beginning with "Begin Cop
 
 //Begin Copyright message
 
-	printf ("ZEsarUX - ZX Second-Emulator And Released for UniX\n"
-	"https://github.com/chernandezba/zesarux\n\n"
-    "Copyright (C) 2013 Cesar Hernandez Bano\n"
-	"\n"
-    "ZEsarUX is free software: you can redistribute it and/or modify\n"
-    "it under the terms of the GNU General Public License as published by\n"
-    "the Free Software Foundation, either version 3 of the License, or\n"
-    "(at your option) any later version.\n"
-	"\n"
-    "This program is distributed in the hope that it will be useful,\n"
-    "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-    "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
-    "GNU General Public License for more details.\n"
-	"\n"
-    "You should have received a copy of the GNU General Public License\n"
-    "along with this program.  If not, see <https://www.gnu.org/licenses/>.\n"
-	"\n"
-	);
+	if (showLogo) {
+		printf ("ZEsarUX - ZX Second-Emulator And Released for UniX\n"
+		"https://github.com/chernandezba/zesarux\n\n"
+		"Copyright (C) 2013 Cesar Hernandez Bano\n"
+		"\n"
+		"ZEsarUX is free software: you can redistribute it and/or modify\n"
+		"it under the terms of the GNU General Public License as published by\n"
+		"the Free Software Foundation, either version 3 of the License, or\n"
+		"(at your option) any later version.\n"
+		"\n"
+		"This program is distributed in the hope that it will be useful,\n"
+		"but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+		"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+		"GNU General Public License for more details.\n"
+		"\n"
+		"You should have received a copy of the GNU General Public License\n"
+		"along with this program.  If not, see <https://www.gnu.org/licenses/>.\n"
+		"\n"
+		"ZESERUse is fork of ZEsarUX, focusing on TBBlue (ZX Next) machine.\n"
+		"\n"
+		"Please read the other licenses used in ZEsarUX, from the menu Help->Licenses or just open files from folder licenses/\n"
+		"\n"
+		);
 
-	printf ("Please read the other licenses used in ZEsarUX, from the menu Help->Licenses or just open files from folder licenses/\n\n\n");
+	} else {
+		printf ("Copyright (C) 2013 Cesar Hernandez Bano : ");
+	}
 
-		
-
-		  //printf ("ZEsarUX Version: " EMULATOR_VERSION " Date: " EMULATOR_DATE " - " EMULATOR_EDITION_NAME "\n"
-			printf ("ZEsarUX v." EMULATOR_VERSION " - " EMULATOR_EDITION_NAME ". " EMULATOR_DATE  "\n"
-			
-					"\n");
-
+	printf ("ZESERUse v." EMULATOR_VERSION " - " EMULATOR_EDITION_NAME ". " EMULATOR_DATE  "\n" "\n");
 
 //End Copyright message
 
@@ -7833,21 +7842,15 @@ tooltip_enabled.v=1;
 init_randomize_noise_value();
 
 #ifdef SNAPSHOT_VERSION
-	printf ("Build number: " BUILDNUMBER "\n");
+	if (showLogo) {
+		printf ("Build number: " BUILDNUMBER "\n");
 
-	printf ("WARNING. This is a Snapshot version and not a stable one\n"
-			 "Some features may not work, random crashes could happen, abnormal CPU use, or lots of debug messages on console\n\n");
-
-	//Si no coincide ese parametro, hacer pausa
-	if (strcmp(parameter_disablebetawarning,EMULATOR_VERSION)) {
-		sleep (3);
+		printf ("WARNING. This is a Snapshot version and not a stable one\n"
+				"Some features may not work, random crashes could happen, abnormal CPU use, or lots of debug messages on console\n\n");
 	}
 #endif
 
-
-	print_funny_message();
-
-
+	if (showLogo) print_funny_message();
 
 #ifdef MINGW
         //Si no se ha pasado ningun parametro, ni parametro --nodisableconsole, sea en consola o en archivo de configuracion, liberar consola, con pausa de 2 segundos para que se vea un poco :P
