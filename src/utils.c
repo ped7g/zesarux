@@ -3533,8 +3533,8 @@ int util_write_configfile(void)
 
   ADD_STRING_CONFIG,"--realvideo");		// enforced in ZESERUse (not even needed in config, but for ZEsarUX vanilla)
 
-  if (tbblue_store_scanlines.v)               ADD_STRING_CONFIG,"--tbblue-legacy-hicolor");
-  if (tbblue_store_scanlines_border.v)        ADD_STRING_CONFIG,"--tbblue-legacy-border");
+  ADD_STRING_CONFIG,"--tbblue-legacy-hicolor");	// enforced in ZESERUse (save for ZEsarUX vanilla)
+  ADD_STRING_CONFIG,"--tbblue-legacy-border");	// enforced in ZESERUse (save for ZEsarUX vanilla)
 
   //if (tsconf_si_render_spritetile_rapido.v)   ADD_STRING_CONFIG,"--tsconf-fast-render");
 

@@ -4998,14 +4998,7 @@ void screen_store_scanline_rainbow_border_comun(z80_int *puntero_buf_rainbow,int
 	//Hay que recorrer el array del border para la linea actual
 	int final_border_linea=indice_border+screen_testados_linea;
 	for (;indice_border<final_border_linea;indice_border++) {
-		//obtenemos si hay cambio de border. En tbblue puede que no esté activado
-		if (MACHINE_IS_TBBLUE && tbblue_store_scanlines_border.v==0) {
-			border_leido=255; 
-		}
-
-		else {
-			border_leido=fullbuffer_border[indice_border];
-		}
+		border_leido=fullbuffer_border[indice_border];
 
 		if (border_leido!=255) {
 

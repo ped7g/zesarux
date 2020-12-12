@@ -5744,19 +5744,8 @@ void tbblue_do_ula_standard_overlay()
 
 			//Modo sin scroll vertical. Permite scroll horizontal. Es modo rainbow
 
-			
-
-			//Pero si no tenemos scanline
-			if (tbblue_store_scanlines.v==0) {
-				byte_leido=screen[direccion+pos_no_rainbow_pix_x];
-				attribute=screen[dir_atributo+pos_no_rainbow_pix_x];	
-				indice_origen_bytes+=2;
-			}
-
-			else {
-				byte_leido=puntero_buffer_atributos[indice_origen_bytes++];
-				attribute=puntero_buffer_atributos[indice_origen_bytes++];
-			}
+			byte_leido=puntero_buffer_atributos[indice_origen_bytes++];
+			attribute=puntero_buffer_atributos[indice_origen_bytes++];
 
 		}
 

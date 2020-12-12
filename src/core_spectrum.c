@@ -128,12 +128,6 @@ void t_scanline_next_fullborder(void)
 
         int i;
 
-		//No si esta desactivado en tbblue
-		if (MACHINE_IS_TBBLUE && tbblue_store_scanlines_border.v==0) return;
-
-        //a 255
-        //for (i=0;i<CURRENT_FULLBORDER_ARRAY_LENGTH;i++) fullbuffer_border[i]=255;
-		//mas rapido con memset
 		memset(fullbuffer_border,255,CURRENT_FULLBORDER_ARRAY_LENGTH);
 
 	//Resetear buffer border para prism
@@ -171,10 +165,6 @@ void interrupcion_si_despues_lda_ir(void)
 
 void core_spectrum_store_rainbow_current_atributes(void)
 {
-
-	//No hacer esto en tbblue
-	if (MACHINE_IS_TBBLUE && tbblue_store_scanlines.v==0) return;	
-
 	//En maquina prism, no hacer esto
 	if (MACHINE_IS_PRISM) return;
 

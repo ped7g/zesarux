@@ -1603,9 +1603,6 @@ printf (
 		"----------------\n"
 		"\n"
 
-		"--tbblue-legacy-hicolor    Allow legacy hi-color effects on pixel/attribute display zone\n"
-		"--tbblue-legacy-border     Allow legacy border effects on tbblue machine\n"
-
 		//"--tsconf-fast-render       Enables fast render of Tiles and Sprites for TSConf. Uses less host cpu but it's less realistic: doesn't do scanline render but full frame render\n"
 
 		"--snoweffect               Enable snow effect support for Spectrum\n"
@@ -6486,11 +6483,11 @@ int parse_cmdline_options(void) {
 			}
 
 			else if (!strcmp(argv[puntero_parametro],"--tbblue-legacy-hicolor")) {
-				tbblue_store_scanlines.v=1;
+				// just ignore (enforced in ZESERUse)
 			}
 
 			else if (!strcmp(argv[puntero_parametro],"--tbblue-legacy-border")) {
-				tbblue_store_scanlines_border.v=1;
+				// just ignore (enforced in ZESERUse)
 			}
 
 

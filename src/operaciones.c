@@ -7025,15 +7025,7 @@ void out_port_spectrum_border(z80_int puerto,z80_byte value)
 				}
 
 				else {
-					int actualiza_fullbuffer_border=1;
-					//No si esta desactivado en tbblue
-					if (MACHINE_IS_TBBLUE && tbblue_store_scanlines_border.v==0) {
-						actualiza_fullbuffer_border=0;
-					}
-
-					if (actualiza_fullbuffer_border) {
-						fullbuffer_border[i]=get_border_colour_from_out();
-					}
+					fullbuffer_border[i]=get_border_colour_from_out();
 				}
 				//printf ("cambio border i=%d color: %d\n",i,out_254 & 7);
 			}

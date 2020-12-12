@@ -9317,17 +9317,6 @@ void menu_display_16c_mode(MENU_ITEM_PARAMETERS)
     else enable_16c_mode();
 }
 
-void menu_display_tbblue_store_scanlines(MENU_ITEM_PARAMETERS)
-{
-	tbblue_store_scanlines.v ^=1;
-}
-
-void menu_display_tbblue_store_scanlines_border(MENU_ITEM_PARAMETERS)
-{
-	tbblue_store_scanlines_border.v ^=1;
-}
-
-
 //menu display settings
 void menu_settings_display(MENU_ITEM_PARAMETERS)
 {
@@ -9359,47 +9348,6 @@ void menu_settings_display(MENU_ITEM_PARAMETERS)
 
 		else {
 					menu_add_item_menu(array_menu_settings_display,"",MENU_OPCION_SEPARADOR,NULL,NULL);
-		}
-
-		if (MACHINE_IS_TBBLUE) {	//FIXME review
-			menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_tbblue_store_scanlines,NULL,"[%c] Legacy hi-color effects",(tbblue_store_scanlines.v ? 'X' : ' '));	
-			menu_add_item_menu_tooltip(array_menu_settings_display,"Allow legacy hi-color effects on pixel/attribute display zone on TBBlue");
-			menu_add_item_menu_ayuda(array_menu_settings_display,"Allows you to make hi-res effects on pixel/attribute display zone on TBBlue, like overscan demo for example. "
-										"It is not needed for Spectrum Next games. Disabling it reduces cpu usage");
-
-			menu_add_item_menu_format(array_menu_settings_display,MENU_OPCION_NORMAL,menu_display_tbblue_store_scanlines_border,NULL,"[%c] Legacy border effects",(tbblue_store_scanlines_border.v ? 'X' : ' '));	
-			menu_add_item_menu_tooltip(array_menu_settings_display,"Allow legacy border effects on TBBlue");
-			menu_add_item_menu_ayuda(array_menu_settings_display,"Allows you to make hi-res effects on border zone on TBBlue, like overscan demo or load/save border stripes for example. "
-										"It is not needed for Spectrum Next games. Disabling it reduces cpu usage");
-			/*
-			Benchmark of this: compiled without optimization O2, with:
-			./configure --enable-memptr --enable-visualmem --enable-cpustats --enable-ssl 
-			on Mac OS X 10.15.4 iMac late 2013 2,9 GHz Intel Core i5 4 cores
-
-			*cpu turbo x1: overscan demo.    OFF hi-color OFF border: 50 % cpu 50 FPS
-			 cpu turbo x1: overscan demo.    ON  hi-color OFF border: 52 % cpu 50 FPS
-			 cpu turbo x1: overscan demo.    ON  hi-color ON  border: 55 % cpu 50 FPS
-
-			*cpu turbo x1: 48k basic prompt. OFF hi-color OFF border: 42 % cpu 50 FPS
-			 cpu turbo x1: 48k basic prompt. ON  hi-color OFF border: 44 % cpu 50 FPS
-			 cpu turbo x1: 48k basic prompt. ON  hi-color ON  border: 45 % cpu 50 FPS
-
-			*cpu turbo x4: overscan demo.    OFF hi-color OFF border: 84 % cpu 50 FPS
-			 cpu turbo x4: overscan demo.    ON  hi-color OFF border: 78 % cpu 43 FPS
-			 cpu turbo x4: overscan demo.    ON  hi-color ON  border: 71 % cpu 35 FPS
-
-			*cpu turbo x4: 48k basic prompt. OFF hi-color OFF border: 73 % cpu 50 FPS
-			 cpu turbo x4: 48k basic prompt. ON  hi-color OFF border: 80 % cpu 50 FPS
-			 cpu turbo x4: 48k basic prompt. ON  hi-color ON  border: 86 % cpu 50 FPS
-
-
-			*cpu turbo x4: Poogie. OFF hi-color OFF border: 83 % cpu 50 FPS
-			 cpu turbo x4: Poogie. ON hi-color  OFF border: 70 % cpu 38 FPS
-			 cpu turbo x4: Poogie. ON hi-color  ON  border: 69 % cpu 33 FPS
-
-
-			*/
-
 		}
 
 		if (MACHINE_IS_TSCONF) {

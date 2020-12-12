@@ -222,15 +222,6 @@ z80_bit tbblue_autoconfigure_sd_asked={0};
 
 
 
-//Guardar scanlines en pixel/atributos en tbblue, requerido para demos hi-res (de spectrum , no de next necesariamente)
-//Por defecto, desactivado
-z80_bit tbblue_store_scanlines={0};
-
-//Lo mismo pero para el border
-z80_bit tbblue_store_scanlines_border={0};
-
-
-
 //
 // Windows Settings
 //
