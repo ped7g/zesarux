@@ -3169,7 +3169,7 @@ void tbblue_hard_reset(void)
 	if (tbblue_fast_boot_mode.v) {
 		tbblue_registers[3]=3 + (3<<4);
 
-		tbblue_registers[8]=2+8; //turbosound 3 chips, specdrum
+		tbblue_registers[8]=2+8+16; //turbosound 3 chips, specdrum, internal speaker
 
 		set_total_ay_chips(3);
 
