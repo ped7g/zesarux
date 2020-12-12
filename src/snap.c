@@ -102,7 +102,7 @@ int snapshot_autosave_interval_current_counter=0;
 #define ZX_HEADER_SIZE 294
 #define Z80_HEADER_SIZE_SAVE 87
 
-z80_bit sna_setting_no_change_machine={0};
+z80_bit sna_setting_no_change_machine={1};	// ON by default in ZESERUse
 
 void set_snap_file_options(char *filename)
 {

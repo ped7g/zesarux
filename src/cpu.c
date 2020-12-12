@@ -4800,7 +4800,7 @@ z80_bit opcion_no_splash;
 z80_bit command_line_zx8081_vsync_sound={0};
 z80_bit command_line_wrx={0};
 z80_bit command_line_spectra={0};
-z80_bit command_line_timex_video={0};
+z80_bit command_line_timex_video={1};	// ON by default in ZESERUse
 z80_bit command_line_spritechip={0};
 z80_bit command_line_ulaplus={0};
 z80_bit command_line_gigascreen={0};
