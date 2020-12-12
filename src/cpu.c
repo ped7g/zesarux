@@ -592,7 +592,7 @@ z80_bit windows_no_disable_console={0};
 
 
 //Si salir rapido del emulador
-z80_bit quickexit={0};
+z80_bit quickexit={1};	// default ON in ZESERUse
 
 
 //Si soporte azerty para xwindows
@@ -7356,6 +7356,7 @@ int parse_cmdline_options(void) {
 
 			//autodetectar que el parametro es un snap o cinta. Esto tiene que ser siempre el ultimo else if
 			else if (quickload_valid_extension(argv[puntero_parametro])) {
+					tbblue_fast_boot_mode.v=1;	// like --tbblue-fast-boot-mode for SNA files
 			        quickload_inicial.v=1;
                 		quickload_nombre=argv[puntero_parametro];
 		        }
@@ -7783,7 +7784,8 @@ tooltip_enabled.v=1;
 
                 }
 
-
+	//ZESERUse extra - start with tbblue machine as default, with other defaults suitable for it
+	set_machine_type_by_name("tbblue");
 
 	if (noconfigfile==0) {
 			//parametros del archivo de configuracion
