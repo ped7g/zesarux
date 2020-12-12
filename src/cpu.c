@@ -226,7 +226,7 @@ char *z80_cpu_types_strings[TOTAL_Z80_CPU_TYPES]={
 
 char *scrfile;
 
-int zoom_x=2,zoom_y=2;
+int zoom_x=1,zoom_y=1;
 int zoom_x_original,zoom_y_original;
 
 struct timeval z80_interrupts_timer_antes, z80_interrupts_timer_ahora;
