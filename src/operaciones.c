@@ -1968,10 +1968,10 @@ set_visualmembuffer(dir);
 
 #endif
 
-	//Altrom. Si escribe en espacio de memoria de rom 0-3fffh
-	if (dir<16384 && (  (tbblue_registers[0x8c] & 192) ==192)   ) {
-		/*
-		0x8C (140) => Alternate ROM
+		//Altrom. Si escribe en espacio de memoria de rom 0-3fffh
+		if (dir<16384 && (  (tbblue_registers[0x8c] & 0xC0) == 0xC0)   ) {
+/*
+0x8C (140) => Alternate ROM
 (R/W) (hard reset = 0)
 IMMEDIATE
   bit 7 = 1 to enable alt rom
@@ -1979,32 +1979,12 @@ IMMEDIATE
 
   //bit 6 =0 , only for read. bit 6=1, only for write
   */
-
-		//printf ("Escribiendo en altrom dir: %04XH valor : %02XH  PC=%04XH diviface control: %d active: %d\n",dir,valor,reg_pc,
-		//		        diviface_control_register&128, diviface_paginacion_automatica_activa.v);
-
-
-		int escribir=1;
-
-		if (! (
-				(diviface_control_register&128)==0 && diviface_paginacion_automatica_activa.v==0) 
-		      )
-		{
-			escribir=0;
-			//printf ("No escribimos pues esta diviface ram conmutada\n");
-        }
-
-
-		//Y escribimos
-		if (escribir) {
-			z80_byte *altrompointer;
-	
-			altrompointer=tbblue_get_altrom_dir(dir);
-			*altrompointer=valor;
+			if ((diviface_control_register&128)==0 && diviface_paginacion_automatica_activa.v==0) {
+				z80_byte *altrompointer = tbblue_get_altrom_dir(dir);
+				*altrompointer = valor;
+				return;
+			}
 		}
-	}
-
-
 
 
 		//Si se escribe en memoria layer2
@@ -2043,12 +2023,9 @@ IMMEDIATE
 
 		//if (dir<16384) printf ("Writing on tbblue rom address %XH value %XH\n",dir,valor);
 
-		z80_byte *puntero;
-		puntero=tbblue_return_segment_memory(dir);
-
+		z80_byte *puntero = tbblue_return_segment_memory(dir);
 		dir = dir & 8191;
 		puntero=puntero+dir;
-
 		*puntero=valor;
 
 }
