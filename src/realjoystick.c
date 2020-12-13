@@ -854,20 +854,16 @@ void realjoystick_copy_event_button_key(int indice_evento,int indice_tecla,z80_b
 //Devuelve 0 si ok
 int realjoystick_set_type(char *tipo) {
 
-				debug_printf (VERBOSE_INFO,"Setting joystick type %s",tipo);
+	debug_printf (VERBOSE_INFO,"Setting joystick type %s",tipo);
 
-                                int i;
-                                for (i=0;i<=JOYSTICK_TOTAL;i++) {
-                                        if (!strcasecmp(tipo,joystick_texto[i])) break;
-                                }
-                                if (i>JOYSTICK_TOTAL) {
-                                        debug_printf (VERBOSE_ERR,"Invalid joystick type %s",tipo);
-					return 1;
-                                }
-
-
-                                joystick_emulation=i;
-	return 0;
+	for (int i=0;i<=JOYSTICK_TOTAL;i++) {
+		if (!strcasecmp(tipo,joystick_texto[i])) {
+			joystick_emulation=i;
+			return 0;
+		}
+	}
+	debug_printf (VERBOSE_ERR,"Invalid joystick type %s",tipo);
+	return 1;
 }
 
 

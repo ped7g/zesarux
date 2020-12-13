@@ -5722,7 +5722,7 @@ z80_byte get_kempston_value(void)
                         //si estamos con menu abierto, no retornar nada
                         if (zxvision_key_not_sent_emulated_mach() ) return 0;
 
-                        if (joystick_emulation==JOYSTICK_KEMPSTON) {
+                        if (joystick_emulation==JOYSTICK_KEMPSTON || joystick_emulation==JOYSTICK_KEMPSTON_2) {
                                 //mapeo de ese puerto especial es igual que kempston
                                 acumulado=puerto_especial_joystick;
                         }
@@ -6198,9 +6198,10 @@ z80_byte lee_puerto_spectrum_no_time(z80_byte puerto_h,z80_byte puerto_l)
 		//puerto estado es el de escritura pero en lectura
 		if (puerto==TBBLUE_UART_TX_PORT) return tbblue_uartbridge_readstatus();
 
-		//TODO puerto segundo joystick. De momento retornar 0
-		if (puerto==TBBLUE_SECOND_KEMPSTON_PORT) return 0;
-
+		//puerto Kempston 2 joystick
+		if (puerto==TBBLUE_SECOND_KEMPSTON_PORT) {
+			return (joystick_emulation==JOYSTICK_KEMPSTON_2) ? get_kempston_value() : 0;
+		}
 
 	}
 
