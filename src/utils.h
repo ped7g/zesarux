@@ -315,6 +315,11 @@ enum util_teclas
 	UTIL_KEY_JOY_RIGHT
 };
 
+extern enum util_teclas joystick_fire_1;
+extern enum util_teclas joystick_fire_2;
+extern enum util_teclas joystick_fire_3;
+extern enum util_teclas joystick_fire_4;
+
 //valores usados en funcion util_set_reset_key_z88_keymap
 //son teclas que vienen de conversion de keymap
 enum util_teclas_z88_keymap

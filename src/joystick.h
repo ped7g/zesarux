@@ -58,6 +58,12 @@ extern void joystick_set_up(int si_enviar_zeng_event);
 extern void joystick_release_up(int si_enviar_zeng_event);
 extern void joystick_set_fire(int si_enviar_zeng_event);
 extern void joystick_release_fire(int si_enviar_zeng_event);
+extern void joystick_set_fire2();		// no support for ZENG for these extra fire buttons
+extern void joystick_release_fire2();
+extern void joystick_set_fire3();
+extern void joystick_release_fire3();
+extern void joystick_set_fire4();
+extern void joystick_release_fire4();
 
 extern int gunstick_emulation;
 

@@ -108,6 +108,11 @@
 #include "scl2trd.h"
 #include "zip.h"
 
+enum util_teclas joystick_fire_1 = UTIL_KEY_HOME;
+enum util_teclas joystick_fire_2 = UTIL_KEY_NONE;
+enum util_teclas joystick_fire_3 = UTIL_KEY_NONE;
+enum util_teclas joystick_fire_4 = UTIL_KEY_NONE;
+
 //Archivo usado para entrada de teclas
 FILE *ptr_input_file_keyboard;
 //Nombre archivo
@@ -6369,6 +6374,19 @@ void util_set_reset_key_continue(enum util_teclas tecla,int pressrelease)
 
 void util_set_reset_key_continue_after_zeng(enum util_teclas tecla,int pressrelease)
 {
+	// configurable joystick keys (can't be part of switch-case)
+	if (joystick_fire_1 == tecla) {
+		pressrelease ? joystick_set_fire(1) : joystick_release_fire(1);
+	}
+	else if (joystick_fire_2 == tecla) {
+		pressrelease ? joystick_set_fire2(1) : joystick_release_fire2(1);
+	}
+	else if (joystick_fire_3 == tecla) {
+		pressrelease ? joystick_set_fire3(1) : joystick_release_fire3(1);
+	}
+	else if (joystick_fire_4 == tecla) {
+		pressrelease ? joystick_set_fire4(1) : joystick_release_fire4(1);
+	}
 
         //temp reasignacion
         //if (tecla==UTIL_KEY_ALT_R) tecla=UTIL_KEY_ENTER;
@@ -6623,14 +6641,10 @@ void util_set_reset_key_continue_after_zeng(enum util_teclas tecla,int pressrele
 
                         case UTIL_KEY_HOME:
                                 if (pressrelease) {
-                                        joystick_set_fire(1);
-
 					//Home en cpc es copy
 					cpc_keyboard_table[1] &=(255-2);
                                 }
                                 else {
-                                        joystick_release_fire(1);
-
 					//Home en cpc es copy
 					cpc_keyboard_table[1] |=2;
                                 }

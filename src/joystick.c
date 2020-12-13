@@ -96,7 +96,7 @@ z80_byte kempston_mouse_x=0,kempston_mouse_y=0;
 
 
 
-z80_byte puerto_especial_joystick=0; //Fire Up Down Left Right
+z80_byte puerto_especial_joystick=0; //Fire4 Fire3 Fire2 Fire1 Up Down Left Right
 
 //z80_byte puerto_especial_gunstick=0; //Fire 0 o 1
 
@@ -229,6 +229,36 @@ void joystick_release_fire(int si_enviar_zeng_event)
 	debug_printf(VERBOSE_DEBUG,"joystick_release_fire");
 
 	if (si_enviar_zeng_event) zeng_send_key_event(UTIL_KEY_JOY_FIRE,0);
+}
+
+void joystick_set_fire2()
+{
+	puerto_especial_joystick |= 0x20;
+}
+
+void joystick_release_fire2()
+{
+	puerto_especial_joystick &= ~0x20;
+}
+
+void joystick_set_fire3()
+{
+	puerto_especial_joystick |= 0x40;
+}
+
+void joystick_release_fire3()
+{
+	puerto_especial_joystick &= ~0x40;
+}
+
+void joystick_set_fire4()
+{
+	puerto_especial_joystick |= 0x80;
+}
+
+void joystick_release_fire4()
+{
+	puerto_especial_joystick &= ~0x80;
 }
 
 

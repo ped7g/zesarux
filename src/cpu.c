@@ -433,6 +433,16 @@ void siguiente_parametro_argumento(void)
 	}
 }
 
+static int parametro_argumento_integer(int min, int max, const char* setting_name) {
+	siguiente_parametro_argumento();
+	int valor=parse_string_to_number(argv[puntero_parametro]);
+	if (valor<min || max<valor) {
+		printf ("Invalid value %d for setting %s\n",valor, setting_name);
+		exit(1);
+	}
+	return valor;
+}
+
 z80_registro registro_hl;
 
 z80_registro registro_de;
@@ -2030,7 +2040,10 @@ printf (
 		"                           Joystick to events table is never cleared using this setting\n"
 		"--cleareventlist           Clears joystick to events table\n"
 		"--enablejoysticksimulator  Enable real joystick simulator. Only useful on development\n"
-
+		"--joyfire1byutilskey n     Set enum util_teclas value n (utils.h) as fire1 button event\n"
+		"--joyfire2byutilskey n     Set enum util_teclas value n (utils.h) as fire2 button event\n"
+		"--joyfire3byutilskey n     Set enum util_teclas value n (utils.h) as fire3 button event\n"
+		"--joyfire4byutilskey n     Set enum util_teclas value n (utils.h) as fire4 button event\n"
 
 		"\n"
 		"\n"
@@ -7171,6 +7184,21 @@ int parse_cmdline_options(void) {
 				simulador_joystick=1;
 			}
 
+			else if (!strcmp(argv[puntero_parametro],"--joyfire1byutilskey")) {
+				joystick_fire_1 = parametro_argumento_integer(0, 255, argv[puntero_parametro]);
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--joyfire2byutilskey")) {
+				joystick_fire_2 = parametro_argumento_integer(0, 255, argv[puntero_parametro]);
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--joyfire3byutilskey")) {
+				joystick_fire_3 = parametro_argumento_integer(0, 255, argv[puntero_parametro]);
+			}
+
+			else if (!strcmp(argv[puntero_parametro],"--joyfire4byutilskey")) {
+				joystick_fire_4 = parametro_argumento_integer(0, 255, argv[puntero_parametro]);
+			}
 
 			else if (!strcmp(argv[puntero_parametro],"--quickexit")) {
 				quickexit.v=1;
