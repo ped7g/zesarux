@@ -290,8 +290,6 @@ int puntero_parametro;
 
 
 
-z80_bit border_enabled;
-
 //contador que indica cuantos frames de pantalla entero se han enviado, para contar cuando enviamos el sonido
 int contador_frames_veces_buffer_audio=0;
 
@@ -1710,7 +1708,6 @@ printf (
 
 
 		"--fullscreen               Enable full screen\n"
-		"--disableborder            Disable Border\n"
 		"--hidemousepointer         Hide Mouse Pointer. Not all video drivers support this\n"
 		"--disablemenumouse         Disable mouse on emulator menu\n"
 
@@ -3551,9 +3548,6 @@ You don't need timings for H/V sync =)
 
 				multiface_type=MULTIFACE_TYPE_THREE;
 
-								//Si maquina destino es tbblue, forzar a activar border. De momento no se ve bien con border desactivado
-								border_enabled.v=1;				
-
                 break;
 
 
@@ -5383,10 +5377,6 @@ int parse_cmdline_options(void) {
 			else if (!strcmp(argv[puntero_parametro],"--disableshm"))
 				disable_shm=1;
 #endif
-
-			else if (!strcmp(argv[puntero_parametro],"--disableborder")) {
-				border_enabled.v=0;
-			}
 
 			else if (!strcmp(argv[puntero_parametro],"--hidemousepointer")) {
 				mouse_pointer_shown.v=0;
@@ -7604,7 +7594,6 @@ Also, you should keep the following copyright message, beginning with "Begin Cop
 	scrfile=NULL;
 	snapfile=NULL;
 	modificado_border.v=1;
-	border_enabled.v=1;
 
 	scr_putpixel=NULL;
 	//scr_putpixel_final=NULL;

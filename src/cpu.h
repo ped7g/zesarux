@@ -188,8 +188,6 @@ extern z80_byte puerto_especial4;
 
 extern z80_int *registro_ixiy;
 
-extern z80_bit border_enabled;
-
 
 extern void (*codsinpr[]) ();
 extern void (*codprcb[]) ();

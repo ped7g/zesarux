@@ -2485,8 +2485,6 @@ void menu_init_footer(void)
 	if (!menu_footer) return;
 
 
-        //int margeny_arr=screen_borde_superior*border_enabled.v;
-
         if (MACHINE_IS_Z88) {
                 //no hay border. estas variables se leen en modo rainbow
                 //margeny_arr=0;
@@ -4231,8 +4229,8 @@ void menu_escribe_linea_opcion_tabulado_zxvision(zxvision_window *ventana,int in
 void menu_retorna_margenes_border(int *miz, int *mar)
 {
 	//margenes de zona interior de pantalla. para modo rainbow
-	int margenx_izq=screen_total_borde_izquierdo*border_enabled.v;
-	int margeny_arr=screen_borde_superior*border_enabled.v;
+	int margenx_izq=screen_total_borde_izquierdo;
+	int margeny_arr=screen_borde_superior;
 
 if (MACHINE_IS_Z88) {
 //margenes para realvideo
@@ -4242,32 +4240,32 @@ margenx_izq=margeny_arr=0;
 
 	else if (MACHINE_IS_CPC) {
 //margenes para realvideo
-margenx_izq=CPC_LEFT_BORDER_NO_ZOOM*border_enabled.v;
-					margeny_arr=CPC_TOP_BORDER_NO_ZOOM*border_enabled.v;
+margenx_izq=CPC_LEFT_BORDER_NO_ZOOM;
+					margeny_arr=CPC_TOP_BORDER_NO_ZOOM;
 	}
 
 	else if (MACHINE_IS_PRISM) {
 //margenes para realvideo
-margenx_izq=PRISM_LEFT_BORDER_NO_ZOOM*border_enabled.v;
-					margeny_arr=PRISM_TOP_BORDER_NO_ZOOM*border_enabled.v;
+margenx_izq=PRISM_LEFT_BORDER_NO_ZOOM;
+					margeny_arr=PRISM_TOP_BORDER_NO_ZOOM;
 	}
 
 	else if (MACHINE_IS_TBBLUE) {
 //margenes para realvideo
-margenx_izq=TBBLUE_LEFT_BORDER_NO_ZOOM*border_enabled.v;
-					margeny_arr=TBBLUE_TOP_BORDER_NO_ZOOM*border_enabled.v;
+margenx_izq=TBBLUE_LEFT_BORDER_NO_ZOOM;
+					margeny_arr=TBBLUE_TOP_BORDER_NO_ZOOM;
 	}	
 
 	else if (MACHINE_IS_SAM) {
 					//margenes para realvideo
-					margenx_izq=SAM_LEFT_BORDER_NO_ZOOM*border_enabled.v;
-					margeny_arr=SAM_TOP_BORDER_NO_ZOOM*border_enabled.v;
+					margenx_izq=SAM_LEFT_BORDER_NO_ZOOM;
+					margeny_arr=SAM_TOP_BORDER_NO_ZOOM;
 	}
 
 	else if (MACHINE_IS_QL) {
 					//margenes para realvideo
-					margenx_izq=QL_LEFT_BORDER_NO_ZOOM*border_enabled.v;
-					margeny_arr=QL_TOP_BORDER_NO_ZOOM*border_enabled.v;
+					margenx_izq=QL_LEFT_BORDER_NO_ZOOM;
+					margeny_arr=QL_TOP_BORDER_NO_ZOOM;
 	}
 
 	else if (MACHINE_IS_TSCONF) {
@@ -23458,10 +23456,7 @@ void menu_interface_border(MENU_ITEM_PARAMETERS)
 
 	screen_end_pantalla_save_overlay(&previous_function,&menu_antes);
 
-
-
-	if (border_enabled.v) disable_border();
-	else enable_border();
+	enable_border();
 
         //scr_init_pantalla();
 
@@ -24194,11 +24189,6 @@ void menu_window_settings(MENU_ITEM_PARAMETERS)
 
         	menu_add_item_menu_inicial_format(&array_menu_window_settings,MENU_OPCION_NORMAL,menu_interface_fullscreen,NULL,"[%c] ~~Full Screen",(ventana_fullscreen ? 'X' : ' ' ) );
 		menu_add_item_menu_shortcut(array_menu_window_settings,'f');
-
-		if (!MACHINE_IS_Z88 && !MACHINE_IS_TSCONF && !MACHINE_IS_TBBLUE) {
-	                menu_add_item_menu_format(array_menu_window_settings,MENU_OPCION_NORMAL,menu_interface_border,menu_interface_border_cond,"[%c] ~~Border enabled", (border_enabled.v==1 ? 'X' : ' ') );
-			menu_add_item_menu_shortcut(array_menu_window_settings,'b');
-		}
 
 		if (!strcmp(scr_driver_name,"xwindows")  || !strcmp(scr_driver_name,"sdl") || !strcmp(scr_driver_name,"cocoa") ) {
 			menu_add_item_menu_format(array_menu_window_settings,MENU_OPCION_NORMAL,menu_interface_hidemouse,NULL,"[%c] ~~Mouse pointer", (mouse_pointer_shown.v==1 ? 'X' : ' ') );

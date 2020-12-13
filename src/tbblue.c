@@ -1569,7 +1569,7 @@ bits 7-0 = Set the index value. (0XE3 after a reset)
 
 	int xfinal=x;
 
-	xfinal +=screen_total_borde_izquierdo*border_enabled.v;
+	xfinal +=screen_total_borde_izquierdo;
 	xfinal -=TBBLUE_SPRITE_BORDER;
 
 	xfinal *=2; //doble de ancho
@@ -5303,8 +5303,6 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 	//que es la mas alta de todas las capas
 	int y=t_scanline_draw-screen_invisible_borde_superior;
 
-    if (border_enabled.v==0) y=y-screen_borde_superior;
-
 		//Calcular donde hay border
 		int final_border_superior=screen_indice_inicio_pant-screen_invisible_borde_superior;
 		int inicio_border_inferior=final_border_superior+192;
@@ -5320,7 +5318,7 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		if (y<final_border_superior || y>=inicio_border_inferior) estamos_borde_supinf=1;
 
 		//Zona borde izquierdo y derecho
-		int final_borde_izquierdo=2*screen_total_borde_izquierdo*border_enabled.v;
+		int final_borde_izquierdo=2*screen_total_borde_izquierdo;
 		int inicio_borde_derecho=final_borde_izquierdo+TBBLUE_DISPLAY_WIDTH;
 
 
@@ -5451,7 +5449,7 @@ void tbblue_do_layer2_overlay(const int l2Y)
 
 	z80_byte tbblue_reg_22=tbblue_registers[22];
 
-	int posicion_array_layer = screen_total_borde_izquierdo * border_enabled.v * 2; //doble de ancho
+	int posicion_array_layer = screen_total_borde_izquierdo * 2; //doble de ancho
 
 	int posx;
 	for (posx=0;posx<256;posx++) {
@@ -5507,8 +5505,6 @@ void tbblue_do_layer2_256h_overlay(const int l2Y)
 	int x = tbblue_registers[22] + ((tbblue_registers[113]&1)<<8);
 
 	int posicion_array_layer = (screen_total_borde_izquierdo - 32) * 2;
-		// no more support for `border_enabled` - TODO remove/disable/exit from TBBLUE completely
-		// currently it will probably just crash on invalid memory access
 
 	// start at clipped X1
 	posicion_array_layer += minx * 2;
@@ -5704,7 +5700,7 @@ void tbblue_do_ula_standard_overlay()
 
 	//Capa de destino
 	int posicion_array_layer=0;
-	posicion_array_layer +=(screen_total_borde_izquierdo*border_enabled.v*2); //Doble de ancho
+	posicion_array_layer +=(screen_total_borde_izquierdo*2); //Doble de ancho
 
 
 	int columnas=33;
@@ -5859,7 +5855,7 @@ void tbblue_do_ula_lores_overlay()
 
 
 	int posicion_array_layer=0;
-	posicion_array_layer +=(screen_total_borde_izquierdo*border_enabled.v*2); //Doble de ancho
+	posicion_array_layer +=(screen_total_borde_izquierdo*2); //Doble de ancho
 
 
 	int posx;
@@ -6181,10 +6177,10 @@ void screen_tbblue_refresca_rainbow(void)
 	int x,y,bit;
 
 	//margenes de zona interior de pantalla. Para overlay menu
-	int margenx_izq=TBBLUE_LEFT_BORDER_NO_ZOOM*border_enabled.v;
-	int margenx_der=TBBLUE_LEFT_BORDER_NO_ZOOM*border_enabled.v+TBBLUE_DISPLAY_WIDTH;
-	int margeny_arr=TBBLUE_TOP_BORDER_NO_ZOOM*border_enabled.v;
-	int margeny_aba=TBBLUE_BOTTOM_BORDER_NO_ZOOM*border_enabled.v+TBBLUE_DISPLAY_HEIGHT;
+	int margenx_izq=TBBLUE_LEFT_BORDER_NO_ZOOM;
+	int margenx_der=TBBLUE_LEFT_BORDER_NO_ZOOM+TBBLUE_DISPLAY_WIDTH;
+	int margeny_arr=TBBLUE_TOP_BORDER_NO_ZOOM;
+	int margeny_aba=TBBLUE_BOTTOM_BORDER_NO_ZOOM+TBBLUE_DISPLAY_HEIGHT;
 
 	z80_int color_pixel;
 	z80_int *puntero;

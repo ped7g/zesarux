@@ -242,8 +242,8 @@ extern void disable_16c_mode(void);
 #define SCREEN_Z88_WIDTH (640)
 //#define SCREEN_Z88_HEIGHT (ALTO_PANTALLA+TOP_BORDER_NO_ZOOM+BOTTOM_BORDER_NO_ZOOM)
 #define SCREEN_Z88_HEIGHT (192)
-//#define SCREEN_SPECTRUM_WIDTH (ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2*border_enabled.v)
-//#define SCREEN_SPECTRUM_HEIGHT (ALTO_PANTALLA+TOP_BORDER_NO_ZOOM*border_enabled.v+BOTTOM_BORDER_NO_ZOOM*border_enabled.v)
+//#define SCREEN_SPECTRUM_WIDTH (ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2)
+//#define SCREEN_SPECTRUM_HEIGHT (ALTO_PANTALLA+TOP_BORDER_NO_ZOOM+BOTTOM_BORDER_NO_ZOOM)
 
 #define SCREEN_SPECTRUM_WIDTH (ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM+RIGHT_BORDER_NO_ZOOM)
 #define SCREEN_SPECTRUM_HEIGHT (ALTO_PANTALLA+TOP_BORDER_NO_ZOOM+BOTTOM_BORDER_NO_ZOOM)
@@ -394,7 +394,6 @@ extern void enable_rainbow(void);
 extern void recalcular_get_total_ancho_rainbow(void);
 extern void recalcular_get_total_alto_rainbow(void);
 extern void enable_border(void);
-extern void disable_border(void);
 
 
 extern int get_total_ancho_rainbow_cached;

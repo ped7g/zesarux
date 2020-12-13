@@ -55,8 +55,6 @@ void init_zx8081_scanline_y_x(int y,int x,int ancho)
 {
 
 //inicializamos valores, para border
-	if (border_enabled.v==0) y=y-screen_borde_superior;
-
         if (y>=0 && y<get_total_alto_rainbow() ) {
                 if (if_store_scanline_interlace(y)) {
                         //en principio zona blanca (border) -> 0
@@ -74,7 +72,6 @@ void init_zx8081_scanline_y_solo_display(int y)
 {
 
 //inicializamos valores, para border o fast mode. TODO. esto es una aproximacion
-	if (border_enabled.v==0) y=y-screen_borde_superior;
         if (y>=0 && y<get_total_alto_rainbow() ) {
                 if (if_store_scanline_interlace(y)) {
                         int x;
@@ -95,7 +92,6 @@ void init_zx8081_scanline_y(int y)
 {
 
 //inicializamos valores, para border o fast mode. TODO. esto es una aproximacion
-	if (border_enabled.v==0) y=y-screen_borde_superior;
         if (y>=0 && y<get_total_alto_rainbow() ) {
 		if (if_store_scanline_interlace(y)) {
 

@@ -250,27 +250,8 @@ void scrcaca_refresca_pantalla(void)
 
 		  else { //Spectrum no TSConf
 
-                //modo clasico. sin rainbow
-                if (rainbow_enabled.v==0) {
-
-		        if (border_enabled.v) {
-		                //ver si hay que refrescar border
-	        	        if (modificado_border.v)
-	                	{
-	        	                scrcaca_refresca_border();
-		                        modificado_border.v=0;
-        		        }
-
-	        	}
-
-
-			scr_refresca_pantalla_comun();
-		}
-
-                else {
-                        //modo rainbow - real video
-                        scr_refresca_pantalla_rainbow_comun();
-                }
+			//modo rainbow - real video
+			scr_refresca_pantalla_rainbow_comun();
 
 		}
 
@@ -580,15 +561,15 @@ void scrcaca_get_image_params(void)
     imgwidth = caca_get_canvas_width(cv);
     imgheight = caca_get_canvas_height(cv);
 
-//printf ("%d / %d = %d\n",imgwidth,(ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2*border_enabled.v),imgwidth/(ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2*border_enabled.v));
+//printf ("%d / %d = %d\n",imgwidth,(ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2),imgwidth/(ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2));
 
 /*if (MACHINE_IS_Z88) {
 zoom_x=1+imgwidth/640;
 zoom_y=1+imgheight/(ALTO_PANTALLA+TOP_BORDER_NO_ZOOM+BOTTOM_BORDER_NO_ZOOM);
 }
 else {
-zoom_x=1+imgwidth/(ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2*border_enabled.v);
-zoom_y=1+imgheight/(ALTO_PANTALLA+TOP_BORDER_NO_ZOOM*border_enabled.v+BOTTOM_BORDER_NO_ZOOM*border_enabled.v);
+zoom_x=1+imgwidth/(ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2);
+zoom_y=1+imgheight/(ALTO_PANTALLA+TOP_BORDER_NO_ZOOM+BOTTOM_BORDER_NO_ZOOM);
 }
 */
 
@@ -605,8 +586,8 @@ totalrealwidth=640*zoom_x;
 totalrealheight=ALTO_PANTALLA*zoom_y+TOP_BORDER+BOTTOM_BORDER;
 }
 else {
-totalrealwidth=ANCHO_PANTALLA*zoom_x+LEFT_BORDER*2*border_enabled.v;
-totalrealheight=ALTO_PANTALLA*zoom_y+TOP_BORDER*border_enabled.v+BOTTOM_BORDER*border_enabled.v;
+totalrealwidth=ANCHO_PANTALLA*zoom_x+LEFT_BORDER*2;
+totalrealheight=ALTO_PANTALLA*zoom_y+TOP_BORDER+BOTTOM_BORDER;
 }
 */
 

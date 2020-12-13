@@ -3216,7 +3216,6 @@ int util_write_configfile(void)
   else 					      ADD_STRING_CONFIG,"--disable-silencedetector");
 
 
-  if (border_enabled.v==0)                    ADD_STRING_CONFIG,"--disableborder");
   if (mouse_pointer_shown.v==0)               ADD_STRING_CONFIG,"--hidemousepointer");
   if (mouse_menu_disabled.v)                  ADD_STRING_CONFIG,"--disablemenumouse");
 
@@ -9281,22 +9280,6 @@ void parse_customfile_options(void)
                 }
 
 
-		else if (!strcmp(argv[puntero_parametro],"--disableborder")) {
-			debug_printf(VERBOSE_INFO,"End Screen");
-	//Guardar funcion de texto overlay activo, para desactivarlo temporalmente. No queremos que se salte a realloc_layers simultaneamente,
-	//mientras se hace putpixel desde otro sitio -> provocaria escribir pixel en layer que se esta reasignando
-  void (*previous_function)(void);
-  int menu_antes;
-
-	screen_end_pantalla_save_overlay(&previous_function,&menu_antes);
-
-			
-			disable_border();
-			screen_init_pantalla_and_others_and_realjoystick();
-                        screen_restart_pantalla_restore_overlay(previous_function,menu_antes);
-			debug_printf(VERBOSE_INFO,"Creating Screen");
-		}
-
                 else if (!strcmp(argv[puntero_parametro],"--enableborder")) {
                         debug_printf(VERBOSE_INFO,"End Screen");
 
@@ -9593,7 +9576,6 @@ void customconfig_help(void)
 	"--programname text          Set the name of the tape/snapshot, shown on footer\n"
 	"--programsettingsinfo text  Set the text for settings information, shown on footer\n"
 	"--frameskip n\n"
-	"--disableborder\n"
 	"--enableborder              Enable border\n"
 	"--aychip                    Enable AY-Chip\n"
 	"--zx8081mem n\n"
@@ -14457,9 +14439,6 @@ void util_save_game_config(char *filename)
   }
 
   if (frameskip)                              ADD_STRING_CONFIG,"--frameskip %d",frameskip);
-
-
-  if (border_enabled.v==0)                    ADD_STRING_CONFIG,"--disableborder");
 
 
 //Estas siguientes solo si es ZX80/81

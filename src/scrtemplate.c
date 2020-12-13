@@ -187,27 +187,7 @@ void scrvideoname_refresca_pantalla(void)
         }
 
         else if (MACHINE_IS_SPECTRUM) {
-
-
-                //modo clasico. sin rainbow
-                if (rainbow_enabled.v==0) {
-                        if (border_enabled.v) {
-                                //ver si hay que refrescar border
-                                if (modificado_border.v)
-                                {
-                                        scrvideoname_refresca_border();
-                                        modificado_border.v=0;
-                                }
-
-                        }
-
-                        scr_refresca_pantalla_comun();
-                }
-
-                else {
-                //modo rainbow - real video
-                        scr_refresca_pantalla_rainbow_comun();
-                }
+				scr_refresca_pantalla_rainbow_comun();
         }
 
         else if (MACHINE_IS_Z88) {

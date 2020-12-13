@@ -179,10 +179,9 @@ void spritechip_do_overlay(void)
 
 	int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
 	int y=t_scanline_draw-screen_invisible_borde_superior;
-        if (border_enabled.v==0) y=y-screen_borde_superior;
 	z80_int *puntero_buf_rainbow;
         puntero_buf_rainbow=&rainbow_buffer[ y*get_total_ancho_rainbow() ];
-        puntero_buf_rainbow +=screen_total_borde_izquierdo*border_enabled.v;
+        puntero_buf_rainbow +=screen_total_borde_izquierdo;
 
 	//Bucle para cada sprite
 	int conta_sprites;
@@ -825,7 +824,6 @@ void spritechip_do_scroll(void)
 
                 int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
                 //int y=t_scanline_draw-screen_invisible_borde_superior;
-                //if (border_enabled.v==0) y=y-screen_borde_superior;
 
 		int y=scanline_copia;
 

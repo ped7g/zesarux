@@ -1244,12 +1244,6 @@ z80_byte fetch_opcode_zx81(void)
 
 
 
-				if (border_enabled.v==0) {
-					y=y-screen_borde_superior;
-					x=x-screen_total_borde_izquierdo;
-				}
-
-
 				//printf ("fetch y: %d x: %d\n",y,video_zx8081_caracter_en_linea_actual);
 				int totalancho=get_total_ancho_rainbow();
 

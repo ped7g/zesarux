@@ -146,17 +146,17 @@ void scrcurses_putchar_menu(int x,int y, z80_byte caracter,int tinta,int papel)
 	move(y,x);
 	}
 	else {
-	move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+	move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
 	}
 
 	addch(caracter|brillo);
 
 }
 
-#define CURSES_LINE_FOOTER (24+(CURSES_TOP_BORDER*2)*border_enabled.v+0+ (MACHINE_IS_TSCONF ? 4 : 0) )
+#define CURSES_LINE_FOOTER (24+(CURSES_TOP_BORDER*2)+0+ (MACHINE_IS_TSCONF ? 4 : 0) )
 
-#define CURSES_LINE_DEBUG_REGISTERS (24+(CURSES_TOP_BORDER*2)*border_enabled.v+3)
-#define CURSES_LINE_MESSAGES (24+(CURSES_TOP_BORDER*2)*border_enabled.v+4)
+#define CURSES_LINE_DEBUG_REGISTERS (24+(CURSES_TOP_BORDER*2)+3)
+#define CURSES_LINE_MESSAGES (24+(CURSES_TOP_BORDER*2)+4)
 
 void scrcurses_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel)
 {
@@ -183,7 +183,7 @@ void scrcurses_putchar_footer(int x,int y, z80_byte caracter,int tinta,int papel
 
 	y +=CURSES_LINE_FOOTER;
 
-	x +=CURSES_IZQ_BORDER*border_enabled.v;
+	x +=CURSES_IZQ_BORDER;
 
         
 	move(y,x);
@@ -219,7 +219,7 @@ void scrcurses_blank_footer(void)
         int x,y;
 
         for (y=0;y<3;y++) {
-                for (x=0;x<32+(2*CURSES_IZQ_BORDER)*border_enabled.v;x++) {
+                for (x=0;x<32+(2*CURSES_IZQ_BORDER);x++) {
 			move(y+CURSES_LINE_FOOTER,x);
 			addch(' '|brillo);
                 }
@@ -483,7 +483,7 @@ void scrcurses_putchar_zx8081(int x,int y, z80_byte caracter)
 		//simular modo fast
 		if (video_fast_mode_emulation.v==1 && video_fast_mode_next_frame_black==LIMIT_FAST_FRAME_BLACK) {
 			attron(COLOR_PAIR(1));
-			move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+			move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
 			addch(' ');
 			return;
 		}
@@ -491,7 +491,7 @@ void scrcurses_putchar_zx8081(int x,int y, z80_byte caracter)
 	}
 
 
-	move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+	move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
 
         addch(caracter);
 
@@ -519,17 +519,13 @@ void scrcurses_refresca_pantalla_zx81(void)
 
 
 
-        if (border_enabled.v) {
-                //ver si hay que refrescar border
-                if (modificado_border.v)
-                {
-                        if (video_fast_mode_next_frame_black==LIMIT_FAST_FRAME_BLACK) scrcurses_refresca_border_comun(0);
-                        else scrcurses_refresca_border_comun(7);
-                        modificado_border.v=0;
-                }
-
-        }
-
+	//ver si hay que refrescar border
+	if (modificado_border.v)
+	{
+			if (video_fast_mode_next_frame_black==LIMIT_FAST_FRAME_BLACK) scrcurses_refresca_border_comun(0);
+			else scrcurses_refresca_border_comun(7);
+			modificado_border.v=0;
+	}
 
 
 	scr_refresca_pantalla_zx8081();
@@ -545,17 +541,12 @@ void scrcurses_refresca_pantalla_zx81(void)
 
 void scrcurses_refresca_pantalla_ace(void)
 {
-        if (border_enabled.v) {
-                //ver si hay que refrescar border
-                if (modificado_border.v)
-                {
-                        scrcurses_refresca_border_comun(0);
-                        modificado_border.v=0;
-                }
-
-        }
-
-
+		//ver si hay que refrescar border
+		if (modificado_border.v)
+		{
+				scrcurses_refresca_border_comun(0);
+				modificado_border.v=0;
+		}
 
         scr_refresca_pantalla_ace();
 
@@ -592,7 +583,7 @@ void scrcurses_refresca_pantalla_no_rainbow(void)
 
                         if (caracter) {
 
-                                move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                                move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
 
                                 if (inv) addch(caracter | WA_REVERSE | brillo );
                                 else addch(caracter|brillo);
@@ -619,7 +610,7 @@ void scrcurses_refresca_pantalla_no_rainbow(void)
 
 
 
-                                move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                                move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
                                 //addch('~'|brillo);
 
 								int going_to_use_cursesw=0;
@@ -722,7 +713,7 @@ void scrcurses_refresca_pantalla_chloe(void)
 			if (caracter<32 || caracter>126) caracter='?';
 
 
-                                move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                                move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
 
                                 if (inv) addch(caracter | WA_REVERSE | brillo );
                                 else addch(caracter|brillo);
@@ -765,7 +756,7 @@ void scrcurses_refresca_pantalla_sam_modo_013_fun_color(z80_byte color, int *bri
 
 void scrcurses_refresca_pantalla_sam_modo_013_fun_caracter(int x,int y,int brillo, unsigned char inv,z80_byte caracter )
 {
-                       move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                       move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
 
                                 if (inv) addch(caracter | WA_REVERSE | brillo );
                                 else addch(caracter|brillo);
@@ -788,7 +779,6 @@ void scrcurses_refresca_pantalla_sam(void)
 {
 	z80_byte modo_video=(sam_vmpr>>5)&3;
 
-	                 if (border_enabled.v) {
                         //ver si hay que refrescar border
                         if (modificado_border.v)
                         {
@@ -800,8 +790,6 @@ void scrcurses_refresca_pantalla_sam(void)
 				
                                 modificado_border.v=0;
                         }
-
-                }
 
 
 	switch (modo_video) {
@@ -849,11 +837,11 @@ void scrcurses_refresca_pantalla_zx8081_rainbow(void)
 
 	//Alto de pantalla total en curses
 	int alto=24;
-	alto=alto+2*CURSES_TOP_BORDER*border_enabled.v;
+	alto=alto+2*CURSES_TOP_BORDER;
 
 	//Ancho de pantalla total en curses
 	int ancho=32;
-	ancho=ancho+2*CURSES_IZQ_BORDER*border_enabled.v;
+	ancho=ancho+2*CURSES_IZQ_BORDER;
 
 	//Posicion en pantalla rainbow / 8
 	//0,0 indica inicio de rainbow
@@ -861,9 +849,9 @@ void scrcurses_refresca_pantalla_zx8081_rainbow(void)
 	int xinicial=0;
 
 	//Nos situamos en el pequeño border definido para curses
-	yinicial=yinicial+screen_borde_superior*border_enabled.v/8-CURSES_TOP_BORDER*border_enabled.v;
+	yinicial=yinicial+screen_borde_superior/8-CURSES_TOP_BORDER;
 
-	xinicial=xinicial+screen_total_borde_izquierdo*border_enabled.v/8-CURSES_IZQ_BORDER*border_enabled.v;
+	xinicial=xinicial+screen_total_borde_izquierdo/8-CURSES_IZQ_BORDER;
 
 	//Posicion en pantalla curses
 	int xencurses,yencurses;
@@ -891,7 +879,7 @@ void scrcurses_refresca_pantalla_zx8081_rainbow(void)
 				attron(COLOR_PAIR(0+7*8+1));
 
 
-                                //move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                                //move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
                                 move(yencurses,xencurses);
 				if (inv.v) addch(caracter | WA_REVERSE  );
 				else addch(caracter);
@@ -917,7 +905,7 @@ void scrcurses_refresca_pantalla_zx8081_rainbow(void)
                                 else caracter='?';
 
 
-                                //move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                                //move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
                                 move(yencurses,xencurses);
 
 				addch(caracter);
@@ -1037,7 +1025,7 @@ void scrcurses_refresca_pantalla_common_fun_saltolinea(void)
 
 void scrcurses_refresca_pantalla_cpc_fun_caracter(int x,int y,int brillo, unsigned char inv,z80_byte caracter )
 {
-                       move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                       move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
 
                                 if (inv) addch(caracter | WA_REVERSE | brillo );
                                 else addch(caracter|brillo);
@@ -1046,7 +1034,7 @@ void scrcurses_refresca_pantalla_cpc_fun_caracter(int x,int y,int brillo, unsign
 
 void scrcurses_refresca_pantalla_common_fun_caracter(int x,int y,int brillo, unsigned char inv,z80_byte caracter )
 {
-                       move(y+CURSES_TOP_BORDER*border_enabled.v,x+CURSES_IZQ_BORDER*border_enabled.v);
+                       move(y+CURSES_TOP_BORDER,x+CURSES_IZQ_BORDER);
                        
                        
                        
@@ -1101,18 +1089,13 @@ if (valor_get_pixel>15) valor_get_pixel=15;
 
 void scrcurses_refresca_pantalla_cpc(void)
 {
-        
-	if (border_enabled.v) {
-                        //ver si hay que refrescar border
-                        if (modificado_border.v)
-                        {
-                                //TODO
-                                modificado_border.v=0;
-                        }
+	//ver si hay que refrescar border
+	if (modificado_border.v)
+	{
+			//TODO
+			modificado_border.v=0;
 	}
-
-
-scr_refresca_pantalla_cpc_text(scrcurses_refresca_pantalla_cpc_fun_color,scrcurses_refresca_pantalla_cpc_fun_caracter,scrcurses_refresca_pantalla_cpc_fun_saltolinea);
+	scr_refresca_pantalla_cpc_text(scrcurses_refresca_pantalla_cpc_fun_color,scrcurses_refresca_pantalla_cpc_fun_caracter,scrcurses_refresca_pantalla_cpc_fun_saltolinea);
 }
 
 
@@ -1186,15 +1169,12 @@ void scrcurses_refresca_pantalla(void)
 			else {
 
 			//sin rainbow, refresh como spectrum
-                        if (border_enabled.v) {
-                                //ver si hay que refrescar border
-                                if (modificado_border.v)
-                                {
-                                        scrcurses_refresca_border();
-                                        modificado_border.v=0;
-                                }
-
-                        }
+						//ver si hay que refrescar border
+						if (modificado_border.v)
+						{
+								scrcurses_refresca_border();
+								modificado_border.v=0;
+						}
 
                         scrcurses_refresca_pantalla_no_rainbow();
 
@@ -1211,50 +1191,17 @@ void scrcurses_refresca_pantalla(void)
 
 	else if (MACHINE_IS_SPECTRUM && !MACHINE_IS_TSCONF) { 
 
-	        if (rainbow_enabled.v==0) {
-        		//modo clasico. sin rainbow
+			//modo rainbow - real video. De momento hacemos igual que sin realvideo
+			//scrcurses_refresca_pantalla_rainbow();
 
-
-
-			if (border_enabled.v) {
-				//ver si hay que refrescar border
-				if (modificado_border.v)
-				{
+			//ver si hay que refrescar border
+			if (modificado_border.v)
+			{
 					scrcurses_refresca_border();
 					modificado_border.v=0;
-				}
-
-		  	}  
-
-			scrcurses_refresca_pantalla_no_rainbow();
-
-
-		}
-
-		else {
-
-
-
-
-
-                        //modo rainbow - real video. De momento hacemos igual que sin realvideo
-                        //scrcurses_refresca_pantalla_rainbow();
-
-			if (border_enabled.v) {
-                                //ver si hay que refrescar border
-                                if (modificado_border.v)
-                                {
-                                        scrcurses_refresca_border();
-                                        modificado_border.v=0;
-                                }
-
-                        }
-
-                        scrcurses_refresca_pantalla_no_rainbow();
-
 			}
 
- 
+			scrcurses_refresca_pantalla_no_rainbow();
 
           }
 
@@ -1428,7 +1375,7 @@ void scrcurses_reset_fullscreen(void)
 
 //        y +=CURSES_LINE_FOOTER;
 
-//        x +=CURSES_IZQ_BORDER*border_enabled.v;
+//        x +=CURSES_IZQ_BORDER;
 
 
 //        move(y,x);
@@ -1601,14 +1548,6 @@ z80_byte kempston_mouse_x=0,kempston_mouse_y=0;
 	//Como el border en curses no es de tamanyo real ni proporcional al real, hay que comprobar si el cursor
 	//esta en el border o no
 
-	if (border_enabled.v==0) {
-		//Sumar borde superior e inferior
-		curses_x +=screen_total_borde_izquierdo/8;
-		curses_y +=screen_borde_superior/8;
-	}
-
-
-	else {
 		//Sumar trozo del border correspondiente
 
 		int border_izq_entre_ocho=screen_total_borde_izquierdo/8;
@@ -1630,8 +1569,6 @@ z80_byte kempston_mouse_x=0,kempston_mouse_y=0;
                 else {
                         curses_y=(curses_y-CURSES_TOP_BORDER)+border_arr_entre_ocho;
                 }
-
-	}
 
 	gunstick_x=curses_x*8;
 	gunstick_y=curses_y*8;

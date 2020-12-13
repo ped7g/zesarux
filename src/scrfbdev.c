@@ -1797,8 +1797,8 @@ int scrfbdev_init (void){
 	scr_detectedchar_print=scrfbdev_detectedchar_print;
 
 
-	//int ancho_minimo=ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2*border_enabled.v;
-	//int alto_minimo=ALTO_PANTALLA+TOP_BORDER_NO_ZOOM*border_enabled.v+BOTTOM_BORDER_NO_ZOOM*border_enabled.v;
+	//int ancho_minimo=ANCHO_PANTALLA+LEFT_BORDER_NO_ZOOM*2;
+	//int alto_minimo=ALTO_PANTALLA+TOP_BORDER_NO_ZOOM+BOTTOM_BORDER_NO_ZOOM;
 
 	int ancho_minimo=screen_get_window_size_width_no_zoom_border_en();
 	int alto_minimo=screen_get_window_size_height_no_zoom_border_en();
@@ -2061,8 +2061,8 @@ int scrfbdev_init (void){
 
 			//offset en pixeles de pantalla
 
-			//int totalspectrumancho=ANCHO_PANTALLA*zoom_x+LEFT_BORDER*2*border_enabled.v;
-			//int totalspectrumalto=ALTO_PANTALLA*zoom_y+TOP_BORDER*border_enabled.v+BOTTOM_BORDER*border_enabled.v;
+			//int totalspectrumancho=ANCHO_PANTALLA*zoom_x+LEFT_BORDER*2;
+			//int totalspectrumalto=ALTO_PANTALLA*zoom_y+TOP_BORDER+BOTTOM_BORDER;
 
 			int totalspectrumancho=screen_get_window_size_width_zoom_border_en();
 			int totalspectrumalto=screen_get_window_size_height_zoom_border_en();

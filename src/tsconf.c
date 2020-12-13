@@ -2749,16 +2749,11 @@ void scr_refresca_border_tsconf_cont(void)
 
 void screen_tsconf_refresca_border(void)
 {
-	//if (rainbow_enabled.v==0) {
-        if (border_enabled.v) {
-		    //ver si hay que refrescar border
-			if (modificado_border.v) {
-                scr_refresca_border_tsconf_cont();
-                modificado_border.v=0;
-            }
-
-        }
-	//}
+	//ver si hay que refrescar border
+	if (modificado_border.v) {
+		scr_refresca_border_tsconf_cont();
+		modificado_border.v=0;
+	}
 }
 
 //z80_int temp_cc=0;
@@ -2931,19 +2926,6 @@ void scr_tsconf_refresca_pantalla_16c_256c_no_rainbow(int modo)
 void scr_tsconf_refresca_pantalla_zxmode_no_rainbow(void)
 {
 
-	/*if (border_enabled.v) {
-		//ver si hay que refrescar border
-		if (modificado_border.v) {
-
-
-			//screen_prism_refresca_no_rainbow_border(color);
-			scr_refresca_border_tsconf_cont();
-
-			modificado_border.v=0;
-		}
-
-	}*/
-
 	scr_tsconf_refresca_pantalla_zxmode_no_rainbow_comun();
 
 }
@@ -2961,10 +2943,10 @@ void screen_tsconf_refresca_rainbow(void) {
     int x,y,bit;
 
     //margenes de zona interior de pantalla. Para overlay menu
-    /*int margenx_izq=screen_total_borde_izquierdo*border_enabled.v;
-       int margenx_der=screen_total_borde_izquierdo*border_enabled.v+512;
-       int margeny_arr=screen_borde_superior*border_enabled.v;
-        int margeny_aba=screen_borde_superior*border_enabled.v+384;*/
+    /*int margenx_izq=screen_total_borde_izquierdo;
+       int margenx_der=screen_total_borde_izquierdo+512;
+       int margeny_arr=screen_borde_superior;
+        int margeny_aba=screen_borde_superior+384;*/
 
     //en tsconf menu no aparece con margen de border. Sale tal cual desde 0,0
 
