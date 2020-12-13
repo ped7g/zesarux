@@ -524,6 +524,4 @@ extern z80_byte envia_load_comillas_sam(z80_byte puerto_h,z80_byte puerto_l);
 
 extern z80_byte *sam_return_segment_memory(z80_int dir);
 
-extern z80_byte *tbblue_return_segment_memory(z80_int dir);
-
 #endif

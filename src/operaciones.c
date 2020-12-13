@@ -1915,7 +1915,7 @@ z80_byte peek_byte_prism(z80_int dir)
 }
 
 
-z80_byte *tbblue_return_segment_memory(z80_int dir)
+static z80_byte *tbblue_return_segment_memory(z80_int dir)
 {
 	int segmento;
 
@@ -1927,7 +1927,7 @@ z80_byte *tbblue_return_segment_memory(z80_int dir)
 
 
 
-z80_byte *tbblue_get_altrom_dir(z80_int dir)
+static z80_byte *tbblue_get_altrom_dir(z80_int dir)
 {
 	/*
 	   -- 0x018000 - 0x01BFFF (16K)  => Alt ROM0 128k           A20:A16 = 00001,10
@@ -6896,12 +6896,8 @@ void out_port_spectrum_border(z80_int puerto,z80_byte value)
 
 	//printf ("out port 254 desde reg_pc=%d. puerto: %04XH value: %02XH\n",reg_pc,puerto,value);
 
-	//Guardamos temporalmente el valor anterior para compararlo con el actual
-	//en el metodo de autodeteccion de border real video
-	z80_byte anterior_out_254=out_254;
-
-            modificado_border.v=1;
-                silence_detection_counter=0;
+		modificado_border.v=1;
+		silence_detection_counter=0;
 		beeper_silence_detection_counter=0;
 
 		out_254_original_value=value;
