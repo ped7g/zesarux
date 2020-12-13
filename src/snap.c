@@ -424,7 +424,6 @@ void load_spectrum_simulate_loading(z80_byte *buffer_lectura,z80_int destino,int
                                 antes_interrupts.v=iff1.v;
 				antes_diviface_enabled.v=diviface_enabled.v;
 
-                                //rainbow_enabled.v=1;
 				enable_rainbow();
                                 iff1.v=0;
 				diviface_enabled.v=0; //Para que no salte el trap de paginacion cuando cambiamos reg_pc en bucles de espera

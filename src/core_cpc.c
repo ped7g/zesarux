@@ -242,8 +242,6 @@ void cpu_core_loop_cpc(void)
 
 
 
-				//if (rainbow_enabled.v==1) t_scanline_next_fullborder();
-
 		                t_scanline=0;
 
 		                //printf ("final scan lines. total: %d\n",screen_scanlines);

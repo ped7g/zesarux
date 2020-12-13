@@ -574,7 +574,7 @@ void new_snap_load_zx80_zx81_simulate_loading(z80_byte *puntero_inicio,z80_byte 
 	//tambien llamado en una carga normal
 
                                 //guardamos valores anteriores
-                                z80_bit antes_zx8081_vsync_sound,antes_rainbow_enabled,antes_interrupts,antes_nmi_generator_active;
+                                z80_bit antes_zx8081_vsync_sound,antes_interrupts,antes_nmi_generator_active;
                                 //z80_bit antes_video_zx8081_shows_vsync_on_display;
                                 antes_zx8081_vsync_sound.v=zx8081_vsync_sound.v;
                                 antes_interrupts.v=iff1.v;

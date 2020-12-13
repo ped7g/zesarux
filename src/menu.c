@@ -2285,14 +2285,6 @@ void menu_scr_putpixel(int x,int y,int color)
 	x *=menu_gui_zoom;
 	y *=menu_gui_zoom;	
 
-	//Esto ya no hace falta desde el uso de dos layers de menu y maquina
-	/*if (rainbow_enabled.v) {
-		x+=margenx_izq;
-		y+=margeny_arr;
-	}*/
-
-
-
 	scr_putpixel_gui_zoom(x,y,color,menu_gui_zoom);
 }
 /*

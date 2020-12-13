@@ -411,7 +411,7 @@ void scrsimpletext_repinta_pantalla(void)
 	screen_text_send_ansi_go_home();
 	
 		 //si todo de pixel a ascii art
-     if (rainbow_enabled.v && screen_text_all_refresh_pixel.v) {
+     if (screen_text_all_refresh_pixel.v) {
      
 scr_refresca_pantalla_tsconf_text(scr_simpletext_common_fun_color,scr_simpletext_common_fun_caracter,scr_simpletext_common_fun_saltolinea,screen_text_all_refresh_pixel_scale);
      
@@ -459,21 +459,13 @@ scr_refresca_pantalla_tsconf_text(scr_simpletext_common_fun_color,scr_simpletext
                 z80_byte modo_video=tsconf_get_video_mode_display();
                 if (modo_video==3) {
                         scr_refresca_pantalla_tsconf_text_textmode(scr_simpletext_common_fun_color,scr_simpletext_common_fun_caracter,scr_simpletext_common_fun_saltolinea,12);
-			sem_screen_refresh_reallocate_layers=0;
+					sem_screen_refresh_reallocate_layers=0;
                         return;
                 }
 
 
-		//con rainbow
-		if (rainbow_enabled.v) {
-			scr_refresca_pantalla_tsconf_text(scr_simpletext_common_fun_color,scr_simpletext_common_fun_caracter,scr_simpletext_common_fun_saltolinea,12);
-		}
-
-		//sin rainbow, como spectrum
-		else {
-			screen_text_repinta_pantalla_spectrum();
-		}
-	}	
+		scr_refresca_pantalla_tsconf_text(scr_simpletext_common_fun_color,scr_simpletext_common_fun_caracter,scr_simpletext_common_fun_saltolinea,12);
+	}
 	
 	
 	else {

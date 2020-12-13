@@ -409,30 +409,11 @@ segmento 0 pagina 0
 
 void screen_baseconf_refresca_pantalla(void)
 {
-
 	/*
 	//Como spectrum clasico
-
-	//modo clasico. sin rainbow
-	if (rainbow_enabled.v==0) {
-        screen_baseconf_refresca_border();
-        z80_byte modo_video=baseconf_get_video_mode_display();
-
-
-        //printf ("modo video: %d\n",modo_video );
-        if (modo_video==0) scr_baseconf_refresca_pantalla_zxmode_no_rainbow();
-        if (modo_video==1) scr_baseconf_refresca_pantalla_16c_256c_no_rainbow(1);
-        if (modo_video==2) scr_baseconf_refresca_pantalla_16c_256c_no_rainbow(2);
-        if (modo_video==3) screen_baseconf_refresca_text_mode();
-
-	}
-
-	else {
-	//modo rainbow - real video
         if (baseconf_si_render_spritetile_rapido.v) baseconf_fast_tilesprite_render();
 
         screen_baseconf_refresca_rainbow();
-	}
 */
 }
 

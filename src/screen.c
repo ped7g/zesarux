@@ -2412,9 +2412,6 @@ void scr_putpixel_gui_zoom(int x,int y,int color,int zoom_level)
 		for (incx=0;incx<zoom_level;incx++) {
 			//printf("putpixel %d,%d\n",x+incx,y+incy);
 			scr_putpixel_layer_menu(x+incx,y+incy,color);
-			//if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(x+incx,y+incy,color);
-
-			//else scr_putpixel_zoom(x+incx,y+incy,color);
 		}
 	}
 }
@@ -2548,16 +2545,6 @@ void scr_putchar_menu_comun_zoom(z80_byte caracter,int x,int y,z80_bit inverse,i
 			yfinal=y*zoom_level;
 
 
-			//No hay que sumar ya los margenes
-			/*if (rainbow_enabled.v==1) {
-				xfinal +=margenx_izq;
-
-				yfinal +=margeny_arr;
-			}*/
-
-
-
-
 			//Hacer zoom de ese pixel si conviene
 
 		
@@ -2670,16 +2657,6 @@ void scr_putchar_footer_comun_zoom(z80_byte caracter,int x,int y,z80_bit inverse
 
 								scr_putpixel_zoom_rainbow(xfinal,yfinal,color);
 
-                /*int incx,incy;
-                for (incy=0;incy<zoom_level;incy++) {
-                        for (incx=0;incx<zoom_level;incx++) {
-                                if (rainbow_enabled.v==1) scr_putpixel_zoom_rainbow(xfinal+incx,yfinal+incy,color);
-
-                                else scr_putpixel_zoom(xfinal+incx,yfinal+incy,color);
-                        }
-                }*/
-
-
            }
         }
 }								
@@ -2733,17 +2710,8 @@ void old_scr_putchar_footer_comun_zoom(z80_byte caracter,int x,int y,z80_bit inv
 
 		//este scr_putpixel_zoom_rainbow tiene en cuenta los timings de la maquina (borde superior, por ejemplo)
 
-		int xfinal,yfinal;
-
-		xfinal=(((x*8)+bit));
-		yfinal=y;
-
-		//if (rainbow_enabled.v==1) {
-			xfinal +=margenx_izq;
-
-			yfinal +=margeny_arr;
-		//}
-
+		int xfinal=(((x*8)+bit))+margenx_izq;
+		int yfinal=y+margeny_arr;
 
 		//Hacer zoom de ese pixel si conviene		
 		scr_putpixel_gui_zoom(xfinal,yfinal,color,1);
@@ -8839,21 +8807,10 @@ void screen_set_parameters_slow_machines(void)
 
 
 	//Frameskip 3 como minimo para realvideo
-	if (rainbow_enabled.v==1) {
-	        if (frameskip<3) {
-        	        frameskip=3;
-                	debug_printf (VERBOSE_INFO,"It is a raspberry system. With realvideo, setting frameskip to: %d",frameskip);
-			return;
-	        }
-	}
-
-	//Sin realvideo, frameskip 1 minimo
-	if (rainbow_enabled.v==0) {
-		if (frameskip<1) {
-			frameskip=1;
-			debug_printf (VERBOSE_INFO,"It is a raspberry system. Without realvideo, setting frameskip to: %d",frameskip);
-			return;
-		}
+	if (frameskip<3) {
+		frameskip=3;
+		debug_printf (VERBOSE_INFO,"It is a raspberry system. With realvideo, setting frameskip to: %d",frameskip);
+		return;
 	}
 
 	return;
