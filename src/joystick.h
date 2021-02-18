@@ -24,24 +24,26 @@
 
 #include "cpu.h"
 
-#define JOYSTICK_TOTAL 12
-#define JOYSTICK_KEMPSTON 1
-#define JOYSTICK_SINCLAIR_1 2
-#define JOYSTICK_SINCLAIR_2 3
-#define JOYSTICK_CURSOR 4
-#define JOYSTICK_CURSOR_WITH_SHIFT 5
-#define JOYSTICK_OPQA_SPACE 6
-#define JOYSTICK_FULLER 7
-#define JOYSTICK_ZEBRA 8
-#define JOYSTICK_MIKROGEN 9
-#define JOYSTICK_ZXPAND 10
-#define JOYSTICK_CURSOR_SAM 11
-#define JOYSTICK_KEMPSTON_2 12
-
+enum joystick_type {
+	JOYSTICK_NONE = 0,
+	JOYSTICK_KEMPSTON,
+	JOYSTICK_SINCLAIR_1,
+	JOYSTICK_SINCLAIR_2,
+	JOYSTICK_CURSOR,
+	JOYSTICK_CURSOR_WITH_SHIFT,
+	JOYSTICK_OPQA_SPACE,
+	JOYSTICK_FULLER,
+	JOYSTICK_ZEBRA,
+	JOYSTICK_MIKROGEN,
+	JOYSTICK_ZXPAND,
+	JOYSTICK_CURSOR_SAM,
+	JOYSTICK_KEMPSTON_2,
+	JOYSTICK_TOTAL = JOYSTICK_KEMPSTON_2
+};
 
 extern z80_byte puerto_especial_joystick;
 
-extern int joystick_emulation;
+extern enum joystick_type joystick_emulation;
 extern int joystick_autofire_frequency;
 extern int joystick_autofire_counter;
 

@@ -35,7 +35,7 @@
 #endif
 
 
-int joystick_emulation=JOYSTICK_CURSOR_WITH_SHIFT;
+enum joystick_type joystick_emulation=JOYSTICK_CURSOR_WITH_SHIFT;
 int joystick_autofire_frequency=0;
 int joystick_autofire_counter=0;
 
@@ -100,7 +100,7 @@ z80_byte puerto_especial_joystick=0; //Fire4 Fire3 Fire2 Fire1 Up Down Left Righ
 
 //z80_byte puerto_especial_gunstick=0; //Fire 0 o 1
 
-char *joystick_texto[]={
+char *joystick_texto[JOYSTICK_TOTAL+1]={
         "None",
         "Kempston",
         "Sinclair 1",

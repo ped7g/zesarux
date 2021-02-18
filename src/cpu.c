@@ -1997,6 +1997,7 @@ printf (
 		"--disablerealjoystick      Disable real joystick emulation\n"
 		"--realjoystickpath f       Change default real joystick device path\n"
 		"--realjoystick-calibrate n Parameter to autocalibrate joystick axis. Axis values read from joystick less than n and greater than -n are considered as 0. Default: 16384. Not used on native linux real joystick\n"
+		"--realjoystick8BitDo       Set events for 8BitDo M30 controller connected to USB, to read the same as on ZX Next (in emulated Next set joyport type to MD1)\n"
 
 #ifdef USE_LINUXREALJOYSTICK
 		"--no-native-linux-realjoy  Do not use native linux real joystick support. Instead use the video driver joystick support (currently only SDL)\n"
@@ -7092,6 +7093,10 @@ int parse_cmdline_options(void) {
 				no_native_linux_realjoystick.v=1;
 			}
 			
+			else if (!strcmp(argv[puntero_parametro],"--realjoystick8BitDo")) {
+				realjoystick_set_8BitDo_default();
+			}
+
 			else if (!strcmp(argv[puntero_parametro],"--realjoystickpath")) {
 				siguiente_parametro_argumento();
 				strcpy(string_dev_joystick,argv[puntero_parametro]);

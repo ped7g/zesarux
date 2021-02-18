@@ -93,6 +93,7 @@ extern int realjoystick_read_event(int *button,int *type,int *value);
 //extern void realjoystick_set_default_functions(void);
 
 extern void realjoystick_new_set_default_functions(void);
+extern void realjoystick_set_8BitDo_default(void);
 
 extern void realjoystick_init_events_keys_tables(void);
 extern void realjoystick_initialize_joystick(void);
@@ -118,9 +119,9 @@ extern z80_bit realjoystick_disabled;
 #define REALJOYSTICK_EVENT_NUMBERSELECT 12
 #define REALJOYSTICK_EVENT_NUMBERACTION 13
 #define REALJOYSTICK_EVENT_JOYSELECT 14
-#define REALJOYSTICK_EVENT_AUX1 15
-#define REALJOYSTICK_EVENT_AUX2 16
-#define REALJOYSTICK_EVENT_AUX3 17
+#define REALJOYSTICK_EVENT_AUX1 15	//repurposed as Fire2 (aux2 = Fire3, aux3 = Fire4) for Kempston joystick type
+#define REALJOYSTICK_EVENT_AUX2 16	//not sure what was the original intent of Cesar here
+#define REALJOYSTICK_EVENT_AUX3 17	//but I guess that's what AUX were designed for = for extra buttons
 #define REALJOYSTICK_EVENT_AUX4 18
 
 //este valor es el numero de ultimo REALJOYSTICK_EVENT_XX +1
@@ -187,7 +188,6 @@ extern void realjoystick_common_set_event(int button,int type,int value);
 extern int simulador_joystick;
 extern int simulador_joystick_forzado;
 
-//extern int realjoystick_find_event(int indice_inicial,int button,int type,int value);
 extern int realjoystick_buscar_evento_en_tabla(int button, int button_type);
 
 extern void realjoystick_reopen_driver(void);

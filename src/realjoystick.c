@@ -314,6 +314,47 @@ Aux2: desasignado
 }
 
 
+// pre-set defaults for 8BitDo M30 2.4g controller connected to USB in linux (my machine defaults)
+// mapping it the same way as real ZX Next reads it
+void realjoystick_set_8BitDo_default(void)
+{
+	joystick_emulation=JOYSTICK_KEMPSTON;
+	realjoystick_init_events_keys_tables();
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_LEFT].asignado.v=1;	// axis -0
+	realjoystick_events_array[REALJOYSTICK_EVENT_LEFT].button=0;
+	realjoystick_events_array[REALJOYSTICK_EVENT_LEFT].button_type=-1;
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_RIGHT].asignado.v=1;	// axis +0
+	realjoystick_events_array[REALJOYSTICK_EVENT_RIGHT].button=0;
+	realjoystick_events_array[REALJOYSTICK_EVENT_RIGHT].button_type=+1;
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_UP].asignado.v=1;		// axis -1
+	realjoystick_events_array[REALJOYSTICK_EVENT_UP].button=1;
+	realjoystick_events_array[REALJOYSTICK_EVENT_UP].button_type=-1;
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_DOWN].asignado.v=1;	// axis +1
+	realjoystick_events_array[REALJOYSTICK_EVENT_DOWN].button=1;
+	realjoystick_events_array[REALJOYSTICK_EVENT_DOWN].button_type=+1;
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_FIRE].asignado.v=1;
+	realjoystick_events_array[REALJOYSTICK_EVENT_FIRE].button=1;
+	realjoystick_events_array[REALJOYSTICK_EVENT_FIRE].button_type=0;	// "B" button (1)
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX1].asignado.v=1;
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX1].button=0;
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX1].button_type=0;	// "A" button (0)
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX2].asignado.v=1;
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX2].button=5;
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX2].button_type=+1;	// "C" button (axis +5)
+
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX3].asignado.v=1;
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX3].button=7;
+	realjoystick_events_array[REALJOYSTICK_EVENT_AUX3].button_type=0;	// "start" button (7)
+}
+
+
 int realjoystick_null_init(void)
 {
 	//No inicializa nada. Salir y decir que no hay joystick
@@ -367,22 +408,19 @@ void read_simulador_joystick(void)
 	int value,type,button;
 
 	printf ("Button number: ");
-	scanf ("%d",&button);
-	if (button<0 || button>255) {
+	if (1 != scanf("%d",&button) || button<0 || button>255) {
 		printf ("Invalid button number\n");
 		return;
 	}
 
 	printf ("Button type: (%d=button, %d=axis)",REALJOYSTICK_INPUT_EVENT_BUTTON,REALJOYSTICK_INPUT_EVENT_AXIS);
-	scanf ("%d",&type);
+	if (1 != scanf("%d",&type)) type = 0;
 
 	printf ("Button value: ");
-	scanf ("%d",&value);
-
-	if (value<-32767 || value>32767) {
+	if (1 != scanf("%d",&value) || value<-32767 || value>32767) {
 		printf ("Invalid value\n");
 		return;
-	}	
+	}
 
 	printf ("OK simulating joystick button/axis: button: %d type: %d value: %d\n",button,type,value);
 
@@ -391,11 +429,6 @@ void read_simulador_joystick(void)
 	menu_info_joystick_last_raw_value=value;
 
 	realjoystick_common_set_event(button,type,value);
-
-
-
-
-
 
 }
 
@@ -421,42 +454,27 @@ int realjoystick_find_event_or_key(int indice_inicial,realjoystick_events_keys_f
 {
         int i;
         for (i=indice_inicial;i<maximo;i++) {
-		if (tabla[i].asignado.v==1) {
-			if (tabla[i].button==button) {
-
-				//boton normal. no axis
-				if (type==REALJOYSTICK_INPUT_EVENT_BUTTON && tabla[i].button_type==0) return i;
-
-
-				if (type==REALJOYSTICK_INPUT_EVENT_AXIS) {
-
-					//ver si coindice el axis
-					if (tabla[i].button_type==+1) {
-						if (value>0) return i;
-					}
-
-                                	if (tabla[i].button_type==-1) {
-                                        	if (value<0) return i;
-	                                }
-
-					//si es 0, representara poner 0 en eje izquierdo y derecho por ejemplo
-
-					if
-					(
-						(tabla[i].button_type==+1 || tabla[i].button_type==-1)
-						&& value==0
-					)
-					return i;
-
-					//if (value==0) return i;
-				}
-			}
-
+		if (1 != tabla[i].asignado.v || button != tabla[i].button) continue;
+		//boton normal. no axis
+		if (0 == tabla[i].button_type) {
+		    if (type==REALJOYSTICK_INPUT_EVENT_BUTTON) return i;
+		    else continue;
 		}
-        }
+		// +1/-1 type, only axis
+		if (REALJOYSTICK_INPUT_EVENT_AXIS != type) continue;
 
+		//ver si coindice el axis
+		//si es 0, representara poner 0 en eje izquierdo y derecho por ejemplo
+		if (tabla[i].button_type==+1) {
+			if (0 <= value) return i;
+		}
+
+		if (tabla[i].button_type==-1) {
+			if (value <= 0) return i;
+		}
+
+	}
 	return -1;
-
 }
 
 int realjoystick_find_event(int indice_inicial,int button,int type,int value)
@@ -587,6 +605,20 @@ void realjoystick_set_reset_action(int index,int value)
 			else joystick_release_fire(1);
 		break;
 
+		case REALJOYSTICK_EVENT_AUX1:
+			if (value) joystick_set_fire2();
+			else joystick_release_fire2();
+		break;
+
+		case REALJOYSTICK_EVENT_AUX2:
+			if (value) joystick_set_fire3();
+			else joystick_release_fire3();
+		break;
+
+		case REALJOYSTICK_EVENT_AUX3:
+			if (value) joystick_set_fire4();
+			else joystick_release_fire4();
+		break;
 
 		//Evento de ESC representa ESC para navegar entre menus y tambien abrir el menu (lo que ahora es con F5 y antes era ESC)
 		//NO activa ESC de Z88
@@ -971,105 +1003,93 @@ int realjoystick_set_event_key(char *text_event,char *text_key)
 //lectura de evento de joystick y conversion a movimiento de joystick spectrum
 void realjoystick_common_set_event(int button,int type,int value)
 {
+	if (REALJOYSTICK_INPUT_EVENT_INIT == (type&REALJOYSTICK_INPUT_EVENT_INIT)) return;
 
+	//eventos de init no hacerles caso, de momento
+	menu_info_joystick_last_button = button;
+	menu_info_joystick_last_type = type;
+	menu_info_joystick_last_value = value;
+	menu_info_joystick_last_index = -1; //de momento suponemos ningun evento
 
-		//eventos de init no hacerles caso, de momento
-		if ( (type&REALJOYSTICK_INPUT_EVENT_INIT)!=REALJOYSTICK_INPUT_EVENT_INIT) {
+	//buscamos el evento
+	int index = realjoystick_find_event(0,button,type,value);
 
+	// if type axis did failed to find first index for non-zero value, try zeroed value
+	// to release axis-buttons going from +32767 to -32768, or other way, without 0
+	// (8BitDo M30 2.4g controller based on Xbox360 electronics reports button "C" like this)
+	// this works only when the opposite axis event is not assigned at all
+	if (-1 == index && REALJOYSTICK_INPUT_EVENT_AXIS == type && value) {
+		value = 0;
+		index = realjoystick_find_event(0,button,type,value);
+	}
 
-	
+	while (0 <= index) {
+		menu_info_joystick_last_index = index;
+		//printf ("last index: %d\n",menu_info_joystick_last_index);
+		debug_printf(VERBOSE_DEBUG, "Event found on index: %d", index);
 
-			menu_info_joystick_last_button=button;
-
-			menu_info_joystick_last_type=type;
-			menu_info_joystick_last_value=value;
-
-			menu_info_joystick_last_index=-1; //de momento suponemos ningun evento
-			
-
-			//buscamos el evento
-			int index=-1;
-			do  {
-
-				index=realjoystick_find_event(index+1,button,type,value);
-				//menu_info_joystick_last_index=index;
-				//printf ("last index: %d\n",menu_info_joystick_last_index);
-				if (index>=0) {
-					debug_printf (VERBOSE_DEBUG,"Event found on index: %d",index);
-
-					menu_info_joystick_last_index=index;
-
-					//ver tipo boton normal
-
-					if (type==REALJOYSTICK_INPUT_EVENT_BUTTON) {
-						realjoystick_set_reset_action(index,value);
-					}
-
-
-					//ver tipo axis
-					if (type==REALJOYSTICK_INPUT_EVENT_AXIS) {
-						switch (index) {
-							case REALJOYSTICK_EVENT_UP:
-								//reset abajo
-								joystick_release_down(1);
-								realjoystick_set_reset_action(index,value);
-							break;
-
-							case REALJOYSTICK_EVENT_DOWN:
-									//reset arriba
-									joystick_release_up(1);
-									realjoystick_set_reset_action(index,value);
-							break;
-
-							case REALJOYSTICK_EVENT_LEFT:
-									//reset derecha
-									joystick_release_right(1);
-									realjoystick_set_reset_action(index,value);
-							break;
-
-							case REALJOYSTICK_EVENT_RIGHT:
-									//reset izquierda
-									joystick_release_left(1);
-									realjoystick_set_reset_action(index,value);
-							break;
-
-
-
-							default:
-								//acciones que no son de axis
-								realjoystick_set_reset_action(index,value);
-							break;
-						}
-					}
-
-					//gestionar si es 0, poner 0 en izquierda y derecha por ejemplo (solo para acciones de left/right/up/down)
-
-					//si es >0, hacer que la accion de -1 se resetee (solo para acciones de left/right/up/down)
-					//si es <0, hacer que la accion de +1 se resetee (solo para acciones de left/right/up/down)
-				}
-			} while (index>=0);
-
-			//despues de evento, buscar boton a tecla
-			//buscamos el evento
-			index=-1;
-			do {
-                        index=realjoystick_find_key(index+1,button,type,value);
-                        if (index>=0) {
-                                debug_printf (VERBOSE_DEBUG,"Event found on index: %d. key=%c value:%d",index,realjoystick_keys_array[index].caracter,value);
-
-                                //ver tipo boton normal o axis
-
-                                if (type==REALJOYSTICK_INPUT_EVENT_BUTTON || type==REALJOYSTICK_INPUT_EVENT_AXIS) {
-                                        realjoystick_set_reset_key(index,value);
-                                }
-			}
-			} while (index>=0);
-
-
-
+		//ver tipo boton normal
+		if (REALJOYSTICK_INPUT_EVENT_BUTTON == type) {
+			realjoystick_set_reset_action(index,value);
 		}
 
+		//ver tipo axis
+		//gestionar si es 0, poner 0 en izquierda y derecha por ejemplo (solo para acciones de left/right/up/down)
 
+		//si es >0, hacer que la accion de -1 se resetee (solo para acciones de left/right/up/down)
+		//si es <0, hacer que la accion de +1 se resetee (solo para acciones de left/right/up/down)
+
+		if (REALJOYSTICK_INPUT_EVENT_AXIS == type) {
+			switch (index) {
+				case REALJOYSTICK_EVENT_UP:
+					//reset abajo
+					joystick_release_down(1);
+					realjoystick_set_reset_action(index,value);
+				break;
+
+				case REALJOYSTICK_EVENT_DOWN:
+					//reset arriba
+					joystick_release_up(1);
+					realjoystick_set_reset_action(index,value);
+				break;
+
+				case REALJOYSTICK_EVENT_LEFT:
+					//reset derecha
+					joystick_release_right(1);
+					realjoystick_set_reset_action(index,value);
+				break;
+
+				case REALJOYSTICK_EVENT_RIGHT:
+					//reset izquierda
+					joystick_release_left(1);
+					realjoystick_set_reset_action(index,value);
+				break;
+
+				default:
+					//acciones que no son de axis
+					realjoystick_set_reset_action(index,value);
+				break;
+			}
+		}
+
+		index = realjoystick_find_event(index+1, button, type, value);
+	}
+
+	//despues de evento, buscar boton a tecla
+	//buscamos el evento
+	index=-1;
+	do {
+		index=realjoystick_find_key(index+1,button,type,value);
+		if (index>=0) {
+			debug_printf(VERBOSE_DEBUG, "Event found on index: %d. key=%c value %d", index, realjoystick_keys_array[index].caracter, value);
+
+			//ver tipo boton normal o axis
+
+			if (type==REALJOYSTICK_INPUT_EVENT_BUTTON || type==REALJOYSTICK_INPUT_EVENT_AXIS) {
+				realjoystick_set_reset_key(index,value);
+			}
+		}
+	} while (index>=0);
 
 }
 

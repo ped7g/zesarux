@@ -6379,13 +6379,13 @@ void util_set_reset_key_continue_after_zeng(enum util_teclas tecla,int pressrele
 		pressrelease ? joystick_set_fire(1) : joystick_release_fire(1);
 	}
 	else if (joystick_fire_2 == tecla) {
-		pressrelease ? joystick_set_fire2(1) : joystick_release_fire2(1);
+		pressrelease ? joystick_set_fire2() : joystick_release_fire2();
 	}
 	else if (joystick_fire_3 == tecla) {
-		pressrelease ? joystick_set_fire3(1) : joystick_release_fire3(1);
+		pressrelease ? joystick_set_fire3() : joystick_release_fire3();
 	}
 	else if (joystick_fire_4 == tecla) {
-		pressrelease ? joystick_set_fire4(1) : joystick_release_fire4(1);
+		pressrelease ? joystick_set_fire4() : joystick_release_fire4();
 	}
 
         //temp reasignacion
