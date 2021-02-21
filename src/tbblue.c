@@ -3769,18 +3769,14 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
   
 					*/
 						if (value&2) {
-							
 							tbblue_bootrom.v=1;
-							
 							tbblue_registers[3]=0;
-							
-							tbblue_set_memory_pages();
-							reg_pc=0;
+							hard_reset_cpu();
 						}
 
 						//Hard reset has precedence. Entonces esto es un else, si hay hard reset, no haremos soft reset
 						else if (value&1) {
-							reg_pc=0;
+							reset_cpu();
 						}
 
 
