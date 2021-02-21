@@ -7487,8 +7487,7 @@ int zesarux_main (int main_argc,char *main_argv[]) {
 
 	if (main_argc>1) {
 		if (!strcmp(main_argv[1],"--version")) {
-		//	printf ("ZEsarUX Version: " EMULATOR_VERSION " Date: " EMULATOR_DATE " - " EMULATOR_EDITION_NAME "\n");
-			printf ("ZEsarUX v." EMULATOR_VERSION " - " EMULATOR_EDITION_NAME ". " EMULATOR_DATE  "\n");
+			printf ("ZESERUse v." EMULATOR_VERSION " - " EMULATOR_EDITION_NAME ". " EMULATOR_DATE  "\n");
 			exit(0);
 		}
 	}
