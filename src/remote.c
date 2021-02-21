@@ -670,7 +670,7 @@ struct s_items_ayuda items_ayuda[]={
 	"opcode          yes|no: Enable opcode logging. Enabled by default\n"
 	"registers       yes|no: Enable registers logging\n"
 	},
-  {"debug-analize-command",NULL,"parameters","Just analize the command and print its parameters"},
+  {"debug-analyze-command",NULL,"parameters","Just analyze the command and print its parameters"},
 
   {"disable-breakpoint","|db","index","Disable specific breakpoint"},
   {"disable-breakpoints",NULL,NULL,"Disable all breakpoints"},
@@ -755,8 +755,8 @@ struct s_items_ayuda items_ayuda[]={
 	{"put-snapshot",NULL,NULL,"Puts a zsf snapshot from console. Contents must be hexadecimal characters without spaces"}, 
   {"quit","|exit|logout",NULL,"Closes connection"},
 	{"read-memory",NULL,"[address] [length]","Dumps memory at address. "
-																				"It not specify address, dumps all memory for current memory zone: 64 KB for mapped memory on Z80, 16 kb for Spectrum 48KB ROM, etc. "
-																				"If specify address but not length, only 1 byte is read"
+	"If address not specified, dumps all memory for current memory zone: 64 kB for mapped memory on Z80, 16 kB for Spectrum 48kB ROM etc. "
+	"And if you specify address but not length, only 1 byte is read"
 	},
   {"reset-cpu",NULL,NULL,"Resets CPU"},
 	{"reset-tstates-partial",NULL,NULL,"Resets the t-states partial counter"},
@@ -859,7 +859,7 @@ struct s_items_ayuda items_ayuda[]={
 
 
  {"tbblue-get-palette",NULL,"ula|layer2|sprite first|second index [items]","Get palette colours at index, if not specified items parameters, returns only one. You need to tell which palette. Returned values are in hexadecimal format. Only allowed on machine TBBlue"},
- {"tbblue-get-pattern",NULL,"index [items]","Get patterns at index, if not specified items parameters, returns only one. Returned values are in hexadecimal format. Only allowed on machine TBBlue"},
+ {"tbblue-get-pattern",NULL,"index 4|8 [items]","Get patterns at index, of type 4 or 8 bpp, if not specified items parameters, returns only one. Returned values are in hexadecimal format. Only allowed on machine TBBlue"},
 
 {"tbblue-get-register",NULL,"index","Get TBBlue register at index"},
 
@@ -870,7 +870,7 @@ struct s_items_ayuda items_ayuda[]={
 
 {"tbblue-set-register",NULL,"index value","Set TBBlue register with value at index"},
 
- {"tbblue-set-sprite",NULL,"index value","Sets sprite values starting at desired sprite index. Values must be separated by one space each one, you can only define one sprite maximum (so 4 values maximum)"},
+ {"tbblue-set-sprite",NULL,"index value","Sets sprite values starting at desired sprite index. Values must be separated by one space each one, you can only define one sprite maximum (so 5 values maximum)"},
 
  {"tsconf-get-af-port",NULL,"index","Get TSConf XXAF port value"},
 
@@ -2484,8 +2484,8 @@ void easter_scanline_putchar_front(z80_byte caracter,int x,int y,int scanline,z8
     byte_leido=*puntero_caracter;
 
     //Hacemos bold
-    z80_byte byte_bold=byte_leido<<1;
-    byte_leido |=byte_bold;
+    //z80_byte byte_bold=byte_leido<<1;
+    //byte_leido |=byte_bold;
 
 
     int bit;
@@ -4061,7 +4061,7 @@ void interpreta_comando(char *comando,int misocket)
   }
 
 
-	else if (!strcmp(comando_sin_parametros,"debug-analize-command")) {
+	else if (!strcmp(comando_sin_parametros,"debug-analyze-command")) {
 		//Parseamos los parametros porque me sirven para debugar 
 		remote_parse_commands_argvc(parametros);
 
@@ -5533,33 +5533,50 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 
                 if (!MACHINE_IS_TBBLUE) escribir_socket(misocket,"ERROR. Machine is not TBBlue");
                 else {
+			remote_parse_commands_argvc(parametros);
 
-				remote_parse_commands_argvc(parametros);
+			if (remote_command_argc<2) {
+				escribir_socket(misocket,"ERROR. Needs two parameters minimum");
+				return;
+			}
 
-		                if (remote_command_argc<1) {
-                		        escribir_socket(misocket,"ERROR. Needs one parameter minimum");
-		                        return;
-                		}
+			int index_int=parse_string_to_number(remote_command_argv[0]);
+			int totalitems=1;
+			int bpp=parse_string_to_number(remote_command_argv[1]);
 
-                    int index_int=parse_string_to_number(remote_command_argv[0]);
+			if (bpp!=4 && bpp!=8) {
+				escribir_socket_format(misocket,"ERROR. Invalid value for bpp: %d",bpp);
+				return;
+			}
 
-										int totalitems=1;
+			if (remote_command_argc>2) totalitems=parse_string_to_number(remote_command_argv[2]);
 
-										if (remote_command_argc>1) totalitems=parse_string_to_number(remote_command_argv[1]);
+			int max_pattern=TBBLUE_MAX_PATTERNS;
+			int total_size=TBBLUE_8BIT_PATTERN_SIZE;
 
-                    if (index_int<0 || index_int>=TBBLUE_MAX_PATTERNS) escribir_socket(misocket,"ERROR. Out of range");
-                    else {
-											for (;totalitems;totalitems--) {
-												int i;
-												for (i=0;i<256;i++) {
-														 z80_byte index_color=tbsprite_pattern_get_value_index(index_int<<1,i);
-	                	        escribir_socket_format(misocket,"%02X ",index_color);
-												}
-												escribir_socket(misocket,"\n");
-												index_int++;
-												if (index_int==TBBLUE_MAX_PATTERNS) index_int=0;
-											}
-                    }
+			if (bpp==4) {
+				max_pattern *= 2;
+				total_size = TBBLUE_4BIT_PATTERN_SIZE;
+			}
+
+
+			//Esto solo usado para 4bpp
+			int pattern_7b_index = (4 == bpp) ? index_int : (index_int<<1);
+
+
+			if (index_int<0 || index_int>=max_pattern) escribir_socket(misocket,"ERROR. Out of range");
+			else {
+				for (;totalitems;totalitems--) {
+					int i;
+					for (i=0;i<total_size;i++) {
+						z80_byte index_color = tbsprite_pattern_get_value_index(pattern_7b_index, i);
+						escribir_socket_format(misocket,"%02X ",index_color);
+					}
+					escribir_socket(misocket,"\n");
+					index_int++;
+					if (index_int==TBBLUE_MAX_PATTERNS) index_int=0;
+				}
+			}
                 }
 
         }
@@ -5606,7 +5623,9 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 							else {
 								for (;totalitems;totalitems--) {
 									int i;
-									for (i=0;i<TBBLUE_SPRITE_ATTRIBUTE_SIZE;i++) {
+									int tamanyo_sprite=4;
+									if (tbsprite_sprites[index_int][3] & 64) tamanyo_sprite++;
+									for (i=0;i<tamanyo_sprite;i++) {
 											z80_byte value_sprite=tbsprite_sprites[index_int][i];
 											escribir_socket_format(misocket,"%02X ",value_sprite);
 									}
@@ -5754,7 +5773,7 @@ else if (!strcmp(comando_sin_parametros,"smartload") || !strcmp(comando_sin_para
 			while (*s) {
 				valor=parse_string_to_number(s);
 				tbsprite_sprites[index_int][i++]=valor;
-				if (i==TBBLUE_SPRITE_ATTRIBUTE_SIZE) i=0;
+				if (i==TBBLUE_SPRITE_ATTRIBUTE_SIZE) break;
 
 				s=find_space_or_end(s);
 			}
