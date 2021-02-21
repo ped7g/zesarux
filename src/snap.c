@@ -5526,16 +5526,10 @@ void load_nex_snapshot(char *archivo)
 	//Al cargar .nex lo pone en turbo x 8
 	debug_printf(VERBOSE_DEBUG,"Setting turbo x 8 because it's the usual speed when loading .nex files from NextOS");
 
-	z80_byte reg7=tbblue_registers[7];
-	reg7 |=3;
 	//(R/W)	07 => Turbo mode
 	//bit 1-0 = Turbo (00 = 3.5MHz, 01 = 7MHz, 10 = 14MHz, 11 = 28MHz)
-
-	tbblue_registers[7]=reg7;
+	tbblue_registers[7] = 3;	// .nexload of distro 1.3.2 does set 28MHz when loader resets registers (14MHz otherwise)
 	tbblue_set_emulator_setting_turbo();
-
-
-
 
 	//desactivamos interrupciones. No esta en el formato pero supongo que es asi
 	iff1.v=iff2.v=0;
