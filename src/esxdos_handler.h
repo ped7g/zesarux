@@ -99,6 +99,7 @@ FA_USE_HEADER   equ             %01000000                       ; Use +3DOS head
 #define ESXDOS_RST8_DISK_WRITE 0x82
 #define ESXDOS_RST8_DISK_IOCTL 0x83
 #define ESXDOS_RST8_DISK_INFO 0x84
+#define ESXDOS_RST8_DISK_FILEMAP 0x85
 #define ESXDOS_RST8_M_GETSETDRV   0x89
 #define ESXDOS_RST8_M_DRIVEINFO 0x8a
 #define ESXDOS_RST8_M_GETHANDLE 0x8d	// ZXNext esx-like API extension, returns handle of current dot command

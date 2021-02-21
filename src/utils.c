@@ -4375,6 +4375,7 @@ int quickload_valid_extension(char *nombre) {
                 || !util_compare_file_extension(nombre,"tzx")
                 || !util_compare_file_extension(nombre,"pzx")
                 || !util_compare_file_extension(nombre,"sna")
+                || !util_compare_file_extension(nombre,"snx")
                 || !util_compare_file_extension(nombre,"tap")
 
                 || !util_compare_file_extension(nombre,"smp")
@@ -4543,6 +4544,7 @@ int quickload_continue(char *nombre) {
                         || !util_compare_file_extension(nombre,"spg")
                         || !util_compare_file_extension(nombre,"z80")
                         || !util_compare_file_extension(nombre,"sna")
+                        || !util_compare_file_extension(nombre,"snx")
                         || !util_compare_file_extension(nombre,"ace")
                         || !util_compare_file_extension(nombre,"rzx")
         ) {

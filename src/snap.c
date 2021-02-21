@@ -2226,6 +2226,25 @@ If RAM bank 5 is paged in, the snapshot is made up of banks 5, 2 and 5 again, fo
 
 }
 
+int load_nex_snapshot_open_esxdos(char *nombre_archivo,int forzar_filehandle_cero);
+
+void load_snx_snapshot(char *archivo)
+{
+/*
+".snx is a Spectrum snapshot file, more suitable as emulator compatibility than a real format. 
+It is identical to a 128K .sna file, but when loaded using the browser or the SPECTRUM command, 
+NextZXOS leaves file handle 0 open for further use by the program. 
+The program is expected close the handle before exiting. .snx files may also have private data appended to them. 
+They are not supported by esxDOS."
+*/
+	load_sna_snapshot(archivo);
+
+	//Si no esta esxdos handler habilitado, avisar y no hacer nada mas
+	if (esxdos_handler_enabled.v) {
+		load_nex_snapshot_open_esxdos(archivo, 1);
+	}
+}
+
 
 
 //Escribe bytes de repeticion, si conviene, o bytes aislados
@@ -5196,6 +5215,11 @@ void snapshot_load_name(char *nombre)
                         load_sna_snapshot(nombre);
                 }
 
+                else if (!util_compare_file_extension(nombre,"snx") ) {
+                        set_snap_file_options(nombre);
+                        load_snx_snapshot(nombre);
+                }
+
 
                 else if (!util_compare_file_extension(nombre,"zx") ) {
 			set_snap_file_options(nombre);
@@ -5353,8 +5377,9 @@ void autosave_snapshot_at_fixed_interval(void)
 }*/
 
 //funcion derivada y reducida de esxdos_handler_call_f_open
+//Si variable forzar_filehandle_cero es diferente de 0, es siempre el 0
 //Retorna file handle. Si <0, error
-int load_nex_snapshot_open_esxdos(char *nombre_archivo)
+int load_nex_snapshot_open_esxdos(char *nombre_archivo,int forzar_filehandle_cero)
 {
 	/*
 	;                                                                       // Open file. A=drive. HL=Pointer to null-
@@ -5374,7 +5399,8 @@ int load_nex_snapshot_open_esxdos(char *nombre_archivo)
 
 
 	//Ver si no se han abierto el maximo de archivos y obtener handle libre
-	int free_handle=esxdos_find_free_fopen();
+	int free_handle=forzar_filehandle_cero ? 0 : esxdos_find_free_fopen();
+
 	if (free_handle==-1) {
 		//esxdos_handler_error_carry(ESXDOS_ERROR_ENFILE);
 		//esxdos_handler_old_return_call();
@@ -5887,7 +5913,7 @@ y parámetro de color del tipo de fondo sólido
 			fclose(ptr_nexfile);
 
 
-			int esx_file_handler=load_nex_snapshot_open_esxdos(archivo);
+			int esx_file_handler=load_nex_snapshot_open_esxdos(archivo, 0);
 			debug_printf(VERBOSE_DEBUG,"file handle of esxdos open file: %d",esx_file_handler);
 
 			if (esx_file_handler>=0) {

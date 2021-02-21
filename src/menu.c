@@ -17800,57 +17800,16 @@ void menu_smartload(MENU_ITEM_PARAMETERS)
 
 	menu_first_aid("smartload");
 
-        char *filtros[31];
-
-        filtros[0]="zx";
-        filtros[1]="sp";
-        filtros[2]="z80";
-        filtros[3]="sna";
-
-        filtros[4]="o";
-        filtros[5]="p";
-        filtros[6]="80";
-        filtros[7]="81";
-	filtros[8]="z81";
-
-        filtros[9]="tzx";
-        filtros[10]="tap";
-
-	filtros[11]="rwa";
-	filtros[12]="smp";
-	filtros[13]="wav";
-
-	filtros[14]="epr";
-	filtros[15]="63";
-	filtros[16]="eprom";
-	filtros[17]="flash";
-
-	filtros[18]="ace";
-
-	filtros[19]="dck";
-
-	filtros[20]="cdt";
-
-	filtros[21]="ay";
-
-	filtros[22]="scr";
-
-	filtros[23]="rzx";
-
-	filtros[24]="zsf";
-
-	filtros[25]="spg";
-
-	filtros[26]="trd";
-
-	filtros[27]="nex";
-	
-	filtros[28]="dsk";
-
-	filtros[29]="pzx";
-
-	filtros[30]=0;
-
+	char *filtros[] = {
+		"zx", "sp", "z80", "sna",
+		"o", "p", "80", "81", "z81",
+		"tzx", "tap",
+		"rwa", "smp", "wav",
+		"epr", "63", "eprom", "flash",
+		"ace", "dck", "cdt", "ay", "scr", "rzx", "zsf", "spg",
+		"trd", "nex", "snx", "dsk", "pzx",
+		0
+	};
 
         //guardamos directorio actual
         char directorio_actual[PATH_MAX];
@@ -20932,26 +20891,11 @@ void menu_tape_settings(MENU_ITEM_PARAMETERS)
 void menu_snapshot_load(MENU_ITEM_PARAMETERS)
 {
 
-        char *filtros[15];
-
-        filtros[0]="zx";
-        filtros[1]="sp";
-        filtros[2]="z80";
-        filtros[3]="sna";
-        filtros[4]="o";
-        filtros[5]="p";
-
-        filtros[6]="80";
-        filtros[7]="81";
-        filtros[8]="z81";
-        filtros[9]="ace";
-		filtros[10]="rzx";
-		filtros[11]="zsf";
-		filtros[12]="spg";
-		filtros[13]="nex";
-        filtros[14]=0;
-
-
+	char *filtros[] = {
+		"zx", "sp", "z80", "sna", "o", "p", "80", "81", "z81", "ace", "rzx", "zsf", "spg",
+		"nex", "snx",
+		0
+	};
 
         //guardamos directorio actual
         char directorio_actual[PATH_MAX];
@@ -22428,6 +22372,8 @@ void menu_file_viewer_read_file(char *title,char *file_name)
 	else if (!util_compare_file_extension(file_name,"z80")) menu_file_z80_browser_show(file_name);
 
 	else if (!util_compare_file_extension(file_name,"sna")) menu_file_sna_browser_show(file_name);
+
+	else if (!util_compare_file_extension(file_name,"snx")) menu_file_sna_browser_show(file_name);
 
 	else if (!util_compare_file_extension(file_name,"spg")) menu_file_spg_browser_show(file_name);
 

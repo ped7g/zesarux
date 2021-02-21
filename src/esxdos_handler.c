@@ -2231,7 +2231,40 @@ void esxdos_handler_begin_handling_commands(void)
 			esxdos_handler_old_return_call();
 		break;*/
 
+		case ESXDOS_RST8_DISK_FILEMAP:
+			//De momento esto solo lo he encontrado en el Pogie de Next
+			if (MACHINE_IS_TBBLUE) {
+				/*
+; *************************************************************************** ; * DISK_FILEMAP ($85) * ; ***************************************************************************
+; Obtain a map of card addresses describing the space occupied by the file.
+; Can be called multiple times if buffer is filled, continuing from previous. ; Entry:
+; A=file handle (just opened, or following previous DISK_FILEMAP calls)
+;       IX [HL from dot command]=buffer (must be located >= $4000)
+;       DE=max entries (each 6 bytes: 4 byte address, 2 byte sector count)
+; Exit (success):
+; Fc=0
+; DE=max entries-number of entries returned
+;       HL=address in buffer after last entry
+;       A=card flags: bit 0=card id (0 or 1)
+;
+; Exit (failure):
+; Fc=1
+;       A=error
+				*/
+				debug_printf (VERBOSE_DEBUG,"ESXDOS handler: ESXDOS_RST8_DISK_FILEMAP. File handle: %02XH DE=%04XH PC=%04XH",reg_a,DE,reg_pc);
+				//de momento dar error 
+				//DE=0;
+				//reg_a=0;
+				//esxdos_handler_no_error_uncarry();       
+				esxdos_handler_error_carry(ESXDOS_ERROR_EBADF);
 
+				esxdos_handler_new_return_call();
+			}
+			else {
+				debug_printf (VERBOSE_DEBUG,"ESXDOS handler: Unhandled ESXDOS_RST8 : %02XH (DISK_FILEMAP)!! ",funcion); 
+				rst(8);
+			}
+		break;
 
 		default:
 			if (funcion>=0x80) {
