@@ -981,7 +981,7 @@ void reset_cpu(void)
 	datagear_reset();
 	zxndma_reset(&zxndma);
 
-	diviface_control_register&=(255-128);
+	diviface_control_register&=(255-128-64);
 	diviface_paginacion_automatica_activa.v=0;
 
 
