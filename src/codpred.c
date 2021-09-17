@@ -409,6 +409,7 @@ void instruccion_ed_49 ()
         if (MACHINE_IS_TBBLUE) {
                 //add  hl,a         ED 31          4+4  Add A to HL (no flags set)
                 HL +=reg_a;
+                Z80_FLAGS &= ~FLAG_C; // core 3.1.5 seems to mostly reset CF, but maybe could get set sometimes
         }
         
         else invalid_opcode_ed("237 49");
@@ -419,6 +420,7 @@ void instruccion_ed_50 ()
         if (MACHINE_IS_TBBLUE) {
                 //add  de,a         ED 32          4+4  Add A to DE (no flags set)
                 DE +=reg_a;
+                Z80_FLAGS &= ~FLAG_C; // core 3.1.5 seems to mostly reset CF, but maybe could get set sometimes
         }
         
         else invalid_opcode_ed("237 50");
@@ -429,6 +431,7 @@ void instruccion_ed_51 ()
         if (MACHINE_IS_TBBLUE) {
                 //add  bc,a         ED 33          4+4  Add A to BC (no flags set)
                 BC +=reg_a;
+                Z80_FLAGS &= ~FLAG_C; // core 3.1.5 seems to mostly reset CF, but maybe could get set sometimes
         }  
         
         else invalid_opcode_ed("237 51");
