@@ -605,7 +605,16 @@ void core_spectrum_handle_interrupts(void)
 
 					//justo despues de EI no debe generar interrupcion
 					//e interrupcion nmi tiene prioridad
-						if (interrupcion_maskable_generada.v && byte_leido_core_spectrum!=251) {
+
+						//if (interrupcion_maskable_generada.v && byte_leido_core_spectrum!=251) {
+
+						// check if masked interrupt is inhibited by EI (opcode 251), delay the acceptance
+						// or reset interrupcion_maskable_generada.v to zero when /INT signal did end
+						if (interrupcion_maskable_generada.v) {
+							if (251 == byte_leido_core_spectrum) {
+								interrupcion_maskable_generada.v = (t_estados < cpu_duracion_pulso_interrupcion);
+								return;
+							}
 
 						//printf ("Lanzada interrupcion spectrum normal\n");
 
