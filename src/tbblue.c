@@ -4511,8 +4511,8 @@ void tbblue_set_layer_priorities_border_only(void)
 
 z80_int tbblue_get_border_color(z80_int color)
 {
-	if (!tbblue_if_ula_is_enabled()) {
-		// when ULA layer is disabled, return "transparency fallback" colour instead of border
+	if (!tbblue_if_ula_is_enabled() || 6 <= tbblue_get_layers_priorities()) {
+		// when ULA layer is disabled or blending mode is ON, return "transparency fallback" colour
 		return RGB9_INDEX_FIRST_COLOR + tbblue_get_9bit_colour(tbblue_registers[0x4A]);
 	}
     int flash_disabled = tbblue_registers[0x43]&1;  //flash_disabled se llamaba antes. ahora indica "enable ulanext"
@@ -5400,13 +5400,11 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		tbblue_set_layer_priorities();
 	}
 
-	// resolve blending modes by specialized routine
-	if (6 <= tbblue_get_layers_priorities()) {
-		if (!estamos_borde_supinf || tbblue_is_layer2_256height()) {
-			tbblue_render_blended_rainbow(puntero_final_rainbow, ancho_rainbow, fallbackcolour);
-			// inside paper area -> enough was done
-			return;
-		}
+	// resolve blending modes by specialized routine (when layer2 is not Y-clipped -> capalayer2==1)
+	if (capalayer2 && 6 <= tbblue_get_layers_priorities()) {
+		// non-clipped visible L2 area
+		tbblue_render_blended_rainbow(puntero_final_rainbow, ancho_rainbow, fallbackcolour);
+		return;
 	}
 
 	//printf ("ancho total: %d size layers: %d\n",get_total_ancho_rainbow(),TBBLUE_LAYERS_PIXEL_WIDTH );
@@ -5422,7 +5420,7 @@ void tbblue_render_layers_rainbow(int capalayer2,int capasprites)
 		tbblue_fast_render_ula_layer(puntero_final_rainbow,estamos_borde_supinf,final_borde_izquierdo,inicio_borde_derecho,ancho_rainbow);
 
 	} else {
-		if (!estamos_borde_supinf || tbblue_is_layer2_256height()) {
+		if (capalayer2 || !estamos_borde_supinf) {
 
 			for (i=0;i<ancho_rainbow;i++) {
 
