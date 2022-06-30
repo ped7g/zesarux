@@ -289,9 +289,10 @@ int tbblue_initial_123b_port=-1;
 
 
 //Layers con el indice al color final en la paleta RGB9 (0..511)
-z80_int tbblue_layer_ula[TBBLUE_LAYERS_PIXEL_WIDTH];
-z80_int tbblue_layer_layer2[TBBLUE_LAYERS_PIXEL_WIDTH];
-z80_int tbblue_layer_sprites[TBBLUE_LAYERS_PIXEL_WIDTH];
+static z80_int tbblue_layer_ula[TBBLUE_LAYERS_PIXEL_WIDTH];
+static z80_int tbblue_layer_blend[TBBLUE_LAYERS_PIXEL_WIDTH];
+static z80_int tbblue_layer_layer2[TBBLUE_LAYERS_PIXEL_WIDTH];
+static z80_int tbblue_layer_sprites[TBBLUE_LAYERS_PIXEL_WIDTH];
 
 
 //Indice a la posicion de 16 bits a escribir
@@ -1247,6 +1248,16 @@ int tbblue_if_ula_is_enabled(void)
 
 	if (tbblue_registers[104]&128) return 0;
 	else return 1;
+}
+
+int tbblue_is_blending_ula(void)
+{
+	return !(0x20 & tbblue_registers[0x68]) && (6 <= tbblue_get_layers_priorities());
+}
+
+int tbblue_is_blending_tiles(void)
+{
+	return (0x40 & tbblue_registers[0x68]) && (6 <= tbblue_get_layers_priorities());
 }
 
 void tbblue_reset_sprites(void)
@@ -4400,13 +4411,6 @@ z80_byte tbblue_get_layers_priorities(void)
 
 void tbblue_set_layer_priorities(void)
 {
-	//Por defecto
-	//sprites over the Layer 2, over the ULA graphics
-	p_layer_first=tbblue_layer_sprites;
-	p_layer_second=tbblue_layer_layer2;
-	p_layer_third=tbblue_layer_ula;
-
-
 	/*
 	(R/W) 0x15 (21) => Sprite and Layers system
   bit 7 - LoRes mode, 128 x 96 x 256 colours (1 = enabled)
@@ -4425,58 +4429,42 @@ void tbblue_set_layer_priorities(void)
   bit 0 = Sprites visible (1 = visible)(Back to 0 after a reset)
   */
 	z80_byte prio=tbblue_get_layers_priorities();
-
-	//printf ("prio: %d\n",prio);
-
 	switch (prio) {
-		case 0:
-			p_layer_first=tbblue_layer_sprites;
-			p_layer_second=tbblue_layer_layer2;
-			p_layer_third=tbblue_layer_ula;
-
-		break;
-
 		case 1:
 			p_layer_first=tbblue_layer_layer2;
 			p_layer_second=tbblue_layer_sprites;
 			p_layer_third=tbblue_layer_ula;
-
 		break;
-
 
 		case 2:
 			p_layer_first=tbblue_layer_sprites;
 			p_layer_second=tbblue_layer_ula;
 			p_layer_third=tbblue_layer_layer2;
-
 		break;
 
 		case 3:
 			p_layer_first=tbblue_layer_layer2;
 			p_layer_second=tbblue_layer_ula;
 			p_layer_third=tbblue_layer_sprites;
-
 		break;
 
 		case 4:
 			p_layer_first=tbblue_layer_ula;
 			p_layer_second=tbblue_layer_sprites;
 			p_layer_third=tbblue_layer_layer2;
-
 		break;
 
 		case 5:
 			p_layer_first=tbblue_layer_ula;
 			p_layer_second=tbblue_layer_layer2;
 			p_layer_third=tbblue_layer_sprites;
-
 		break;
 
+		// case 0, case 6, case 7
 		default:
 			p_layer_first=tbblue_layer_sprites;
 			p_layer_second=tbblue_layer_layer2;
 			p_layer_third=tbblue_layer_ula;
-
 		break;	
 	}
 
@@ -4894,12 +4882,12 @@ void tbblue_do_tile_overlay(int scanline)
 z80_int tbblue_layer_ula[TBBLUE_LAYERS_PIXEL_WIDTH];
 */
 
-	z80_int *puntero_a_layer;
-	puntero_a_layer=&tbblue_layer_ula[(48-32)*2]; //Inicio de pantalla es en offset 48, restamos 32 pixeles que es donde empieza el tile
-																								//*2 porque es doble de ancho
+	z80_int* puntero_a_layer = tbblue_is_blending_tiles() ? tbblue_layer_blend : tbblue_layer_ula;
+	//Inicio de pantalla es en offset 48, restamos 32 pixeles que es donde empieza el tile
+	//*2 porque es doble de ancho
+	puntero_a_layer += (48-32)*2;
 
-	z80_int *orig_puntero_a_layer;
-	orig_puntero_a_layer=puntero_a_layer;
+	z80_int* orig_puntero_a_layer = puntero_a_layer;
 
   /*
 Bit	Function
@@ -5290,20 +5278,25 @@ void tbblue_fast_render_ula_layer(z80_int *puntero_final_rainbow,int estamos_bor
 
 void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int ancho_rainbow, z80_int fallbackcolour)
 {
+	//FIXME since core 3.1.3 there are more blending modes with tile/ULA separation possible
+	// this is now partially implemented without correctly sorting non-blend layers (always under sprites)
+
 	const int sub = (6 == tbblue_get_layers_priorities()) ? 0 : -5;	// subtract to blend value
-	int i;
-	for (i=0;i<ancho_rainbow;i++) {
+	for (int i=0;i<ancho_rainbow;i++) {
 
 		const z80_int l2_color = tbblue_layer_layer2[i];
 		int priority = (l2_color&TBBLUE_LAYER2_PRIORITY) && !tbblue_si_sprite_transp_ficticio(l2_color);
-		//TODO
-		// ula_color should be only ULA or ULA+tile, depending on 0x68 (104) => ULA Control bit 6
-		// but at this point I have only ULA+tile in the layer buffer, no idea how to get ULA-only
-		// (as the tilemap may be drawn above blended pixel, this probably requires fourth buffer!)
-		//TODO since core 3.1.3 there are more blending modes with tile/ULA separation possible
+
+		z80_int color = TBBLUE_SPRITE_TRANS_FICT;
+		// if L2 priority bit is not set, consider layers above the B+L blending layer first
+		if (!priority) {
+			// this doesn't sort correctly "U|T,S,T|U" part of blend-layering, sprites are
+			// always above T|U non-blend part (would require per-tile info from tile+ula renderer)
+			color = tbblue_layer_sprites[i];
+			if (tbblue_si_sprite_transp_ficticio(color)) color = tbblue_layer_ula[i];
+		}
 
 		// if L2 priority bit is set, ignore sprites pixel (priority bit should win)
-		z80_int color = priority ? TBBLUE_SPRITE_TRANS_FICT : tbblue_layer_sprites[i];
 		if (tbblue_si_sprite_transp_ficticio(color)) {
 			// check if blending is possible (no transparent color allowed)
 			if (tbblue_si_sprite_transp_ficticio(l2_color)) {
@@ -5313,14 +5306,14 @@ void tbblue_render_blended_rainbow(z80_int *puntero_final_rainbow, int ancho_rai
 				// (if it ever gets modified, check git history for border checks implemented)
 				color = fallbackcolour;
 			} else {
-				const z80_int ula_color = tbblue_layer_ula[i];
-				if (tbblue_si_sprite_transp_ficticio(ula_color)) {
+				const z80_int blend_color = tbblue_layer_blend[i];
+				if (tbblue_si_sprite_transp_ficticio(blend_color)) {
 					color = l2_color&0x1FF;	// only L2 color (remove priority bit)
 				} else {
 					// blend L2 + ULA
-					int channel_b = (l2_color&0x007) + (ula_color&0x007);
-					int channel_g = (l2_color&0x038) + (ula_color&0x038);
-					int channel_r = (l2_color&0x1C0) + (ula_color&0x1C0);
+					int channel_b = (l2_color&0x007) + (blend_color&0x007);
+					int channel_g = (l2_color&0x038) + (blend_color&0x038);
+					int channel_r = (l2_color&0x1C0) + (blend_color&0x1C0);
 					// subtract -5 and clamp on zero value (if in "U+L-5" mode)
 					if (sub) {
 						channel_b += sub<<0;
@@ -5707,6 +5700,7 @@ void tbblue_do_ula_standard_overlay()
 	int fila=scanline_copia/8;
 	int dir_atributo=6144+(fila*32);
 
+	z80_int* layer = tbblue_is_blending_ula() ? tbblue_layer_blend : tbblue_layer_ula;
 
 	z80_byte *puntero_buffer_atributos;
 	z80_byte col6;
@@ -5840,8 +5834,8 @@ void tbblue_do_ula_standard_overlay()
 				//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
 				if (tbblue_si_transparent(color)) color=TBBLUE_SPRITE_TRANS_FICT;
 
-				tbblue_layer_ula[posicion_array_layer-pixelOffset*2]=color;
-				if (si_timex_hires.v==0) tbblue_layer_ula[posicion_array_layer-pixelOffset*2+1]=color; //doble de ancho
+				layer[posicion_array_layer-pixelOffset*2]=color;
+				if (si_timex_hires.v==0) layer[posicion_array_layer-pixelOffset*2+1]=color; //doble de ancho
 			}
 
 		
@@ -5923,11 +5917,17 @@ void tbblue_do_ula_lores_overlay()
 	int posicion_array_layer=0;
 	posicion_array_layer +=(screen_total_borde_izquierdo*2); //Doble de ancho
 
+// 0x68 (104) => ULA Control
+// (R/W)
+//   bit 7 = Disable ULA output (soft reset = 0)
+//   bits 6:5 = Blending in SLU modes 6 & 7 (soft reset = 0)
+//            = 00 for ula as blend colour
+//            = 10 for ula/tilemap mix result as blend colour
+//            = 11 for tilemap as blend colour
+//            = 01 for no blending
+	z80_int* layer = tbblue_is_blending_ula() ? tbblue_layer_blend : tbblue_layer_ula;
 
-	int posx;
-	z80_int color_final;
-
-	for (posx=0;posx<256;posx++) {
+	for (int posx=0;posx<256;posx++) {
 				
 		color=lores_pointer[posicion_x_lores_pointer/2];
 		//tenemos indice color de paleta
@@ -5942,13 +5942,13 @@ void tbblue_do_ula_lores_overlay()
 		//(W) 0x1A (26) => Clip Window ULA/LoRes
 		if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1] && scanline_copia>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] && scanline_copia<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][3]) {
 			if (!tbblue_force_disable_layer_ula.v) {
-				color_final=tbblue_get_palette_active_ula(color);
+				z80_int color_final=tbblue_get_palette_active_ula(color);
 
 				//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
 				if (tbblue_si_transparent(color_final)) color_final=TBBLUE_SPRITE_TRANS_FICT;
 
-				tbblue_layer_ula[posicion_array_layer]=color_final;
-				tbblue_layer_ula[posicion_array_layer+1]=color_final; //doble de ancho
+				layer[posicion_array_layer]=color_final;
+				layer[posicion_array_layer+1]=color_final; //doble de ancho
 
 			}
 		}
@@ -5979,6 +5979,7 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
 	memset(tbblue_layer_ula,0xFF,tamanyo_clear);
 	memset(tbblue_layer_layer2,0xFF,tamanyo_clear);
 	memset(tbblue_layer_sprites,0xFF,tamanyo_clear);
+	if (6 <= tbblue_get_layers_priorities()) memset(tbblue_layer_blend,0xFF,tamanyo_clear);
 
 	const int paperY = t_scanline_draw - screen_indice_inicio_pant;
 	// fullY is 0..255 (for 320x256 like Tiles, Sprites, Layer 2, ...), PAPER area starts at fullY==32
