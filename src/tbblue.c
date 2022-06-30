@@ -3686,6 +3686,11 @@ void tbblue_set_value_port_position(const z80_byte index_position,z80_byte value
 	z80_byte last_register_21=tbblue_registers[21];
 	z80_byte last_register_66=tbblue_registers[66];
 	z80_byte last_register_67=tbblue_registers[67];
+
+	//FIXME any write to even copper address, even by 0x60 will be used by 0x63 to finish whole 16b instruction
+	// so this should rather have something like "cu_last_even_address_byte" instead of last_register_99
+	// write directly to odd address through 0x63 right after power up will use zero as first byte
+	// - write first test verifying Allen's note about 0x60 interconnected, then adjust emulator
 	z80_byte last_register_99=tbblue_registers[99];
 
 	switch(index_position) {
@@ -4338,20 +4343,20 @@ struct s_tbblue_priorities_names {
 };
 
 
-struct s_tbblue_priorities_names tbblue_priorities_names[8]={
+static const struct s_tbblue_priorities_names tbblue_priorities_names[8]={
 	{ { "Sprites" ,  "Layer 2"  ,  "ULA&Tiles" } },
 	{ { "Layer 2" ,  "Sprites"  ,  "ULA&Tiles" } },
-	{ { "Sprites" ,  "ULA&Tiles"  ,  "Layer 2" } },
-	{ { "Layer 2" ,  "ULA&Tiles"  ,  "Sprites" } },
-	{ { "ULA&Tiles" ,  "Sprites"  ,  "Layer 2" } },
-	{ { "ULA&Tiles" ,  "Layer 2"  ,  "Sprites" } },
-	{ { "Sprites" ,  "ULA+L2"   ,  "-" } },
-	{ { "Sprites" ,  "ULA+L2-5" ,  "-" } },
+	{ { "Sprites" ,  "ULA&Tiles",  "Layer 2"   } },
+	{ { "Layer 2" ,  "ULA&Tiles",  "Sprites"   } },
+	{ { "ULA&Tiles", "Sprites"  ,  "Layer 2"   } },
+	{ { "ULA&Tiles", "Layer 2"  ,  "Sprites"   } },
+	{ { "Sprites" ,  "ULA|Tiles",  "B+L2"      } },
+	{ { "Sprites" ,  "ULA|Tiles",  "B+L2-5"    } },
 };
 
 //Retorna el texto de la capa que corresponde segun el byte de prioridad y la capa demandada en layer
 //La capa de arriba del todo, es capa 0. La de en medio, la 1, etc
-char *tbblue_get_string_layer_prio(int layer,z80_byte prio)
+const char *tbblue_get_string_layer_prio(int layer,z80_byte prio)
 {
 /*
      Reset default is 000, sprites over the Layer 2, over the ULA graphics

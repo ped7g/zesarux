@@ -286,7 +286,7 @@ extern z80_bit tbblue_force_disable_layer_layer_two;
 extern int tbblue_if_sprites_enabled(void);
 extern int tbblue_if_ula_is_enabled(void);
 
-extern char *tbblue_get_string_layer_prio(int layer,z80_byte prio);
+extern const char *tbblue_get_string_layer_prio(int layer,z80_byte prio);
 
 extern void tbblue_get_string_palette_format(char *texto);
 
