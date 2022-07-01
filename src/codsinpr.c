@@ -2136,24 +2136,24 @@ void instruccion_221()
 
 //Prefijo 221 DD - Instrucciones XY
 
-                contend_read( reg_pc, 4 );
-
-
-		pref221_opcode_leido=fetch_opcode ();
+        pref221_opcode_leido=fetch_opcode ();
 
 #ifdef EMULATE_CPU_STATS
-		util_stats_increment_counter(stats_codprdd,pref221_opcode_leido);
+        util_stats_increment_counter(stats_codprdd,pref221_opcode_leido);
 #endif
 
-                reg_pc++;
-                reg_r++;
-								rzx_in_fetch_counter_til_next_int_counter++;
+        if (0xDD == pref221_opcode_leido || 0xFD == pref221_opcode_leido) {
+                core_refetch = 1;
+                return;
+        }
 
-		registro_ixiy=&reg_ix;
-                codprddfd[pref221_opcode_leido]  () ;
+        contend_read( reg_pc, 4 );
+        reg_pc++;
+        reg_r++;
+        rzx_in_fetch_counter_til_next_int_counter++;
 
-
-
+        registro_ixiy = &reg_ix;
+        codprddfd[pref221_opcode_leido] () ;
 }
 
 void instruccion_222()
@@ -2585,21 +2585,24 @@ void instruccion_253()
 
 //Prefijo 253 FD - Instrucciones XY
 
-                contend_read( reg_pc, 4 );
-
-		pref253_opcode_leido=fetch_opcode ();
+        pref253_opcode_leido=fetch_opcode ();
 
 #ifdef EMULATE_CPU_STATS
-                util_stats_increment_counter(stats_codprfd,pref253_opcode_leido);
+        util_stats_increment_counter(stats_codprfd,pref253_opcode_leido);
 #endif
 
-                reg_pc++;
-                reg_r++;
-								rzx_in_fetch_counter_til_next_int_counter++;
+        if (0xDD == pref253_opcode_leido || 0xFD == pref253_opcode_leido) {
+                core_refetch = 1;
+                return;
+        }
 
-                registro_ixiy=&reg_iy;
-                codprddfd[pref253_opcode_leido]  () ;
+        contend_read( reg_pc, 4 );
+        reg_pc++;
+        reg_r++;
+        rzx_in_fetch_counter_til_next_int_counter++;
 
+        registro_ixiy = &reg_iy;
+        codprddfd[pref253_opcode_leido] () ;
 }
 
 void instruccion_254()
