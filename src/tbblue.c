@@ -4688,11 +4688,10 @@ void tbblue_do_tile_putpixel_monocrome(z80_byte pixel_color,z80_int *puntero_a_l
 		//No es color transparente el que ponemos
 
 		//Vemos lo que hay en la capa
-		z80_int color_previo_capa;
-		color_previo_capa=*puntero_a_layer;
+		z80_int color_previo_capa = *puntero_a_layer;
 
 		//Poner pixel tile si color de ula era transparente o bien la ula está por debajo
-		if (tbblue_si_sprite_transp_ficticio(color_previo_capa) || !ula_over_tilemap) {
+		if (!ula_over_tilemap || tbblue_si_sprite_transp_ficticio(color_previo_capa)) {
 			*puntero_a_layer = color;
 		}
 
@@ -4700,29 +4699,45 @@ void tbblue_do_tile_putpixel_monocrome(z80_byte pixel_color,z80_int *puntero_a_l
 
 }
 
-void tbblue_do_tile_putpixel(z80_byte pixel_color,z80_byte transparent_colour,z80_byte tpal,z80_int *puntero_a_layer,int ula_over_tilemap)
+void tbblue_do_tile_putpixel(z80_byte pixel_color,z80_byte transparent_colour,z80_byte tpal,z80_int *puntero_a_layer,int ula_over_tilemap,int stencil)
 {
-	if (tbblue_tiles_are_monocrome()) {
+	if (!stencil) {
+		// regular tilemap (not stencil)
+		if (tbblue_tiles_are_monocrome()) {
 
-		tbblue_do_tile_putpixel_monocrome(pixel_color|tpal, puntero_a_layer, ula_over_tilemap);
+			tbblue_do_tile_putpixel_monocrome(pixel_color|tpal, puntero_a_layer, ula_over_tilemap);
 
-	} else {
+		} else {
 
-			if (pixel_color!=transparent_colour) {
-				//No es color transparente el que ponemos
-				pixel_color |=tpal;
+				if (pixel_color != transparent_colour) {
+					//No es color transparente el que ponemos
+					pixel_color |= tpal;
 
-				//Vemos lo que hay en la capa
-				z80_int color_previo_capa;
-				color_previo_capa=*puntero_a_layer;
+					//Poner pixel tile si color de ula era transparente o bien la ula está por debajo
+					if (!ula_over_tilemap || tbblue_si_sprite_transp_ficticio(*puntero_a_layer)) {
+						*puntero_a_layer = tbblue_tile_return_color_index(pixel_color);
+					}
 
-				//Poner pixel tile si color de ula era transparente o bien la ula está por debajo
-				if (tbblue_si_sprite_transp_ficticio(color_previo_capa) || !ula_over_tilemap) { 
-					*puntero_a_layer=tbblue_tile_return_color_index(pixel_color);
 				}
 
-			}
+		}
+	} else {
+		// stencil mode - check if ULA pixel is transparent
+		z80_int ula_color = *puntero_a_layer;
+		if (tbblue_si_sprite_transp_ficticio(ula_color)) return;
 
+		// get tile pixel color
+		z80_int tile_color = TBBLUE_SPRITE_TRANS_FICT;
+		if (tbblue_tiles_are_monocrome()) {
+
+			tbblue_do_tile_putpixel_monocrome(pixel_color|tpal, &tile_color, ula_over_tilemap);
+
+		} else if (pixel_color != transparent_colour) {
+
+			tile_color = tbblue_tile_return_color_index(pixel_color | tpal);
+
+		}
+		*puntero_a_layer = tbblue_si_sprite_transp_ficticio(tile_color) ? TBBLUE_SPRITE_TRANS_FICT : (tile_color & ula_color);
 	}
 }
 
@@ -4858,7 +4873,7 @@ int temp_tile_rebote_incx=+1;
 int temp_tile_rebote_incy=+1;
 int temp_tile_rebote_veces=0;*/
 
-void tbblue_do_tile_overlay(int scanline)
+void tbblue_do_tile_overlay(int scanline, int stencil)
 {
 	//Gestion scroll vertical
 	int scroll_y=tbblue_registers[49];
@@ -5198,12 +5213,11 @@ Defines the transparent colour index for tiles. The 4-bit pixels of a tile defin
 
 		for (pixel_tile=0;pixel_tile<8;pixel_tile++) {
 
-			z80_byte pixel;
-			pixel=tbblue_get_pixel_tile_xy(sx,sy,puntero_this_tiledef);
+			z80_byte pixel = tbblue_get_pixel_tile_xy(sx,sy,puntero_this_tiledef);
 
 			if (destino_x_pixel>=clipwindow_min_x && destino_x_pixel<clipwindow_max_x) {
-				tbblue_do_tile_putpixel(pixel,transparent_colour,tpal,puntero_a_layer,ula_over_tilemap);
-				if (tilemap_width==40) tbblue_do_tile_putpixel(pixel,transparent_colour,tpal,puntero_a_layer+1,ula_over_tilemap);
+				tbblue_do_tile_putpixel(pixel,transparent_colour,tpal,puntero_a_layer,ula_over_tilemap,stencil);
+				if (tilemap_width==40) tbblue_do_tile_putpixel(pixel,transparent_colour,tpal,puntero_a_layer+1,ula_over_tilemap,stencil);
 			}
 			puntero_a_layer++;
 			if (tilemap_width==40) puntero_a_layer++;
@@ -5801,20 +5815,11 @@ void tbblue_do_ula_lores_overlay()
 
 	//Y scroll horizontal
 	posicion_x_lores_pointer=tbblue_registers[0x32];
-  		
 
 
 	int posicion_array_layer=0;
 	posicion_array_layer +=(screen_total_borde_izquierdo*2); //Doble de ancho
 
-// 0x68 (104) => ULA Control
-// (R/W)
-//   bit 7 = Disable ULA output (soft reset = 0)
-//   bits 6:5 = Blending in SLU modes 6 & 7 (soft reset = 0)
-//            = 00 for ula as blend colour
-//            = 10 for ula/tilemap mix result as blend colour
-//            = 11 for tilemap as blend colour
-//            = 01 for no blending
 	z80_int* layer = tbblue_is_blending_ula() ? tbblue_layer_blend : tbblue_layer_ula;
 
 	for (int posx=0;posx<256;posx++) {
@@ -5883,6 +5888,9 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
 
 	int capalayer2=0;
 	int capasprites=0;
+	int stencil = !tbblue_force_disable_layer_ula.v && !tbblue_force_disable_layer_tilemap.v
+					&& tbblue_if_ula_is_enabled() && tbblue_if_tilemap_enabled()
+					&& (0x01 & tbblue_registers[0x68]);
 
   	// LoRes and ULA modes are visible only in PAPER area
   	if (0 <= paperY && paperY < 192) {
@@ -5912,17 +5920,18 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
 
 	//Overlay de Tilemap
 	if ( tbblue_if_tilemap_enabled() && tbblue_force_disable_layer_tilemap.v==0) {
-		/*
+		//Tener en cuenta clip window
+		if (clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][2] <= fullY && fullY <= clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][3]) {
+			/*
 				The tilemap display surface extends 32 pixels around the central 256×192 display.
 The origin of the clip window is the top left corner of this area 32 pixels to the left and 32 pixels above 
 the central 256×192 display. The X coordinates are internally doubled to cover the full 320 pixel width of the surface.
  The clip window indicates the portion of the tilemap display that is non-transparent and its indicated extent is inclusive; 
  it will extend from X1*2 to X2*2+1 horizontally and from Y1 to Y2 vertically.
 			*/
-
-		//Tener en cuenta clip window
-		if (fullY>=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][2] && fullY<=clip_windows[TBBLUE_CLIP_WINDOW_TILEMAP][3]) {
-			tbblue_do_tile_overlay(fullY);
+			tbblue_do_tile_overlay(fullY, stencil);
+		} else {
+			if (stencil) memset(tbblue_layer_ula,0xFF,tamanyo_clear);	// erase ula layer if there are no tiles to stencil against
 		}
 	}
 
