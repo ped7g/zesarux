@@ -1250,14 +1250,18 @@ int tbblue_if_ula_is_enabled(void)
 	else return 1;
 }
 
-int tbblue_is_blending_ula(void)
+static int tbblue_is_blending_ula(void)
 {
 	return !(0x20 & tbblue_registers[0x68]) && (6 <= tbblue_get_layers_priorities());
 }
 
-int tbblue_is_blending_tiles(void)
+static int tbblue_is_blending_tiles(void)
 {
 	return (0x40 & tbblue_registers[0x68]) && (6 <= tbblue_get_layers_priorities());
+}
+
+static int tbblue_ula_halfscroll(void) {
+	return 1 & (tbblue_registers[0x68] >> 2);
 }
 
 void tbblue_reset_sprites(void)
@@ -5639,139 +5643,70 @@ z80_bit tbblue_reveal_layer_sprites={0};
 
 void tbblue_do_ula_standard_overlay()
 {
-
 	if (tbblue_force_disable_layer_ula.v) return;
 
-	//Render de capa standard ULA (normal, timex) 
+	//Render de capa standard ULA (normal, timex)
 
-	//printf ("scan line de pantalla fisica (no border): %d\n",t_scanline_draw);
-
-	//linea que se debe leer
-	int scanline_copia=t_scanline_draw-screen_indice_inicio_pant;
-
+	int scanline_copia = t_scanline_draw - screen_indice_inicio_pant;
 	if (scanline_copia < clip_windows[TBBLUE_CLIP_WINDOW_ULA][2] || clip_windows[TBBLUE_CLIP_WINDOW_ULA][3] < scanline_copia) {
 		return;		// clipped on Y-position
 	}
+	const z80_byte tbblue_scroll_y = tbblue_registers[0x27];	// 0x27 (39) => ULA Y Scroll, bits 7:0 = Y Offset (0-191)
+	scanline_copia += tbblue_scroll_y;
+	scanline_copia %= 192;
 
-	int x,bit;
-	z80_int direccion;
-	z80_byte byte_leido;
+	const z80_byte ula_offset_x = tbblue_registers[0x26];	// 0x26 (38) => ULA X Scroll, bits 7:0 = X Offset (0-255)
+	int posicion_array_layer = -2 * (ula_offset_x & 7) - tbblue_ula_halfscroll();
+	int pos_no_rainbow_pix_x = ula_offset_x / 8;
 
+	z80_int* layer = (tbblue_is_blending_ula() ? tbblue_layer_blend : tbblue_layer_ula) + (2 * screen_total_borde_izquierdo);
 
-	int color=0;
-	z80_byte attribute;
-	z80_int ink,paper;
+	// x clip coordinates in half-width pixels, <closed,open) interval -> transformed to be compared against layer[] index
+	int x1 = 2 * clip_windows[TBBLUE_CLIP_WINDOW_ULA][0];
+	int x2 = 2 * clip_windows[TBBLUE_CLIP_WINDOW_ULA][1] + 2;
+	if (x2 <= x1) return;	// fully clipped horizontally
 
-
-	z80_byte *screen=get_base_mem_pantalla();
-
-/*
-	(R/W) 0x26 (38) => ULA X Scroll
-	bits 7:0 = X Offset (0-255) (soft reset = 0)
-
-	(R/W) 0x27 (39) => ULA Y Scroll
-	bits 7:0 = Y Offset (0-191) (soft reset = 0)
-*/
-
-	z80_byte ula_offset_x=tbblue_registers[0x26];
-	int indice_origen_bytes=(ula_offset_x/8)*2; //*2 dado que leemos del puntero_buffer_atributos que guarda 2 bytes: pixel y atributo	
-	int pixelOffset=(ula_offset_x&7);
-
-	z80_byte tbblue_scroll_y=tbblue_registers[0x27];
-
-	scanline_copia +=tbblue_scroll_y;
-	scanline_copia=scanline_copia % 192;
-
-
-
-	//Usado cuando hay scroll vertical y por tanto los pixeles y atributos salen de la pantalla tal cual (modo sin rainbow)
-	int pos_no_rainbow_pix_x;
-
-
-	//scroll x para modo no rainbow (es decir, cuando hay scroll vertical)
-	pos_no_rainbow_pix_x=ula_offset_x/8;
-	pos_no_rainbow_pix_x %=32;	
-
+	const z80_byte *screen=get_base_mem_pantalla();
+	z80_byte byte_leido, attribute;
+	z80_int ink, paper;
 
 	//Estos direccion y dir_atributo usados cuando hay scroll vertical y por tanto los pixeles y atributos salen de la pantalla tal cual (modo sin rainbow),
 	//y tambien en timex 512x192
-	direccion=screen_addr_table[(scanline_copia<<5)];
+	const z80_int direccion = screen_addr_table[scanline_copia * 32];
+	const z80_int dir_atributo = 6144 + ((scanline_copia / 8) * 32);
 
-	int fila=scanline_copia/8;
-	int dir_atributo=6144+(fila*32);
+	//Modos de video Timex:
+	// 000 - Video data at address 16384 and 8x8 color attributes at address 22528 (like on ordinary Spectrum);
+	// 001 - Video data at address 24576 and 8x8 color attributes at address 30720;
+	// 010 - Multicolor mode: video data at address 16384 and 8x1 color attributes at address 24576;
+	// 110 - Extended resolution: without color attributes, even columns of video data are taken from address 16384, and odd columns of video data are taken from address 24576
+	z80_byte timex_video_mode = timex_video_emulation.v ? (timex_port_ff&7) : 0;
+	z80_bit si_timex_hires = { 6 == timex_video_mode };
+	z80_bit si_timex_8_1 = { 2 == timex_video_mode };
+	//512x192 monocromo. y color siempre fijo, bits D3-D5 are ink color, paper is complement, colors are bright
+	z80_byte hires_ink = si_timex_hires.v ? get_timex_ink_mode6_color() : 0;
+	z80_byte hires_attr = 0x40 | ((hires_ink ^ 7) << 3) | hires_ink;
 
-	z80_int* layer = tbblue_is_blending_ula() ? tbblue_layer_blend : tbblue_layer_ula;
-
-	z80_byte *puntero_buffer_atributos;
-	z80_byte col6;
-	z80_byte tin6, pap6;
-
-	z80_byte timex_video_mode=timex_port_ff&7;
-	z80_bit si_timex_hires={0};
-	z80_bit si_timex_8_1={0};
-
-	if (timex_video_mode==2) si_timex_8_1.v=1;
-
-	//Por defecto
-	puntero_buffer_atributos=scanline_buffer;
-
-	if (timex_video_emulation.v) {
-	//Modos de video Timex
-	/*
-000 - Video data at address 16384 and 8x8 color attributes at address 22528 (like on ordinary Spectrum);
-
-001 - Video data at address 24576 and 8x8 color attributes at address 30720;
-
-010 - Multicolor mode: video data at address 16384 and 8x1 color attributes at address 24576;
-
-110 - Extended resolution: without color attributes, even columns of video data are taken from address 16384, and odd columns of video data are taken from address 24576
-	*/
-		switch (timex_video_mode) {
-
-			case 4:
-			case 6:
-				//512x192 monocromo. 
-				//y color siempre fijo
-				/*
-	bits D3-D5: Selection of ink and paper color in extended screen resolution mode (000=black/white, 001=blue/yellow, 010=red/cyan, 011=magenta/green, 100=green/magenta, 101=cyan/red, 110=yellow/blue, 111=white/black); these bits are ignored when D2=0
-
-				black, blue, red, magenta, green, cyan, yellow, white
-				*/
-
-				//Si D2==0, these bits are ignored when D2=0?? Modo 4 que es??
-
-				tin6=get_timex_ink_mode6_color();
-
-
-				//Obtenemos color
-				pap6=get_timex_paper_mode6_color();
-				//printf ("papel: %d\n",pap6);
-
-				//Y con brillo
-				col6=((pap6*8)+tin6)+64;
-
-			
-				si_timex_hires.v=1;
-			break;
-
-
-		}
-	}
-
-	//Capa de destino
-	int posicion_array_layer=0;
-	posicion_array_layer +=(screen_total_borde_izquierdo*2); //Doble de ancho
-
-
-	int columnas=33;
-
+	// calculate first/last column which are partially visible within horizontal clipping
+	// (Timex hires = pair of columns visible)
+	int columnMin = (x1 - posicion_array_layer) / 16;
+	int columnMax = (x2 - posicion_array_layer + 15) / 16;
+	pos_no_rainbow_pix_x += columnMin;
+	pos_no_rainbow_pix_x %= 32;
+	posicion_array_layer += columnMin * 16;
 	if (si_timex_hires.v) {
-		columnas=66;
+		columnMin *= 2;
+		columnMax *= 2;
 	}
 
-    for (x=0;x<columnas;x++) {
+	for (int column = columnMin; column < columnMax; ++column) {
 
-		if (tbblue_scroll_y) {
+		if (si_timex_hires.v) {
+			// alternate video ram 0x4000/0x6000 per odd/even columns
+			byte_leido = screen[((column&1) * 0x2000) + direccion + pos_no_rainbow_pix_x];
+			attribute=hires_attr;
+
+		} else if (tbblue_scroll_y) {
 			//Si hay scroll vertical (no es 0) entonces el origen de los bytes no se obtiene del buffer de pixeles y color en alta resolucion,
 			//Si no que se obtiene de la pantalla tal cual
 			//TODO: esto es una limitacion de tal y como hace el render el tbblue, en que hago render de una linea cada vez,
@@ -5780,89 +5715,44 @@ void tbblue_do_ula_standard_overlay()
 			//de todas maneras esto es algo extraño que suceda: que alguien le de por hacer efectos en color en alta resolucion, en capa ula,
 			//y activar el scroll vertical. En teoria tambien puede hacer parpadeos en juegos normales, pero quien va a querer cambiar el scroll en juegos
 			//que no estan preparados para hacer scroll?
-			byte_leido=screen[direccion+pos_no_rainbow_pix_x];
 
+			byte_leido = screen[direccion + pos_no_rainbow_pix_x];
+			attribute = si_timex_8_1.v ? screen[0x2000 + direccion + pos_no_rainbow_pix_x] : screen[dir_atributo + pos_no_rainbow_pix_x];
 
-			if (si_timex_8_1.v==0) {
-				attribute=screen[dir_atributo+pos_no_rainbow_pix_x];	
-			}
-
-			else {
-				//timex 8x1
-				attribute=screen[direccion+pos_no_rainbow_pix_x+8192];
-			}
-
-
-
-		}
-
-		else {
-
+		} else {
 			//Modo sin scroll vertical. Permite scroll horizontal. Es modo rainbow
 
-			byte_leido=puntero_buffer_atributos[indice_origen_bytes++];
-			attribute=puntero_buffer_atributos[indice_origen_bytes++];
-
+			byte_leido = scanline_buffer[2 * pos_no_rainbow_pix_x];
+			attribute = scanline_buffer[2 * pos_no_rainbow_pix_x + 1];
 		}
 
+		if (!si_timex_hires.v || column&1) {	// every column in non-hires modes, every even column in hi-res mode
+			++pos_no_rainbow_pix_x;
+			pos_no_rainbow_pix_x %= 32;
+		}
 
+		get_ula_pixel_9b_color_tbblue(attribute, &ink, &paper);
+		//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
+		if (tbblue_si_transparent(ink)) ink = TBBLUE_SPRITE_TRANS_FICT;
+		if (tbblue_si_transparent(paper)) paper = TBBLUE_SPRITE_TRANS_FICT;
 
-		//32 columnas
-		//truncar siempre a modulo 64 (2 bytes: pixel y atributo)
-		indice_origen_bytes %=64;
+		for (int bit_cnt = 8; bit_cnt--; byte_leido <<= 1) {
 
-		if (si_timex_hires.v) {
-			if ((x&1)==0) byte_leido=screen[direccion+pos_no_rainbow_pix_x];
-			else byte_leido=screen[direccion+pos_no_rainbow_pix_x+8192];
-
-			attribute=col6;
-		}			
-			
-		get_ula_pixel_9b_color_tbblue(attribute,&ink,&paper);
-			
-    	for (bit=0;bit<8;bit++) {			
-			color= ( byte_leido & 128 ? ink : paper ) ;
-
-			int posx=x*8+bit; //Posicion pixel. Para clip window registers	
-			if (si_timex_hires.v) posx /=2;
-			posx -= pixelOffset;
-
-			//Tener en cuenta valor clip window
-			
-			//(W) 0x1A (26) => Clip Window ULA/LoRes
-			if (posx>=clip_windows[TBBLUE_CLIP_WINDOW_ULA][0] && posx<=clip_windows[TBBLUE_CLIP_WINDOW_ULA][1]) {
-				//Ver si color resultante es el transparente de ula, y cambiarlo por el color transparente ficticio
-				if (tbblue_si_transparent(color)) color=TBBLUE_SPRITE_TRANS_FICT;
-
-				layer[posicion_array_layer-pixelOffset*2]=color;
-				if (si_timex_hires.v==0) layer[posicion_array_layer-pixelOffset*2+1]=color; //doble de ancho
+			if (x1 <= posicion_array_layer && posicion_array_layer < x2) {
+				layer[posicion_array_layer] = byte_leido & 0x80 ? ink : paper;
 			}
+			++posicion_array_layer;
 
-		
-			posicion_array_layer++;
-			if (si_timex_hires.v==0) posicion_array_layer++; //doble de ancho
-        	byte_leido=byte_leido<<1;
-				
-      	}
-
-		if (si_timex_hires.v) {
-				if (x&1) {
-					pos_no_rainbow_pix_x++;
-					//direccion++;
+			if (!si_timex_hires.v) {
+				//doble de ancho
+				if (x1 <= posicion_array_layer && posicion_array_layer < x2) {
+					layer[posicion_array_layer] = byte_leido & 0x80 ? ink : paper;
 				}
+				++posicion_array_layer;
+			}
 		}
 
-		else {
-			//direccion++;
-			pos_no_rainbow_pix_x++;
-		}
-
-
-			
-		pos_no_rainbow_pix_x %=32;		
-
-	  }
-	
+	}
 }
 
 
