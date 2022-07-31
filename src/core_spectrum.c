@@ -589,11 +589,14 @@ void core_spectrum_handle_interrupts(void)
 
 					if (1==1) {
 
+						//FIXME Ped7g: this does *NOT* work as expected, inicio pulse is t_estados from end of frame, always bigger than cpu_duracion_pulso_interrupcion ?!
+						/*
 						//Si el pulso de interrupcion ya ha pasado
 						if (testados_desde_inicio_pulso_interrupcion>=cpu_duracion_pulso_interrupcion) {
 							//printf("interrupt timeout. t-states since interrupt triggered: %d\n",testados_desde_inicio_pulso_interrupcion);
 							interrupcion_maskable_generada.v=0;
 						}
+						*/
 
 						//justo despues de EI no debe generar interrupcion (incluso aunque antes del EI ya estuvieran habilitadas las interrupciones)
 						//tampoco se puede generar en medio de un refetch de prefijo DD o FD
