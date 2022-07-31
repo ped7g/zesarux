@@ -43,7 +43,7 @@ Examples
 
 //#define EMULATOR_VERSION "8.2"
 
-#define EMULATOR_VERSION "8.2.2-Ped7g"
+#define EMULATOR_VERSION "8.2.3-Ped7g"
 //#define EMULATOR_VERSION "8.2-RC"
 #define SNAPSHOT_VERSION
 
