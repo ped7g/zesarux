@@ -1698,8 +1698,8 @@ void instruccion_ddfd_190 ()
 	contend_read_no_mreq( reg_pc, 1 );
         contend_read_no_mreq( reg_pc, 1 );
         reg_pc++;
-        cp_reg( peek_byte_desp(*registro_ixiy,desp));
-
+        z80_byte v = peek_byte_desp(*registro_ixiy,desp);
+        cp_reg(v);
 }
 
 void instruccion_ddfd_191 ()

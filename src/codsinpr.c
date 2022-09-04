@@ -1627,7 +1627,8 @@ void instruccion_189()
 void instruccion_190()
 {
 //CP (HL)
-        cp_reg( peek_byte(HL) );
+        z80_byte v = peek_byte(HL);
+        cp_reg(v);
 }
 
 void instruccion_191()
