@@ -158,113 +158,112 @@ int playtzx_Error(char *errstr)
 
 
 
-int n, m;
-int num;
-char *d;
-int line = 3;
-//int fh;				/* Input File Handle */
+static int n, m;
+static int num;
+static char *d;
+static int line = 3;
+//static int fh;				/* Input File Handle */
 
-FILE *ptr_archivo_entrada;
+static FILE *ptr_archivo_entrada;
 
-int ofh;			/* Output File Handle */
-int flen;			/* File Length */
+static int ofh;			/* Output File Handle */
+static int flen;			/* File Length */
 
-unsigned char *mem;		/* File in Memory */
-unsigned char *memorig;		/* Valor de mem justo al asignar memoria */
+static unsigned char *mem;		/* File in Memory */
+static unsigned char *memorig;		/* Valor de mem justo al asignar memoria */
 
-int pos;			/* Position in File */
-int curr;			/* Current block that is playing */
-int numblocks;			/* Total Num. of blocks */
-int *block = NULL;		/* Array of Block starts */
-/*size_t*/ int blocks_allocated = 0;	/* The current size of the block[] array */
-double cycle;			/* Freq/3500000 */
+static int pos;			/* Position in File */
+static int curr;			/* Current block that is playing */
+static int numblocks;			/* Total Num. of blocks */
+static int *block = NULL;		/* Array of Block starts */
+static /*size_t*/ int blocks_allocated = 0;	/* The current size of the block[] array */
+static double cycle;			/* Freq/3500000 */
 
-char *sbbuf[2];			/* SB Buffers */
-int sbbuflen = 1024;		/* Length of buffers */
-int freq = 44100;		/* Sample Freq.  (SHOULD THIS BE 45454 ????) NOT !!! */
-int sbcurrpage = 1;		/* Buffer that is currently available for writing */
-int sbpos = 0;			/* Position in the buffer */
-int amp;			/* Amplitude of the current signal */
-int prvi;
+static char *sbbuf[2];			/* SB Buffers */
+static int sbbuflen = 1024;		/* Length of buffers */
+static int freq = 44100;		/* Sample Freq.  (SHOULD THIS BE 45454 ????) NOT !!! */
+static int sbcurrpage = 1;		/* Buffer that is currently available for writing */
+static int sbpos = 0;			/* Position in the buffer */
+static int amp;			/* Amplitude of the current signal */
+static int prvi;
 
-int cpc = 0;			/* Amstrad CPC tape ? */
-int sam = 0;			/* SAM Coupe tape ? */
+static int cpc = 0;			/* Amstrad CPC tape ? */
+static int sam = 0;			/* SAM Coupe tape ? */
 
-int id;				/* Current Block ID */
-int pilot;			/* Len of Pilot signal (in hp's) */
-int sb_pilot;			/* Pilot pulse */
-int sb_sync1;			/* Sync first half-period (hp) */
-int sb_sync2;			/* Sync second */
-int sb_bit0;			/* Bit-0 */
-int sb_bit1;			/* Bit-1 */
-int sb_pulse;			/* Pulse in Sequence of pulses and direct recording block */
-int lastbyte;			/* How many bits are in last byte of data ? */
-int tzx_pause;			/* Pause after current block (in 1s/10) */
-unsigned char *data;			/* Data to be played */
-int datalen;			/* Len of ^^^ */
-int datapos;			/* Position in ^^^ */
-int bitcount;			/* How many bits to play in current byte ? */
-int sb_bit;			/* should we play bit 0 or 1 ? */
-char databyte;			/* Current Byte to be replayed of the data */
-signed short jump;		/* Relative Jump */
-int not_rec;			/* Some blocks were not recognised ?? */
-int files = 0;			/* Number of Files on the command line */
-char finp[255];			/* Input File  (First Command Line Option) */
-char fout[255];			/* Output File (Second Command Line Option or First with .VOC) */
-char errstr[255];		/* Error String */
-int starting = 1;		/* starting block */
-int ending = 0;			/* ending block */
+static int id;				/* Current Block ID */
+static int pilot;			/* Len of Pilot signal (in hp's) */
+static int sb_pilot;			/* Pilot pulse */
+static int sb_sync1;			/* Sync first half-period (hp) */
+static int sb_sync2;			/* Sync second */
+static int sb_bit0;			/* Bit-0 */
+static int sb_bit1;			/* Bit-1 */
+static int sb_pulse;			/* Pulse in Sequence of pulses and direct recording block */
+static int lastbyte;			/* How many bits are in last byte of data ? */
+static int tzx_pause;			/* Pause after current block (in 1s/10) */
+static unsigned char *data;			/* Data to be played */
+static int datalen;			/* Len of ^^^ */
+static int datapos;			/* Position in ^^^ */
+static int bitcount;			/* How many bits to play in current byte ? */
+static int sb_bit;			/* should we play bit 0 or 1 ? */
+static char databyte;			/* Current Byte to be replayed of the data */
+static signed short jump;		/* Relative Jump */
+static int not_rec;			/* Some blocks were not recognised ?? */
+static int files = 0;			/* Number of Files on the command line */
+static char finp[255];			/* Input File  (First Command Line Option) */
+static char fout[255];			/* Output File (Second Command Line Option or First with .VOC) */
+static char errstr[255];		/* Error String */
+static int starting = 1;		/* starting block */
+static int ending = 0;			/* ending block */
 
-int voc = 0;			/* Are we making a .VOC file ? */
-int au = 0;			/* Are we making a .au file? */
-int tzx_info = 0;			/* if info=1 then show EXTENSIVE information */
+static int voc = 0;			/* Are we making a .VOC file ? */
+static int au = 0;			/* Are we making a .au file? */
+static int tzx_info = 0;			/* if info=1 then show EXTENSIVE information */
 /* info=2 then show ONE LINE of Info per block */
-int pages = 0;			/* Waiting after each page of the info ? */
-int expand = 0;			/* Expand Groups ? */
-int draw = 1;			/* Local flag for outputing a line when in a
-group */
-int mode128 = 0;		/* Are we working in 128k mode ? (for Stop in 48k block) */
+static int pages = 0;			/* Waiting after each page of the info ? */
+static int expand = 0;			/* Expand Groups ? */
+static int draw = 1;			/* Local flag for outputing a line when in a group */
+static int mode128 = 0;		/* Are we working in 128k mode ? (for Stop in 48k block) */
 
-char vochead[0x20] = {'C', 'r', 'e', 'a', 't', 'i', 'v', 'e', ' ', 'V', 'o', 'i', 'c', 'e', ' ', 'F', 'i', 'l', 'e',
+static char vochead[0x20] = {'C', 'r', 'e', 'a', 't', 'i', 'v', 'e', ' ', 'V', 'o', 'i', 'c', 'e', ' ', 'F', 'i', 'l', 'e',
 	0x1A, 0x1A, 0x00, 0x0A, 0x01, 0x29, 0x11};
-	char *vocbuf;			/* Buffer for .VOC block */
-	int vocbuflen = 0xFFFF;		/* Length of .VOC block (and buffer) */
-	char vocstart[4] = {0x02, 0xFF, 0xFF, 0x00};
-	int vocpos;			/* Length of current .VOC block */
+static char *vocbuf;			/* Buffer for .VOC block */
+static int vocbuflen = 0xFFFF;		/* Length of .VOC block (and buffer) */
+static char vocstart[4] = {0x02, 0xFF, 0xFF, 0x00};
+static int vocpos;			/* Length of current .VOC block */
 	
-	int nfreq = 0;			/* Did we choose new frequency with /freq switch ? */
-	char k;
-	int speed;
-	int x, last, lastlen;
+	static int nfreq = 0;			/* Did we choose new frequency with /freq switch ? */
+	static char k;
+	static int speed;
+	static int x, last, lastlen;
 	
-	int loop_start = 0;		/* Position of the last Loop Start block */
-	int loop_count = 0;		/* Counter of the Loop */
-	int call_pos = 0;		/* Position of the last Call Sequence block */
-	int call_num = 0;		/* Number of Calls in the last Call Sequence block */
-	int call_cur = 0;		/* Current Call to be made */
-	int num_sel;			/* Number of Selections in the Select block */
-	int jumparray[256];		/* Array of all possible jumps in Select block */
+	static int loop_start = 0;		/* Position of the last Loop Start block */
+	static int loop_count = 0;		/* Counter of the Loop */
+	static int call_pos = 0;		/* Position of the last Call Sequence block */
+	static int call_num = 0;		/* Number of Calls in the last Call Sequence block */
+	static int call_cur = 0;		/* Current Call to be made */
+	static int num_sel;			/* Number of Selections in the Select block */
+	static int jumparray[256];		/* Array of all possible jumps in Select block */
 	
-	int sb_bit0_f, sb_bit0_s, sb_bit1_f, sb_bit1_s, xortype, sb_finishbyte_f, sb_finishbyte_s,
+	static int sb_bit0_f, sb_bit0_s, sb_bit1_f, sb_bit1_s, xortype, sb_finishbyte_f, sb_finishbyte_s,
 	sb_finishdata_f, sb_finishdata_s, num_lead_in, xorvalue;
-	int trailing, sb_trailing;
-	char lead_in_byte;
-	int endian;
-	char add_bit;
+	static int trailing, sb_trailing;
+	static char lead_in_byte;
+	static int endian;
+	static char add_bit;
 	
 	#define LOAMP   0x10		/* Low Level Amplitude */
 	#define HIAMP   0xF0		/* High Level Amplitude */
 	
-	char tstr[255];
-	char tstr2[255];
-	char tstr3[255];
-	char tstr4[255];
-	char spdstr[255];
-	char pstr[255];
+	static char tstr[255];
+	static char tstr2[255];
+	static char tstr3[255];
+	static char tstr4[255];
+	static char spdstr[255];
+	static char pstr[255];
 	
-	SNDSoundStruct auhead;  /* .au-file header */
+	static SNDSoundStruct auhead;  /* .au-file header */
 	
-	int numt, nump, t2;
+	static int numt, nump, t2;
 	
 	/* Conversion functions to get 2,3 and 4 byte words ...*/
 	int 

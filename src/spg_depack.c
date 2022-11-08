@@ -224,10 +224,10 @@ z80_int dehrust(z80_byte* dst, z80_byte* src, int size)
 //------------------- DeMegaLZ --------------------------
 
 
-		z80_byte *from;
-		z80_byte *to;
-		z80_byte bitstream;
-		int bitcount;
+		static z80_byte *from;
+		static z80_byte *to;
+		static z80_byte bitstream;
+		static int bitcount;
 
 
 		void deMLZ(z80_byte *dst, z80_byte *src)
