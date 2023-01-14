@@ -5904,7 +5904,9 @@ void screen_store_scanline_rainbow_solo_display_tbblue(void)
 	if (tbblue_is_active_layer2() && !tbblue_force_disable_layer_layer_two.v) {
 		const int isLayer2height256 = tbblue_is_layer2_256height();
 		const int l2Y = isLayer2height256 ? fullY : paperY;
-		if (l2Y>=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][2] && l2Y<=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][3]) {
+		int maxy = clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][3];
+		if (!isLayer2height256 && 191 < maxy) maxy = 191;	// crop invalid clip range in 256x192 mode
+		if (l2Y>=clip_windows[TBBLUE_CLIP_WINDOW_LAYER2][2] && l2Y<=maxy) {
 			capalayer2=1;
 			if (isLayer2height256) {
 				tbblue_do_layer2_256h_overlay(l2Y);
