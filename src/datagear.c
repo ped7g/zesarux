@@ -492,8 +492,6 @@ void zxndma_emulate(struct s_zxndma* const dma) {
 		lee_puerto_spectrum_no_time((src->address>>8)&0xFF,src->address & 0xFF) :
 		peek_byte_no_time(src->address);
 
-	++reg_r;
-
 	t_estados += zxndma_get_port_cycles(dst);
 
 	// write byte
@@ -545,8 +543,6 @@ static void zxndma_emulate_zilog(struct s_zxndma* const dma, const int mode GCC_
 	z80_byte value = zxndma_is_port_io(src) ?
 		lee_puerto_spectrum_no_time((src->address>>8)&0xFF,src->address & 0xFF) :
 		peek_byte_no_time(src->address);
-
-	++reg_r;
 
 	t_estados += zxndma_get_port_cycles(dst);
 
