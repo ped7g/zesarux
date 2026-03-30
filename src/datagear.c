@@ -190,8 +190,8 @@ static void do_command(struct s_zxndma* const dma, const z80_byte command) {
 			dma->status |=  0b00100000;		// set "not end-of-block"
 			break;
 		case COMMAND_READ_STATUS_BYTE:
-			// any ongoing sequence of reading must be finished first before invoking this command
-			if (dma->read_mask) break;
+			// zilog: any ongoing sequence of reading must be finished first before invoking this command
+			if (dma->emulate_Zilog.v && dma->read_mask) break;
 			dma->read_mask = 0x01;			// only status byte
 			dma->read_index = 0;
 			break;
@@ -199,8 +199,8 @@ static void do_command(struct s_zxndma* const dma, const z80_byte command) {
 			expect_extra_bytes(dma, WRITE_MODE_WR6, 0x01);
 			break;
 		case COMMAND_START_READ_SEQUENCE:
-			// any ongoing sequence of reading must be finished first before invoking this command
-			if (dma->read_mask) break;
+			// zilog: any ongoing sequence of reading must be finished first before invoking this command
+			if (dma->emulate_Zilog.v && dma->read_mask) break;
 			dma->read_mask = dma->wr6_read_mask;
 			dma->read_index = 0;
 			break;
@@ -259,10 +259,12 @@ void zxndma_reset(struct s_zxndma* const dma) {
 	dma->portA.address = dma->portB.address = dma->counter = 0;	// internal trasnfer variables
 	dma->length = dma->wr0 = dma->wr3 = dma->wr4 = dma->wr5 = dma->wr6 = 0;
 	dma->portA.wr_address = dma->portB.wr_address = 0;
-	dma->portA.config = dma->portB.config = 0x01;	// "standard timing" internal bit set
-	dma->wr6_read_mask = 0b01111111;		// return all RR0-RR6 by default (after power-on)
+	dma->portA.config = dma->portB.config = 0x01;		// "standard timing" internal bit set
+	dma->read_mask = dma->wr6_read_mask = 0b01111111;	// return all RR0-RR6 by default (after power-on)
+	dma->read_index = 0;
+	//   ^^^ zxnDMA reads the sequence anytime just by reading the port (real Zilog probably not, but Next does)
 	// internal emulation related variables (mask==0 is enough, no need to init mode/index vars)
-	dma->write_mask = dma->read_mask = 0;	// no extra bytes are expected
+	dma->write_mask = 0;					// no extra bytes are expected
 	dma->emulate_Zilog.v = 0;				// default to "zxnDMA" mode
 	dma->emulate_UA858D.v = 0;
 	dma->bus_master.v = 0;
@@ -334,6 +336,12 @@ void zxndma_write_value(struct s_zxndma* const dma, const z80_byte value) {
 
 			case WRITE_MODE_WR6:
 				dma->wr6_read_mask = value & 0x7F;		//only possibility
+				// zxnDMA does implicit A7 init read sequence after BB setting reading mask
+				if (!dma->emulate_Zilog.v) {
+					// also reset current reading, even mid-way, contrary to what A7 does according to Zilog's docs
+					dma->read_mask = dma->wr6_read_mask;
+					dma->read_index = 0;
+				}
 				break;
 
 		} // switch (dma->write_mode)
@@ -392,22 +400,22 @@ z80_byte zxndma_read_value(struct s_zxndma* const dma) {
 	if (0 == dma->read_mask) {
 		// ZilogDMA chip does read non-zero, but it's not valid status either! So zero in emulation.
 		if (dma->emulate_Zilog.v) return 0;		// nothing to be seen here, proceed further
+		dma->read_mask = dma->wr6_read_mask;	// zxnDMA will do full sequence next time
+		dma->read_index = 0;
 		return dma->status;						// zxnDMA returns status on every unrequested read
 	}
 
-	// search for some bit in mask set (keep advancing index, so index is 1..n when mask is hit)
-	int current_mask_bit0;
-	do {
-		++dma->read_index;
-		current_mask_bit0 = dma->read_mask & 1;
-		dma->read_mask >>= 1;
-	} while (0 == current_mask_bit0);
+	// search for some bit in mask set
+	while(0 == (dma->read_mask & (1U << dma->read_index++))) {
+		if (dma->read_mask < (1U << dma->read_index)) {	// no more bits to send, reset sequence (zxnDMA behavior)
+			dma->read_mask = dma->wr6_read_mask;
+			dma->read_index = 0;
+			return zxndma_read_value(dma);		// check also 0 == read_mask edge case
+		}
+	}
 
-	// Next cores 3.x - 3.0.7 (latest I know of) return the counter with swapped bytes
-	// This emulation returns correct order, so the result is currently different from TBBlue board
-	// (I'm expecting the FPGA DMA to be fixed in later cores)
+	// Next core 3.1.4+ fixed the returned counter (was swapped in older cores)
 	switch (dma->read_index) {
-		case 1:	return dma->status;
 		case 2:	return dma->counter & 0xFF;
 		case 3:	return dma->counter>>8;
 		case 4:	return dma->portA.address & 0xFF;
@@ -415,7 +423,7 @@ z80_byte zxndma_read_value(struct s_zxndma* const dma) {
 		case 6:	return dma->portB.address & 0xFF;
 		case 7:	return dma->portB.address>>8;
 		default:
-			return 0;
+			return dma->status;
 	}
 }
 
